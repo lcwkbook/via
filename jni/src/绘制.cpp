@@ -497,12 +497,13 @@ void 绘制::保存配置()
 {
     // 保存自瞄和武器配置
     nlohmann::json aim_config;
-json config;
+    json config;
     // ... 其他配置项 ...
-    config["status_bar_alpha"] = statusBarAlpha;   // 现在 json 和 statusBarAlpha 均已声明
-    
-    std::ofstream file("/sdcard/AuraKernel/config.json");  // 示例路径
-    if (file.is_open()) {
+    config["status_bar_alpha"] = statusBarAlpha; // 现在 json 和 statusBarAlpha 均已声明
+
+    std::ofstream file("/sdcard/AuraKernel/config.json"); // 示例路径
+    if (file.is_open())
+    {
         file << config.dump(4);
     }
     // 自瞄配置
@@ -730,10 +731,12 @@ void 绘制::重置配置()
 void 绘制::读取配置()
 {
     std::ifstream file("/sdcard/AuraKernel/config.json");
-    if (!file.is_open()) return;
-    
+    if (!file.is_open())
+        return;
+
     json config = json::parse(file);
-    if (config.contains("status_bar_alpha")) {
+    if (config.contains("status_bar_alpha"))
+    {
         statusBarAlpha = config["status_bar_alpha"].get<float>();
     }
     // 读取自瞄配置文件
@@ -3545,7 +3548,7 @@ void 绘制::更新对象数据()
                 {
                     绘图.绘制动作(对象信息.敌人信息.状态);
                 }
-                if (按钮.手持 && !是否掐雷)
+                if ((按钮.手持 || 按钮.手持2) && !是否掐雷)
                     绘图.绘制手持(对象信息.敌人信息.手持, 对象信息.敌人信息.状态, 对象信息.敌人信息.子弹数量, 对象信息.敌人信息.子弹最大数量);
             }
         }

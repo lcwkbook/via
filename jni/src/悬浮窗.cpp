@@ -25,7 +25,14 @@
 #include <linux/input.h>
 #include <thread>
 #include <cstdarg> // 用于 va_list
+#include <sys/resource.h>
+#include <sys/syscall.h>
+#include <poll.h> // poll 结构体
+#include <atomic> // std::atomic
 
+static std::atomic<bool> g_volumeKeyPressed(false);
+static std::thread g_volumeThread;
+static std::atomic<bool> g_volumeThreadRunning(true);
 float statusBarAlpha = 0.8f; // 状态栏背景透明度，范围 0.3 ~ 1.0
 using json = nlohmann::json;
 // 外部函数声明（保持原样）
@@ -207,8 +214,6 @@ bool g_FloatWindow = false;
 // ---------- 辅助函数声明 ----------
 void ShowFloatWindow();
 void HideFloatWindow();
-void VolumeKeyMonitor();
-void StartVolumeKeyMonitor();
 void 猎鹰();
 int 数据();
 int 音量();
@@ -232,77 +237,57 @@ void HideFloatWindow()
 }
 
 // 音量键监听函数（修复权限日志、按键识别）
-void VolumeKeyMonitor()
+void VolumeKeyListener()
 {
-    int fdArray[10];
-    memset(fdArray, -1, sizeof(fdArray));
-    int openCount = 0;
-    for (int i = 0; i < 10; i++)
+    setpriority(PRIO_PROCESS, syscall(SYS_gettid), -20);
+    const char *devicePaths[] = {
+        "/dev/input/event0", "/dev/input/event1", "/dev/input/event2",
+        "/dev/input/event3", "/dev/input/event4", "/dev/input/event5",
+        "/dev/input/event6", "/dev/input/event7"};
+    std::vector<int> fds;
+    for (const char *path : devicePaths)
     {
-        char dev[64];
-        snprintf(dev, sizeof(dev), "/dev/input/event%d", i);
-        fdArray[i] = open(dev, O_RDWR | O_NONBLOCK);
-        if (fdArray[i] >= 0)
-        {
-            printf("成功打开输入设备: %s\n", dev);
-            openCount++;
-        }
-        else
-        {
-            printf("打开设备失败: %s, 错误码: %d（需root权限）\n", dev, errno);
-        }
+        int fd = open(path, O_RDONLY | O_NONBLOCK);
+        if (fd >= 0)
+            fds.push_back(fd);
     }
-
-    if (openCount == 0)
-    {
-        printf("未打开任何输入设备，音量键监听失效\n");
+    if (fds.empty())
         return;
+
+    std::vector<pollfd> pfds(fds.size());
+    for (size_t i = 0; i < fds.size(); ++i)
+    {
+        pfds[i].fd = fds[i];
+        pfds[i].events = POLLIN;
     }
 
-    struct input_event ev;
-    while (1)
-    {
-        for (int i = 0; i < 10; i++)
-        {
-            if (fdArray[i] < 0)
-                continue;
-
-            ssize_t bytes = read(fdArray[i], &ev, sizeof(ev));
-            if (bytes != sizeof(ev))
-                continue;
-
-            if (ev.type == EV_KEY && ev.value == 1)
-            {
-                if (ev.code == KEY_VOLUMEUP || ev.code == 115)
-                {
-                    g_FloatWindow = true;
-                    ShowFloatWindow();
-                    printf("音量上→悬浮窗开（状态：%d）\n", g_FloatWindow);
-                }
-                else if (ev.code == KEY_VOLUMEDOWN || ev.code == 114)
-                {
-                    g_FloatWindow = false;
-                    HideFloatWindow();
-                    printf("音量下→悬浮窗关（状态：%d）\n", g_FloatWindow);
+    input_event ev;
+   while (g_volumeThreadRunning) {
+    int ret = poll(pfds.data(), pfds.size(), 20);
+    if (ret > 0) {
+        for (size_t i = 0; i < pfds.size(); ++i) {
+            if (pfds[i].revents & POLLIN) {
+                while (read(pfds[i].fd, &ev, sizeof(ev)) == sizeof(ev)) {
+                    // 仅处理音量键按下事件
+                    if (ev.type == EV_KEY && ev.value == 1 &&
+                        (ev.code == KEY_VOLUMEUP || ev.code == KEY_VOLUMEDOWN)) {
+                        static uint64_t lastTime = 0;
+                        uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::system_clock::now().time_since_epoch()).count();
+                        if (now - lastTime > 200) {
+                            lastTime = now;
+                            g_volumeKeyPressed = true;
+                        }
+                    }
                 }
             }
         }
-        usleep(20000);
     }
-
-    for (int i = 0; i < 10; i++)
-    {
-        if (fdArray[i] >= 0)
-            close(fdArray[i]);
-    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
 
-// 启动监听线程
-void StartVolumeKeyMonitor()
-{
-    std::thread t(VolumeKeyMonitor);
-    t.detach();
-    printf("音量键监听启动\n");
+    for (int fd : fds)
+        close(fd);
 }
 
 void 猎鹰()
@@ -933,40 +918,21 @@ int 布局::MonitorVolumeKeys()
 void DrawThreeColorBalls()
 {
     ImDrawList *draw_list = ImGui::GetBackgroundDrawList();
+    ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+    if (displaySize.x <= 0 || displaySize.y <= 0) return; // 防止无效分辨率
 
-    // 原球参数（仅用于计算尺寸）
-    float ball_radius = 10.0f; // 半径10 → 直径20
-    float ball_diameter = ball_radius * 2;
-    float three_balls_diameter_sum = ball_diameter * 3; // 三个球直径之和 = 60
-
-    // 透明长方体尺寸：长度为三球直径之和的两倍，高度与球直径相同
-    float rect_length = three_balls_diameter_sum * 2; // 120
-    float rect_height = ball_diameter;                // 20
-
-    // 中心位置与原三个球整体中心一致（屏幕水平居中，Y = 50）
-    float center_x = ImGui::GetIO().DisplaySize.x / 2;
+    float ball_radius = 10.0f;
+    float rect_length = 120.0f;
+    float rect_height = 20.0f;
+    float center_x = displaySize.x / 2;
     float center_y = 50.0f;
 
-    // 计算矩形左上角和右下角坐标
     ImVec2 rect_min = ImVec2(center_x - rect_length / 2, center_y - rect_height / 2);
     ImVec2 rect_max = ImVec2(center_x + rect_length / 2, center_y + rect_height / 2);
 
-    // 玻璃灰透明填充（半透明）和边框（略深，半透明）
-    ImU32 fill_color = IM_COL32(128, 128, 128, 0);   // 填充完全透明
-    ImU32 border_color = IM_COL32(100, 100, 100, 0); // 边框完全透明
-
-    // 绘制填充矩形和边框
-    draw_list->AddRectFilled(rect_min, rect_max, fill_color);
-    draw_list->AddRect(rect_min, rect_max, border_color, 0.0f, 0, 2.0f); // 无圆角，边框厚度2
-
-    // 鼠标点击检测：点击矩形内任意位置切换悬浮窗
-    ImVec2 mouse_pos = ImGui::GetMousePos();
-    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
-        mouse_pos.x >= rect_min.x && mouse_pos.x <= rect_max.x &&
-        mouse_pos.y >= rect_min.y && mouse_pos.y <= rect_max.y)
-    {
-        悬浮窗 = !悬浮窗;
-    }
+    // 绘制透明矩形（用于点击检测）
+    draw_list->AddRectFilled(rect_min, rect_max, IM_COL32(128,128,128,0));
+    draw_list->AddRect(rect_min, rect_max, IM_COL32(100,100,100,0), 0.0f, 0, 2.0f);
 }
 
 extern bool g_login_success;
@@ -1057,21 +1023,24 @@ void DrawTopStatusBar()
 }
 
 // ---------- 左侧导航 ----------
-void DrawLeftNavigation(int &selectedMenu) {
+void DrawLeftNavigation(int &selectedMenu)
+{
     ImGui::BeginChild("##LeftNav", ImVec2(200, -1), true);
     ImGui::SetCursorPosY(25.0f);
     const char *menuItems[] = {"主页", "人物", "物资", "视觉", "颜色", "设置"};
     // 对应 手持图片 索引：300=主页,301=人物,302=物资,303=视觉,304=颜色,305=设置
     int iconIndices[] = {300, 301, 302, 303, 304, 305};
-    
-    for (int i = 0; i < IM_ARRAYSIZE(menuItems); i++) {
+
+    for (int i = 0; i < IM_ARRAYSIZE(menuItems); i++)
+    {
         bool selected = (selectedMenu == i);
         float avail = ImGui::GetContentRegionAvail().x - 20.0f;
         ImVec2 btnSize(avail, 42.0f);
         ImVec2 cursor = ImGui::GetCursorScreenPos();
         ImDrawList *dl = ImGui::GetWindowDrawList();
 
-        if (selected) {
+        if (selected)
+        {
             dl->AddRectFilled(cursor, ImVec2(cursor.x + btnSize.x, cursor.y + btnSize.y),
                               IM_COL32(30, 120, 200, 80), 8.0f);
             dl->AddRect(cursor, ImVec2(cursor.x + btnSize.x, cursor.y + btnSize.y),
@@ -1080,7 +1049,8 @@ void DrawLeftNavigation(int &selectedMenu) {
 
         // 从手持图片映射表获取纹理
         auto it = 手持图片.find(iconIndices[i]);
-        if (it != 手持图片.end() && it->second.DS != nullptr) {
+        if (it != 手持图片.end() && it->second.DS != nullptr)
+        {
             float iconSize = 24.0f;
             ImVec2 iconPos(cursor.x + 15.0f, cursor.y + (btnSize.y - iconSize) * 0.5f);
             dl->AddImage(it->second.DS, iconPos, ImVec2(iconPos.x + iconSize, iconPos.y + iconSize));
@@ -1088,13 +1058,14 @@ void DrawLeftNavigation(int &selectedMenu) {
 
         // 文字绘制
         ImVec2 textSize = ImGui::CalcTextSize(menuItems[i]);
-        float textX = cursor.x + 50.0f;  // 留出图标空间
+        float textX = cursor.x + 50.0f; // 留出图标空间
         float textY = cursor.y + (btnSize.y - textSize.y) * 0.5f;
         dl->AddText(ImVec2(textX, textY), selected ? IM_COL32(255, 255, 255, 255) : IM_COL32(180, 180, 180, 255), menuItems[i]);
 
         // 点击处理
         ImGui::SetCursorScreenPos(cursor);
-        if (ImGui::InvisibleButton(menuItems[i], btnSize)) {
+        if (ImGui::InvisibleButton(menuItems[i], btnSize))
+        {
             selectedMenu = i;
         }
         ImGui::SetCursorScreenPos(ImVec2(cursor.x, cursor.y + btnSize.y + 5.0f));
@@ -1171,6 +1142,8 @@ void DrawHomePage()
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8f, 0.25f, 0.25f, 0.9f));
     if (ImGui::Button("退出程序", ImVec2(fullW, 38)))
     {
+        // 停止音量监听线程
+        g_volumeThreadRunning = false;
         if (无痕读取开启 && std::filesystem::exists(备份目录))
             RestoreADBDirectory();
         exit(1);
@@ -1326,7 +1299,7 @@ void DrawColorPage()
 {
     ImGui::BeginChild("##ColorContent", ImVec2(-1, -1), true);
     ImGui::SetCursorPos(ImVec2(20, 20));
-    static const char *配置选项[] = {"人机配置", "真人配置"};
+    static const char *配置选项[] = {"真人配置", "人机配置"};
     ImGui::Text("当前配置");
     ImGui::SameLine(150);
     ImGui::SetNextItemWidth(200);
@@ -1402,7 +1375,6 @@ void DrawSettingsPage()
     ImGui::EndChild();
     ImGui::EndChild();
 }
-
 
 // ---------- 主绘制函数 ----------
 void 布局::绘制悬浮窗()
@@ -1533,7 +1505,11 @@ void 布局::绘制悬浮窗()
     // 绘制顶部状态栏（由开关控制）
     if (showTopStatusBar)
         DrawTopStatusBar();
-
+    // 处理音量键事件
+    if (g_volumeKeyPressed.exchange(false))
+    {
+        悬浮窗 = !悬浮窗;
+    }
     if (悬浮窗)
     {
         ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
@@ -1584,6 +1560,8 @@ void 布局::绘制悬浮窗()
 
 void 布局::开启悬浮窗()
 {
+    // 启动音量键监听
+    g_volumeThread = std::thread(VolumeKeyListener);
     timer WindowDrawing;
     WindowDrawing.SetFps(120);
     WindowDrawing.AotuFPS_init();
@@ -1597,6 +1575,10 @@ void 布局::开启悬浮窗()
         WindowDrawing.AotuFPS();
         std::this_thread::sleep_for(1ms);
     }
+    // 退出时清理
+    g_volumeThreadRunning = false;
+    if (g_volumeThread.joinable())
+        g_volumeThread.join();
 }
 
 // 在 悬浮窗.cpp 中简化更新状态函数
