@@ -1126,12 +1126,12 @@ void DrawHomePage()
     ImGui::SameLine(300);
     ImGui::Text("注册读写");
     ImGui::EndChild();
-    current_y += 30 + card_padding;
+    current_y += 90 + card_padding;
 
     // 状态栏开关
     ImGui::SetCursorPos(ImVec2(20, current_y));
     ImGui::Checkbox("显示顶部状态栏", &showTopStatusBar);
-    current_y += 30 + card_padding;
+    current_y += 50 + card_padding;
 
     // 游戏控制卡片（高度稍大）
     ImGui::SetCursorPos(ImVec2(20, current_y));
