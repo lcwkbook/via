@@ -17,6 +17,7 @@
 #include "图片调用.h"
 #include "物资ID.h"
 #include "辅助类.h"
+#include "DataReader.h"
 #include "HookRW.h" // 添加HookRW头文件
 
 // 添加ptrace过检测功能
@@ -657,6 +658,9 @@ void 绘制::保存配置()
         {"爆炸猎弓", 按钮.爆炸猎弓},
         {"超体职业", 按钮.超体职业},
         {"精英勋章", 按钮.精英勋章},
+        {"自救器", 按钮.显示自救器},
+        {"飞索", 按钮.显示飞索},
+        {"黑色物资箱", 按钮.显示黑色物资箱},
         {"绘制最大距离", 按钮.绘制最大距离},
     };
 
@@ -917,6 +921,9 @@ void 绘制::读取配置()
             按钮.爆炸猎弓 = button.value("爆炸猎弓", 按钮.爆炸猎弓);
             按钮.精英勋章 = button.value("精英勋章", 按钮.精英勋章);
             按钮.超体职业 = button.value("超体职业", 按钮.超体职业);
+            按钮.显示自救器 = button.value("自救器", false);
+            按钮.显示飞索 = button.value("飞索", false);
+            按钮.显示黑色物资箱 = button.value("黑色物资箱", false);
             按钮.绘制最大距离 = button.value("绘制最大距离", 按钮.绘制最大距离);
         }
 
@@ -2467,7 +2474,7 @@ void 绘制::更新对象数据()
                     name.c_str());
             }
 
-            if (strstr(ClassName, "_revivalAED_Pickup_C") != 0)
+            if (按钮.显示自救器 && strstr(ClassName, "_revivalAED_Pickup_C") != 0)
             {
                 std::string name = "自救器[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -2490,30 +2497,7 @@ void 绘制::更新对象数据()
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
-            if (strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme") != 0)
-            {
-                std::string name = "黑色物资箱子[";
-                name += std::to_string((int)对象信息.敌人信息.距离);
-                name += "米]";
-                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
-                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-
-                // 绘制描边
-                for (int x = -1; x <= 1; x++)
-                {
-                    for (int y = -1; y <= 1; y++)
-                    {
-                        if (x != 0 || y != 0)
-                        {
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
-                        }
-                    }
-                }
-                // 绘制中心文字
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
-            }
-
-            if (strstr(ClassName, "BP_Pickup_Finger_C") != 0)
+            if (按钮.显示飞索 && strstr(ClassName, "BP_Pickup_Finger_C") != 0)
             {
                 std::string name = "飞索[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -2689,7 +2673,7 @@ void 绘制::更新对象数据()
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(0, 0, 255, 255), name.c_str());
             }
 
-            if (strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme_C") != 0)
+            if (按钮.显示黑色物资箱 && (strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme") != 0 || strstr(ClassName, "BP_WAlnnerWrapperList_C") != 0))
             {
                 std::string name = "黑色物资箱[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -2758,7 +2742,54 @@ void 绘制::更新对象数据()
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
-            if (strstr(ClassName, "ckUp_BP_Bag_Lv3_C") != 0 or strstr(ClassName, "PickUp_BP_Bag_Lv3_B_C") != 0)
+            // 三级头
+            if (按钮.显示防具 && (strstr(ClassName, "ckUp_BP_Helmet_Lv3_C") != 0 || strstr(ClassName, "PickUp_BP_Helmet_Lv3_C") != 0))
+            {
+                std::string name = "三级头[";
+                name += std::to_string((int)对象信息.敌人信息.距离);
+                name += "米]";
+                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
+                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                // 绘制描边
+                for (int x = -1; x <= 1; x++)
+                {
+                    for (int y = -1; y <= 1; y++)
+                    {
+                        if (x != 0 || y != 0)
+                        {
+                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                        }
+                    }
+                }
+                // 绘制中心文字（使用橙色表示三级头，可自行修改）
+                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 128, 0, 255), name.c_str());
+            }
+            // 三级甲
+            if (按钮.显示防具 && (strstr(ClassName, "ckUp_BP_Armor_Lv3_C") != 0 || strstr(ClassName, "PickUp_BP_Armor_Lv3_C") != 0))
+            {
+                std::string name = "三级甲[";
+                name += std::to_string((int)对象信息.敌人信息.距离);
+                name += "米]";
+                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
+                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                // 绘制描边
+                for (int x = -1; x <= 1; x++)
+                {
+                    for (int y = -1; y <= 1; y++)
+                    {
+                        if (x != 0 || y != 0)
+                        {
+                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                        }
+                    }
+                }
+                // 绘制中心文字（使用蓝色表示三级甲，可自行修改）
+                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(0, 120, 255, 255), name.c_str());
+            }
+
+            if (按钮.显示防具 && (strstr(ClassName, "ckUp_BP_Bag_Lv3_C") != 0 || strstr(ClassName, "PickUp_BP_Bag_Lv3_B_C") != 0))
             {
                 std::string name = "三级包[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -2990,6 +3021,56 @@ void 绘制::更新对象数据()
                     }
                     // 绘制中心文字
                     ImGui::GetForegroundDrawList()->AddText(NULL, 25, textPos, ImColor(255, 255, 0, 255), name.c_str());
+                }
+            }
+
+            // ========== 自定义物资绘制 ==========
+            if (按钮.自定义物资开关)
+            {
+                static DataReader customReader;
+                static bool customDataLoaded = false;
+                static bool firstAttempt = true;
+
+                if (!customDataLoaded)
+                {
+                    if (customReader.loadDataFromFile("/sdcard/AuraKernel/自定义物资.txt"))
+                        customDataLoaded = true;
+                    firstAttempt = false;
+                }
+
+                if (customDataLoaded && t_屏幕坐标.W > 0)
+                {
+                    if (对象信息.敌人信息.距离 < 2000.0f) // 可根据需要调整
+                    {
+                        const CustomItemInfo *info = customReader.getItemInfo(ClassName);
+                        if (info)
+                        {
+                            char buffer[128];
+                            snprintf(buffer, sizeof(buffer), "%s[%d米]", info->displayName.c_str(), (int)对象信息.敌人信息.距离);
+
+                            float fontSize = info->fontSize;
+                            if (fontSize <= 0)
+                                fontSize = 物资字体大小; // 后备
+
+                            ImVec2 textSize = ImGui::CalcTextSize(buffer, 0, fontSize);
+                            ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                            ImColor textColor = info->color;
+                            ImColor outlineColor = ImColor(0, 0, 0, 255);
+
+                            // 描边
+                            for (int x = -1; x <= 1; x++)
+                            {
+                                for (int y = -1; y <= 1; y++)
+                                {
+                                    if (x != 0 || y != 0)
+                                        ImGui::GetForegroundDrawList()->AddText(NULL, fontSize, {textPos.x + x, textPos.y + y}, outlineColor, buffer);
+                                }
+                            }
+                            // 主文字
+                            ImGui::GetForegroundDrawList()->AddText(NULL, fontSize, textPos, textColor, buffer);
+                        }
+                    }
                 }
             }
         }

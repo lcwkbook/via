@@ -65,7 +65,7 @@ int main() {
     // 微验接口域名
 	const string p53adc95617fa3801e961094a9623f569 = "wy.llua.cn";
 	// 当前版本，用于检查更新
-	const string currentVersion = "1.36.2.11";
+	const string currentVersion = "1.36.2.15";
 	// 卡密存储路径
 	const string kmPath = "/sdcard/AuraKernel/AuraKernel.km";
 	

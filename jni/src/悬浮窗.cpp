@@ -27,6 +27,7 @@
 #include <cstdarg> // 用于 va_list
 #include <sys/resource.h>
 #include <sys/syscall.h>
+#include "DataReader.h"
 #include <poll.h> // poll 结构体
 #include <atomic> // std::atomic
 
@@ -262,29 +263,37 @@ void VolumeKeyListener()
     }
 
     input_event ev;
-   while (g_volumeThreadRunning) {
-    int ret = poll(pfds.data(), pfds.size(), 20);
-    if (ret > 0) {
-        for (size_t i = 0; i < pfds.size(); ++i) {
-            if (pfds[i].revents & POLLIN) {
-                while (read(pfds[i].fd, &ev, sizeof(ev)) == sizeof(ev)) {
-                    // 仅处理音量键按下事件
-                    if (ev.type == EV_KEY && ev.value == 1 &&
-                        (ev.code == KEY_VOLUMEUP || ev.code == KEY_VOLUMEDOWN)) {
-                        static uint64_t lastTime = 0;
-                        uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            std::chrono::system_clock::now().time_since_epoch()).count();
-                        if (now - lastTime > 200) {
-                            lastTime = now;
-                            g_volumeKeyPressed = true;
+    while (g_volumeThreadRunning)
+    {
+        int ret = poll(pfds.data(), pfds.size(), 20);
+        if (ret > 0)
+        {
+            for (size_t i = 0; i < pfds.size(); ++i)
+            {
+                if (pfds[i].revents & POLLIN)
+                {
+                    while (read(pfds[i].fd, &ev, sizeof(ev)) == sizeof(ev))
+                    {
+                        // 仅处理音量键按下事件
+                        if (ev.type == EV_KEY && ev.value == 1 &&
+                            (ev.code == KEY_VOLUMEUP || ev.code == KEY_VOLUMEDOWN))
+                        {
+                            static uint64_t lastTime = 0;
+                            uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                               std::chrono::system_clock::now().time_since_epoch())
+                                               .count();
+                            if (now - lastTime > 200)
+                            {
+                                lastTime = now;
+                                g_volumeKeyPressed = true;
+                            }
                         }
                     }
                 }
             }
         }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-}
 
     for (int fd : fds)
         close(fd);
@@ -919,7 +928,8 @@ void DrawThreeColorBalls()
 {
     ImDrawList *draw_list = ImGui::GetBackgroundDrawList();
     ImVec2 displaySize = ImGui::GetIO().DisplaySize;
-    if (displaySize.x <= 0 || displaySize.y <= 0) return; // 防止无效分辨率
+    if (displaySize.x <= 0 || displaySize.y <= 0)
+        return; // 防止无效分辨率
 
     float ball_radius = 10.0f;
     float rect_length = 120.0f;
@@ -931,8 +941,8 @@ void DrawThreeColorBalls()
     ImVec2 rect_max = ImVec2(center_x + rect_length / 2, center_y + rect_height / 2);
 
     // 绘制透明矩形（用于点击检测）
-    draw_list->AddRectFilled(rect_min, rect_max, IM_COL32(128,128,128,0));
-    draw_list->AddRect(rect_min, rect_max, IM_COL32(100,100,100,0), 0.0f, 0, 2.0f);
+    draw_list->AddRectFilled(rect_min, rect_max, IM_COL32(128, 128, 128, 0));
+    draw_list->AddRect(rect_min, rect_max, IM_COL32(100, 100, 100, 0), 0.0f, 0, 2.0f);
 }
 
 extern bool g_login_success;
@@ -1203,31 +1213,156 @@ void DrawCharacterPage()
     ImGui::EndChild();
 }
 
-// ---------- 物资页面 ----------
+// ---------- 物资页面（美化版） ----------
 void DrawItemsPage()
 {
     ImGui::BeginChild("##ItemsContent", ImVec2(-1, -1), true);
     ImGui::SetCursorPos(ImVec2(20, 20));
-    ImGui::Columns(2, "##物资列", false);
-    struct CheckboxOption
+
+    // 使用 ImGui 原生 TabBar 实现选项卡切换
+    if (ImGui::BeginTabBar("##ItemTabs"))
     {
-        const char *name;
-        bool *variable;
-        const char *notification;
-    } options[] = {
-        {"步枪", &绘制.按钮.显示步枪, "步枪显示"}, {"冲锋枪", &绘制.按钮.冲锋枪械, "冲锋枪显示"}, {"狙击枪", &绘制.按钮.狙击枪械, "狙击枪显示"}, {"霰弹枪", &绘制.按钮.散弹枪械, "霰弹枪显示"}, {"爆炸猎弓", &绘制.按钮.爆炸猎弓, "爆炸猎弓显示"}, {"子弹", &绘制.按钮.显示子弹, "子弹显示"}, {"武器箱", &绘制.按钮.绘制武器箱, "武器箱显示"}, {"隐藏古墓箱子", &绘制.按钮.隐藏古墓已开启, "隐藏古墓箱子"}, {"古墓树木", &绘制.按钮.显示古墓篮子, "古墓树木显示"}, {"古墓华贵宝箱", &绘制.按钮.显示古墓首饰盒, "古墓华贵宝箱显示"}, {"古墓精致宝箱", &绘制.按钮.显示古墓宝箱, "古墓精致宝箱显示"}, {"古墓宝箱", &绘制.按钮.显示古墓精致宝箱, "古墓宝箱显示"}, {"古墓首饰盒", &绘制.按钮.显示古墓华贵宝箱, "古墓首饰盒显示"}, {"古墓篮子", &绘制.按钮.显示古墓树木, "古墓篮子显示"}, {"信号枪", &绘制.按钮.绘制信号枪, "信号枪显示"}, {"空投箱", &绘制.按钮.绘制空投, "空投箱显示"}, {"金插", &绘制.按钮.绘制金插, "金插显示"}, {"宝箱", &绘制.按钮.绘制宝箱, "宝箱显示"}, {"超级箱", &绘制.按钮.超级物资箱, "超级箱显示"}, {"倍镜", &绘制.按钮.显示倍镜, "倍镜显示"}, {"扩容", &绘制.按钮.显示扩容, "扩容显示"}, {"配件", &绘制.按钮.显示配件, "配件显示"}, {"头甲", &绘制.按钮.显示防具, "头甲显示"}, {"投掷物", &绘制.按钮.投掷物品, "投掷物显示"}, {"盒子", &绘制.按钮.盒子, "盒子显示"}, {"药品", &绘制.按钮.显示药品, "药品显示"}, {"止痛药", &绘制.按钮.显示止痛药, "止痛药显示"}, {"饮料", &绘制.按钮.显示可乐, "饮料显示"}, {"肾上腺素", &绘制.按钮.显示肾上腺素, "肾上腺素显示"}, {"精英勋章", &绘制.按钮.精英勋章, "精英勋章"}};
-    for (int i = 0; i < IM_ARRAYSIZE(options); i++)
-    {
-        if (ImGui::Checkbox(options[i].name, options[i].variable))
+        // ========== 通用物资选项卡 ==========
+        if (ImGui::BeginTabItem("通用物资"))
         {
-            绘制.保存配置();
-            AddNotification(options[i].notification, *options[i].variable);
+            ImGui::Spacing();
+
+            // 获取可用宽度，用于动态列数计算
+            float availWidth = ImGui::GetContentRegionAvail().x - 20.0f;
+
+            // 辅助宏：在给定区域内绘制带复选框的选项列表（自动多列）
+            auto DrawCheckboxGroup = [&](const char *groupName,
+                                         const std::vector<std::tuple<const char *, bool *, const char *>> &items,
+                                         int columns = 3)
+            {
+                if (ImGui::CollapsingHeader(groupName, ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
+                    ImGui::Columns(columns, groupName, false);
+                    for (size_t i = 0; i < items.size(); ++i)
+                    {
+                        const auto &item = items[i];
+                        const char *name = std::get<0>(item);
+                        bool *var = std::get<1>(item);
+                        const char *notif = std::get<2>(item);
+
+                        if (ImGui::Checkbox(name, var))
+                        {
+                            绘制.保存配置();
+                            AddNotification(notif, *var);
+                        }
+                        // 手动换列
+                        if ((i + 1) % ((items.size() + columns - 1) / columns) == 0 && i != items.size() - 1)
+                            ImGui::NextColumn();
+                    }
+                    ImGui::Columns(1);
+                    ImGui::PopStyleVar();
+                    ImGui::Spacing();
+                }
+            };
+
+            // 1. 武器类
+            std::vector<std::tuple<const char *, bool *, const char *>> weapons = {
+                {"步枪", &绘制.按钮.显示步枪, "步枪显示"},
+                {"冲锋枪", &绘制.按钮.冲锋枪械, "冲锋枪显示"},
+                {"狙击枪", &绘制.按钮.狙击枪械, "狙击枪显示"},
+                {"霰弹枪", &绘制.按钮.散弹枪械, "霰弹枪显示"},
+                {"爆炸猎弓", &绘制.按钮.爆炸猎弓, "爆炸猎弓显示"},
+                {"信号枪", &绘制.按钮.绘制信号枪, "信号枪显示"}};
+            DrawCheckboxGroup("武器", weapons, 3);
+
+            // 2. 配件类
+            std::vector<std::tuple<const char *, bool *, const char *>> attachments = {
+                {"倍镜", &绘制.按钮.显示倍镜, "倍镜显示"},
+                {"扩容", &绘制.按钮.显示扩容, "扩容显示"},
+                {"配件", &绘制.按钮.显示配件, "配件显示"},
+                {"头甲", &绘制.按钮.显示防具, "头甲显示"}};
+            DrawCheckboxGroup("配件", attachments, 2);
+
+            // 3. 消耗品类
+            std::vector<std::tuple<const char *, bool *, const char *>> consumables = {
+                {"药品", &绘制.按钮.显示药品, "药品显示"},
+                {"止痛药", &绘制.按钮.显示止痛药, "止痛药显示"},
+                {"饮料", &绘制.按钮.显示可乐, "饮料显示"},
+                {"肾上腺素", &绘制.按钮.显示肾上腺素, "肾上腺素显示"},
+                {"子弹", &绘制.按钮.显示子弹, "子弹显示"},
+                {"投掷物", &绘制.按钮.投掷物品, "投掷物显示"}};
+            DrawCheckboxGroup("消耗品", consumables, 3);
+
+            // 4. 特殊物品
+            std::vector<std::tuple<const char *, bool *, const char *>> specials = {
+                {"空投箱", &绘制.按钮.绘制空投, "空投箱显示"},
+                {"金插", &绘制.按钮.绘制金插, "金插显示"},
+                {"宝箱", &绘制.按钮.绘制宝箱, "宝箱显示"},
+                {"超级箱", &绘制.按钮.超级物资箱, "超级箱显示"},
+                {"武器箱", &绘制.按钮.绘制武器箱, "武器箱显示"},
+                {"盒子", &绘制.按钮.盒子, "盒子显示"},
+                {"精英勋章", &绘制.按钮.精英勋章, "精英勋章显示"},
+                {"自救器", &绘制.按钮.显示自救器, "自救器显示"},
+                {"飞索", &绘制.按钮.显示飞索, "飞索显示"},
+                {"黑色物资箱", &绘制.按钮.显示黑色物资箱, "黑色物资箱显示"}};
+            DrawCheckboxGroup("特殊物品", specials, 3);
+
+            // 5. 古墓专属
+            std::vector<std::tuple<const char *, bool *, const char *>> tomb = {
+                {"隐藏古墓箱子", &绘制.按钮.隐藏古墓已开启, "隐藏古墓箱子"},
+                {"古墓树木", &绘制.按钮.显示古墓篮子, "古墓树木显示"},
+                {"古墓华贵宝箱", &绘制.按钮.显示古墓首饰盒, "古墓华贵宝箱显示"},
+                {"古墓精致宝箱", &绘制.按钮.显示古墓宝箱, "古墓精致宝箱显示"},
+                {"古墓宝箱", &绘制.按钮.显示古墓精致宝箱, "古墓宝箱显示"},
+                {"古墓首饰盒", &绘制.按钮.显示古墓华贵宝箱, "古墓首饰盒显示"},
+                {"古墓篮子", &绘制.按钮.显示古墓树木, "古墓篮子显示"}};
+            DrawCheckboxGroup("古墓专属", tomb, 3);
+
+            ImGui::EndTabItem();
         }
-        ImGui::Spacing();
-        if (i % 15 == 14)
-            ImGui::NextColumn();
+
+        if (ImGui::BeginTabItem("自定义物资"))
+        {
+            ImGui::Spacing();
+
+            // 总开关
+            if (ImGui::Checkbox("启用自定义物资绘制", &绘制.按钮.自定义物资开关))
+            {
+                绘制.保存配置();
+            }
+
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+
+            // 使用静态 reader，但提供重新加载按钮
+            static DataReader customReader;
+            static bool dataLoaded = false;
+            static std::string lastFilePath = "/sdcard/AuraKernel/自定义物资.txt";
+
+            ImGui::Text("数据文件: %s", lastFilePath.c_str());
+            if (ImGui::Button("重新加载数据文件"))
+            {
+                if (customReader.loadDataFromFile(lastFilePath))
+                {
+                    dataLoaded = true;
+                    AddNotification("自定义物资数据加载成功", true);
+                }
+                else
+                {
+                    dataLoaded = false;
+                    AddNotification("自定义物资数据加载失败，请检查文件", false);
+                }
+            }
+
+            ImGui::Spacing();
+            if (dataLoaded)
+                ImGui::TextColored(ImVec4(0.3f, 0.9f, 0.3f, 1.0f), "状态: 已加载");
+            else
+                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "状态: 未加载");
+
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
     }
-    ImGui::Columns(1);
+
     ImGui::EndChild();
 }
 
