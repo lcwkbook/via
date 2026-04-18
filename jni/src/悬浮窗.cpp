@@ -1061,7 +1061,7 @@ void DrawLeftNavigation(int &selectedMenu)
         auto it = 手持图片.find(iconIndices[i]);
         if (it != 手持图片.end() && it->second.DS != nullptr)
         {
-            float iconSize = 24.0f;
+            float iconSize = 30.0f;
             ImVec2 iconPos(cursor.x + 15.0f, cursor.y + (btnSize.y - iconSize) * 0.5f);
             dl->AddImage(it->second.DS, iconPos, ImVec2(iconPos.x + iconSize, iconPos.y + iconSize));
         }
