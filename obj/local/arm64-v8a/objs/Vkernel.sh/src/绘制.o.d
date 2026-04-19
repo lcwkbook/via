@@ -146,6 +146,7 @@ C:/Users/园中/Documents/GitHub/via/obj/local/arm64-v8a/objs/Vkernel.sh/src/绘
   C:/Users/园中/Documents/GitHub/via/jni/include/骨骼.hpp \
   C:/Users/园中/Documents/GitHub/via/jni/include/DataReader.h \
   C:/Users/园中/Documents/GitHub/via/jni/src/HookRW.h \
+  C:/Users/园中/Documents/GitHub/via/jni/src/Offsets.h \
   C:/Users/园中/Documents/GitHub/via/jni/src/Event.h \
   C:/Users/园中/Documents/GitHub/via/jni/include/Gryo/Gryo.h \
   C:/Users/园中/Documents/GitHub/via/jni/include/Gryo/../SysRead.h \
@@ -298,6 +299,7 @@ C:/Users/园中/Documents/GitHub/via/jni/include/vulkan/VulkanUtils.h:
 C:/Users/园中/Documents/GitHub/via/jni/include/骨骼.hpp:
 C:/Users/园中/Documents/GitHub/via/jni/include/DataReader.h:
 C:/Users/园中/Documents/GitHub/via/jni/src/HookRW.h:
+C:/Users/园中/Documents/GitHub/via/jni/src/Offsets.h:
 C:/Users/园中/Documents/GitHub/via/jni/src/Event.h:
 C:/Users/园中/Documents/GitHub/via/jni/include/Gryo/Gryo.h:
 C:/Users/园中/Documents/GitHub/via/jni/include/Gryo/../SysRead.h:

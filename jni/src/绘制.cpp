@@ -19,6 +19,7 @@
 #include "辅助类.h"
 #include "DataReader.h"
 #include "HookRW.h" // 添加HookRW头文件
+#include "Offsets.h"
 
 // 添加ptrace过检测功能
 #include <sys/ptrace.h>
@@ -1963,98 +1964,6 @@ D2DVector 绘制::WorldToScreen2(const FVector_class &WorldLocation)
 }
 
 // 更新 数据
-// 更新 数据
-namespace Offsets {
-    // ==================== libUE4.so 模块基址偏移 ====================
-    constexpr uintptr_t GWorld             = 0x15772758;   // 世界地址基址
-    constexpr uintptr_t GName              = 0x154DAD38;   // 类名基址
-    constexpr uintptr_t MatrixChain1       = 0x1573BEE8;   // 矩阵链1
-    constexpr uintptr_t MatrixChain2       = 0x154DAD38;   // 备用矩阵链
-    constexpr uintptr_t ClassBase          = 0x14E33C18;   // 类地址基址
-    constexpr uintptr_t GyroBase           = 0x12F65848;   // 陀螺仪灵敏度基址
-    // ==================== GWorld 内部偏移 ====================
-    constexpr uintptr_t GWorld_PersistentLevel = 0xB0;      // 持久关卡
-    constexpr uintptr_t GWorld_ActorsArray      = 0xA0;      // Actor数组
-    constexpr uintptr_t GWorld_ActorsCount      = 0xA8;      // Actor数量（未解密）
-    constexpr uintptr_t GWorld_ActorsCountDec    = 0xB8;     // Actor数量（解密后）
-    constexpr uintptr_t GWorld_GameState        = 0xAB8;     // 游戏状态
-    // ==================== Actor 通用偏移 ====================
-    constexpr uintptr_t Actor_RootComponent     = 0x260;      // 根组件
-    constexpr uintptr_t Actor_TeamID            = 0xB78;      // 队伍ID
-    constexpr uintptr_t Actor_Health            = 0xFF8;      // 当前血量
-    constexpr uintptr_t Actor_HealthMax         = 0x1000;     // 最大血量
-    constexpr uintptr_t Actor_PlayerName        = 0xAF8;      // 玩家名字
-    constexpr uintptr_t Actor_PlayerUID         = 0xB10;      // 玩家UID
-    constexpr uintptr_t Actor_Velocity          = 0x10FC;     // 速度向量
-    constexpr uintptr_t Actor_Mesh              = 0x658;      // Mesh组件
-    constexpr uintptr_t Actor_PawnState         = 0x1680;     // 状态同步数据
-    constexpr uintptr_t Actor_bIsAI             = 0xB94;      // 是否AI
-    constexpr uintptr_t Actor_bIsGunADS         = 0x17B8;     // 是否开镜
-    constexpr uintptr_t Actor_bIsWeaponFiring   = 0x2608;     // 是否开火
-    constexpr uintptr_t Actor_CurrentWeapon     = 0x1108;     // 当前武器指针
-    constexpr uintptr_t Actor_SpeedValue        = 0x1018;     // 人物高度/速度
-    constexpr uintptr_t Actor_HighWalkSpeed     = 0x38C4;     // 高走速度（人机判断）
-    constexpr uintptr_t Actor_Rotator           = 0x198;      // 旋转角度（被瞄准用）
-    constexpr uintptr_t Actor_Vehicle           = 0x1B8;      // 乘坐载具指针
-    constexpr uintptr_t Actor_WeaponEntity      = 0x10E8;     // 武器实体
-    constexpr uintptr_t Actor_ClassID           = 0x18;       // 类ID偏移（相对Actor）
-    // ==================== 玩家控制器偏移 ====================
-    constexpr uintptr_t Controller_Offset       = 0x5C58;     // STPlayerController
-    constexpr uintptr_t Controller_CameraManager = 0x660;     // PlayerCameraManager
-    constexpr uintptr_t Controller_AimYaw       = 0x604;      // 准星Y
-    // ==================== 相机管理器偏移 ====================
-    constexpr uintptr_t CameraManager_CameraPos = 0x650;      // 相机坐标
-    constexpr uintptr_t CameraManager_Rotation  = 0x668;      // 旋转（0x650+0x18）
-    constexpr uintptr_t CameraManager_FOV       = 0x680;      // 视野角度
-    // ==================== 武器偏移 ====================
-    constexpr uintptr_t Weapon_RepID            = 0xDA8;      // 武器ID
-    constexpr uintptr_t Weapon_EntityComp       = 0xC68;      // 武器实体组件
-    constexpr uintptr_t Weapon_BulletSpeed      = 0x15CC;     // 子弹速度
-    constexpr uintptr_t Weapon_RecoilFactor     = 0x1EC8;     // 后坐力系数
-    constexpr uintptr_t Weapon_ClipAmmo         = 0x1F80;     // 当前弹夹子弹
-    constexpr uintptr_t Weapon_ClipMaxAmmo      = 0x1F84;     // 弹夹最大容量
-    constexpr uintptr_t Weapon_GripID           = 0xEA0;      // 握把ID
-    constexpr uintptr_t Weapon_CachedBulletTrack = 0x1F60;    // 子弹轨迹组件
-    constexpr uintptr_t Weapon_ShootBursts      = 0x23C;      // 喷子开火计数
-    // ==================== 载具偏移 ====================
-    constexpr uintptr_t Vehicle_CommonData      = 0xBD8;      // 载具通用数据指针
-    constexpr uintptr_t Vehicle_CurrentHP       = 0x1F8;      // 当前血量
-    constexpr uintptr_t Vehicle_MaxHP           = 0x1F4;      // 最大血量
-    constexpr uintptr_t Vehicle_CurrentFuel     = 0x21C;      // 当前油量
-    constexpr uintptr_t Vehicle_MaxFuel         = 0x218;      // 最大油量
-    // ==================== 盒子/物资偏移 ====================
-    constexpr uintptr_t PickUpDataList          = 0xD88;      // 拾取数据列表
-    constexpr uintptr_t Box_OpenState           = 0x270;      // 箱子开启状态
-    // ==================== Mesh/骨骼偏移 ====================
-    constexpr uintptr_t Mesh_ComponentToWorld   = 0x1F0;      // 组件到世界变换
-    constexpr uintptr_t Mesh_BoneArray          = 0x828;      // 骨骼节点偏移
-    constexpr uintptr_t Mesh_BoneCountOffset    = 0x8;        // 骨骼数量偏移（相对BoneArray）
-    // ==================== 游戏状态偏移 ====================
-    constexpr uintptr_t GameState_RealPlayerNum = 0x12A0;     // 真人数量
-    constexpr uintptr_t GameState_TotalPlayerNum= 0x129C;     // 总剩余玩家
-    constexpr uintptr_t GameState_TeamNum       = 0x130C;     // 剩余队伍数
-    // ==================== 矩阵链偏移 ====================
-    constexpr uintptr_t Matrix_ViewMatrix       = 0x270;      // 视图矩阵偏移
-    constexpr uintptr_t Matrix_Tol_Offset1      = 0x98;
-    constexpr uintptr_t Matrix_Tol_Offset2      = 0x10440;
-    // ==================== 陀螺仪灵敏度偏移 ====================
-    constexpr uintptr_t Gyro_ThirdPerson        = 0x58C;      // 第三人称
-    constexpr uintptr_t Gyro_FirstPerson        = 0x5B0;      // 第一人称
-    constexpr uintptr_t Gyro_RedDot             = 0x590;      // 红点
-    constexpr uintptr_t Gyro_2x                 = 0x594;      // 二倍
-    constexpr uintptr_t Gyro_3x                 = 0x5A0;      // 三倍
-    constexpr uintptr_t Gyro_4x                 = 0x598;      // 四倍
-    constexpr uintptr_t Gyro_6x                 = 0x5A4;      // 六倍
-    constexpr uintptr_t Gyro_8x                 = 0x59C;      // 八倍
-    // ==================== 解密相关偏移 ====================
-    constexpr uintptr_t Decrypt_Step1           = 0x1495C2A0;
-    constexpr uintptr_t Decrypt_Step2_Offset1   = 0x30;
-    constexpr uintptr_t Decrypt_Step3_Offset2   = 0x5D0;
-    // ==================== 其他常用常量 ====================
-    constexpr float HumanHeight                 = 205.0f;     // 头部Z偏移
-    constexpr float MaxDrawDistance             = 500.0f;     // 最大绘制距离
-} // namespace Offsets
-
 void 绘制::更新地址数据()
 {
     // ========== 基础地址 (使用新偏移) ==========
