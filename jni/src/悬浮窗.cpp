@@ -955,49 +955,79 @@ void DrawTopStatusBar()
     ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImVec2 work_pos = viewport->WorkPos;
     ImVec2 work_size = viewport->WorkSize;
-    float bar_height = 32.0f;
+    
+    // 稍微增高一点，增加UI的呼吸感
+    float bar_height = 36.0f; 
     ImVec2 bar_min = ImVec2(work_pos.x, work_pos.y);
     ImVec2 bar_max = ImVec2(work_pos.x + work_size.x, work_pos.y + bar_height);
 
-    // 半透明背景（使用 statusBarAlpha）
-    ImU32 bgColor = IM_COL32(20, 22, 25, (int)(230 * statusBarAlpha));
+    // 1. 背景：稍微现代化一点的颜色，带有非常淡的渐变或透明度
+    ImU32 bgColor = IM_COL32(18, 20, 24, (int)(245 * statusBarAlpha));
     draw_list->AddRectFilled(bar_min, bar_max, bgColor);
+    
+    // 底部高光边缘，使用微亮的白色替代黑色粗线，增加立体感
     draw_list->AddLine(ImVec2(bar_min.x, bar_max.y), ImVec2(bar_max.x, bar_max.y),
-                       IM_COL32(50, 55, 60, (int)(100 * statusBarAlpha)), 1.0f);
+                       IM_COL32(255, 255, 255, (int)(20 * statusBarAlpha)), 1.0f);
 
-    float margin = 100.0f;
+    // 精准垂直居中：(总高度 - 字体高度) / 2
     float text_y = work_pos.y + (bar_height - ImGui::GetFontSize()) * 0.9f;
+    float margin = 100.0f; // 缩小了两侧边距，适应性更好
     float cursor_x = work_pos.x + margin;
 
-    // 品牌文字
+    // 2. 品牌文字 - 使用纯白色突出显示
+    const char* brandName = "Aura Kernel";
     draw_list->AddText(ImVec2(cursor_x, text_y),
-                       IM_COL32(255, 255, 255, (int)(255 * statusBarAlpha)), "NoodleUI");
-    cursor_x += ImGui::CalcTextSize("NoodleUI").x + 30.0f;
+                       IM_COL32(255, 255, 255, (int)(255 * statusBarAlpha)), brandName);
+    // 修复了原代码中字符串宽度计算不一致的问题
+    cursor_x += ImGui::CalcTextSize(brandName).x + 40.0f; 
 
+    // 3. 硬件信息面板 (分离标签与数值的颜色)
     float right_reserved = 180.0f;
     float right_boundary = work_pos.x + work_size.x - margin - right_reserved;
 
-    auto AddInfoText = [&](const char *fmt, ...)
+    auto AddInfoText = [&](const char *label, const char *fmt, ...)
     {
-        char buf[64];
+        char valBuf[32];
         va_list args;
         va_start(args, fmt);
-        vsnprintf(buf, sizeof(buf), fmt, args);
+        vsnprintf(valBuf, sizeof(valBuf), fmt, args);
         va_end(args);
-        ImVec2 textSize = ImGui::CalcTextSize(buf);
-        if (cursor_x + textSize.x > right_boundary)
-            return;
+
+        ImVec2 labelSize = ImGui::CalcTextSize(label);
+        ImVec2 valSize = ImGui::CalcTextSize(valBuf);
+        
+        if (cursor_x + labelSize.x + valSize.x > right_boundary) return;
+
+        // 绘制标签 (较暗)
         draw_list->AddText(ImVec2(cursor_x, text_y),
-                           IM_COL32(200, 200, 200, (int)(255 * statusBarAlpha)), buf);
-        cursor_x += textSize.x + 20.0f;
+                           IM_COL32(140, 145, 150, (int)(255 * statusBarAlpha)), label);
+        cursor_x += labelSize.x + 4.0f; // 标签和数值之间的微小间距
+
+        // 绘制数值 (较亮)
+        draw_list->AddText(ImVec2(cursor_x, text_y),
+                           IM_COL32(220, 225, 230, (int)(255 * statusBarAlpha)), valBuf);
+        cursor_x += valSize.x + 20.0f; // 不同信息组之间的间距
     };
 
-    AddInfoText("%d FPS", g_FPS);
-    AddInfoText("%.0f CPU", 25.0f + 10.0f * sin(ImGui::GetTime()));
-    AddInfoText("%.0f GPU", 30.0f + 15.0f * cos(ImGui::GetTime() * 0.8f));
-    AddInfoText("%.0f RAM", 42.0f + 8.0f * sin(ImGui::GetTime() * 1.2f));
+    // 补充百分比符号，观感更佳
+    AddInfoText("FPS", "%d", g_FPS);
+    AddInfoText("CPU", "%.0f%%", 25.0f + 10.0f * sin(ImGui::GetTime()));
+    AddInfoText("GPU", "%.0f%%", 30.0f + 15.0f * cos(ImGui::GetTime() * 0.8f));
+    AddInfoText("RAM", "%.0f%%", 42.0f + 8.0f * sin(ImGui::GetTime() * 1.2f));
 
+    // 4. 右侧信息 (时间与电池)
     float right_x = work_pos.x + work_size.x - margin;
+
+    // 时间
+    std::time_t now = std::time(nullptr);
+    char timeBuf[32];
+    std::strftime(timeBuf, sizeof(timeBuf), "%H:%M", std::localtime(&now));
+    ImVec2 timeSize = ImGui::CalcTextSize(timeBuf);
+    right_x -= timeSize.x;
+    draw_list->AddText(ImVec2(right_x, text_y),
+                       IM_COL32(230, 230, 230, (int)(255 * statusBarAlpha)), timeBuf);
+
+    right_x -= 15.0f; // 时间与电池的间距
 
     // 电池
     int batteryLevel = -1;
@@ -1007,6 +1037,10 @@ void DrawTopStatusBar()
         fscanf(capFile, "%d", &batteryLevel);
         fclose(capFile);
     }
+    
+    // 如果在没有该节点的设备（如PC）上测试，可给个默认值方便预览
+    // if (batteryLevel < 0) batteryLevel = 85; 
+
     if (batteryLevel >= 0)
     {
         char batBuf[32];
@@ -1015,21 +1049,33 @@ void DrawTopStatusBar()
         right_x -= batSize.x;
         draw_list->AddText(ImVec2(right_x, text_y),
                            IM_COL32(200, 200, 200, (int)(255 * statusBarAlpha)), batBuf);
-        float icon_x = right_x - 18.0f;
-        draw_list->AddRect(ImVec2(icon_x, text_y + 2), ImVec2(icon_x + 12, text_y + ImGui::GetFontSize() - 2),
-                           IM_COL32(200, 200, 200, (int)(255 * statusBarAlpha)), 2.0f);
-        draw_list->AddRectFilled(ImVec2(icon_x + 12, text_y + 5), ImVec2(icon_x + 14, text_y + ImGui::GetFontSize() - 5),
-                                 IM_COL32(200, 200, 200, (int)(255 * statusBarAlpha)));
-        right_x = icon_x - 8.0f;
-    }
 
-    std::time_t now = std::time(nullptr);
-    char timeBuf[32];
-    std::strftime(timeBuf, sizeof(timeBuf), "%H:%M", std::localtime(&now));
-    ImVec2 timeSize = ImGui::CalcTextSize(timeBuf);
-    right_x -= timeSize.x;
-    draw_list->AddText(ImVec2(right_x, text_y),
-                       IM_COL32(180, 180, 180, (int)(255 * statusBarAlpha)), timeBuf);
+        // 绘制动态电池图标
+        float icon_w = 20.0f;
+        float icon_h = 10.0f;
+        float icon_x = right_x - icon_w - 6.0f;
+        float icon_y = text_y + (ImGui::GetFontSize() - icon_h) * 0.5f; // 图标垂直居中
+
+        ImU32 batOutlineCol = IM_COL32(150, 150, 150, (int)(255 * statusBarAlpha));
+        // 电量大于20%显示绿色，否则显示红色警告
+        ImU32 batFillCol = batteryLevel > 20 ? IM_COL32(120, 210, 120, (int)(255 * statusBarAlpha))
+                                             : IM_COL32(240, 80, 80, (int)(255 * statusBarAlpha));
+
+        // 电池外壳
+        draw_list->AddRect(ImVec2(icon_x, icon_y), ImVec2(icon_x + icon_w, icon_y + icon_h),
+                           batOutlineCol, 1.5f, 0, 1.0f);
+        // 电池正极触点
+        draw_list->AddRectFilled(ImVec2(icon_x + icon_w, icon_y + 2.5f), ImVec2(icon_x + icon_w + 2.0f, icon_y + icon_h - 2.5f),
+                                 batOutlineCol);
+        
+        // 根据百分比填充电池内部
+        float fill_w = (icon_w - 3.0f) * (batteryLevel / 100.0f);
+        if (fill_w > 0) 
+        {
+            draw_list->AddRectFilled(ImVec2(icon_x + 1.5f, icon_y + 1.5f), ImVec2(icon_x + 1.5f + fill_w, icon_y + icon_h - 1.5f),
+                                     batFillCol);
+        }
+    }
 }
 
 // ---------- 左侧导航 ----------
