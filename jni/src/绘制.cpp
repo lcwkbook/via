@@ -1967,10 +1967,10 @@ D2DVector 绘制::WorldToScreen2(const FVector_class &WorldLocation)
 void 绘制::更新地址数据()
 {
     // ========== 基础地址 (使用新偏移) ==========
-    地址.世界地址 = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::GWorld_PersistentLevel);                                                                     
-    地址.自身地址 = 读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::GWorld_ActorsCountDec) + 0x88) + 0x30) + 0x3478); 
-    地址.矩阵地址 = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::MatrixChain1) + 0x20) + Offsets::Matrix_ViewMatrix;                                                             
-    地址.矩阵地址_Tol = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::MatrixChain2) + Offsets::Matrix_Tol_Offset1) + Offsets::Matrix_Tol_Offset2;                                                       
+    地址.世界地址 = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::GWorld_PersistentLevel);
+    地址.自身地址 = 读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::GWorld_ActorsCountDec) + 0x88) + 0x30) + 0x3478);
+    地址.矩阵地址 = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::MatrixChain1) + 0x20) + Offsets::Matrix_ViewMatrix;
+    地址.矩阵地址_Tol = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::MatrixChain2) + Offsets::Matrix_Tol_Offset1) + Offsets::Matrix_Tol_Offset2;
 
     // 数组地址与数量 (未解密时)
     地址.数组地址 = 读写.getPtr64(地址.世界地址 + Offsets::GWorld_ActorsArray);
@@ -1983,7 +1983,7 @@ void 绘制::更新地址数据()
         世界数量 = 读写.getDword(地址.世界地址 + Offsets::GWorld_ActorsCountDec);
     }
 
-    地址.类地址 = 读写.getPtr64(地址.libue4 + Offsets::ClassBase); 
+    地址.类地址 = 读写.getPtr64(地址.libue4 + Offsets::ClassBase);
 
     // ========== 自身坐标 (通过 RootComponent + 0x200) ==========
     uintptr_t rootComp = 读写.getPtr64(地址.自身地址 + Offsets::Actor_RootComponent);
@@ -1993,24 +1993,24 @@ void 绘制::更新地址数据()
     }
 
     // ========== 自身基础属性 ==========
-    自身数据.自身队伍 = 读写.getDword(地址.自身地址 + Offsets::Actor_TeamID);                 
-    自身数据.自身状态 = 读写.getDword(读写.getPtr64(地址.自身地址 + Offsets::Actor_PawnState)); 
-    自身数据.开镜 = 读写.getDword(地址.自身地址 + Offsets::Actor_bIsGunADS);                    
-    自身数据.开火 = 读写.getDword(地址.自身地址 + Offsets::Actor_bIsWeaponFiring);                    
+    自身数据.自身队伍 = 读写.getDword(地址.自身地址 + Offsets::Actor_TeamID);
+    自身数据.自身状态 = 读写.getDword(读写.getPtr64(地址.自身地址 + Offsets::Actor_PawnState));
+    自身数据.开镜 = 读写.getDword(地址.自身地址 + Offsets::Actor_bIsGunADS);
+    自身数据.开火 = 读写.getDword(地址.自身地址 + Offsets::Actor_bIsWeaponFiring);
 
     // ========== 手持武器信息 ==========
-    uintptr_t weaponPtr = 读写.getPtr64(地址.自身地址 + Offsets::Actor_CurrentWeapon); 
+    uintptr_t weaponPtr = 读写.getPtr64(地址.自身地址 + Offsets::Actor_CurrentWeapon);
     if (weaponPtr != 0)
     {
-        自身数据.手持id = 读写.getDword(weaponPtr + Offsets::Weapon_RepID); 
+        自身数据.手持id = 读写.getDword(weaponPtr + Offsets::Weapon_RepID);
         自身数据.手持 = heldconversion(自身数据.手持id);
     }
 
     // ========== 相机与FOV ==========
-    uintptr_t controller = 读写.getPtr64(地址.自身地址 + Offsets::Controller_Offset); 
+    uintptr_t controller = 读写.getPtr64(地址.自身地址 + Offsets::Controller_Offset);
     if (controller != 0)
     {
-        uintptr_t camManager = 读写.getPtr64(controller + Offsets::Controller_CameraManager); 
+        uintptr_t camManager = 读写.getPtr64(controller + Offsets::Controller_CameraManager);
         if (camManager != 0)
         {
             读写.readv(camManager + Offsets::CameraManager_CameraPos, &自身数据.相机坐标, sizeof(自身数据.相机坐标));
@@ -2021,15 +2021,15 @@ void 绘制::更新地址数据()
     }
 
     // ========== 子弹速度与后坐力 ==========
-    uintptr_t weaponEntityComp = 读写.getPtr64(weaponPtr + Offsets::Weapon_EntityComp); 
+    uintptr_t weaponEntityComp = 读写.getPtr64(weaponPtr + Offsets::Weapon_EntityComp);
     if (weaponEntityComp != 0)
     {
-        自身数据.子弹速度 = 读写.getFloat(weaponEntityComp + Offsets::Weapon_BulletSpeed);   
-        自身数据.后坐力数据 = 读写.getFloat(weaponEntityComp + Offsets::Weapon_RecoilFactor); 
+        自身数据.子弹速度 = 读写.getFloat(weaponEntityComp + Offsets::Weapon_BulletSpeed);
+        自身数据.后坐力数据 = 读写.getFloat(weaponEntityComp + Offsets::Weapon_RecoilFactor);
     }
 
     // ========== 人物高度 (用于趴下调节) ==========
-    自身数据.人物高度 = 读写.getFloat(地址.自身地址 + Offsets::Actor_SpeedValue); 
+    自身数据.人物高度 = 读写.getFloat(地址.自身地址 + Offsets::Actor_SpeedValue);
 
     // ========== 手持握把 (新增) ==========
     uintptr_t weaponEntity = 读写.getPtr64(地址.自身地址 + Offsets::Actor_WeaponEntity);
@@ -2043,7 +2043,7 @@ void 绘制::更新地址数据()
     }
 
     // ========== 对局信息 (新偏移链) ==========
-    if (按钮.显示对局信息) 
+    if (按钮.显示对局信息)
     {
         uintptr_t gameState = 读写.getPtr64(地址.世界地址 + Offsets::GWorld_GameState);
         if (gameState != 0)
@@ -2108,14 +2108,14 @@ void 绘制::更新对象数据()
     for (int a = 0; a < 世界数量; a++)
     {
         对象地址.敌人地址 = 读写.getPtr64(地址.数组地址 + a * 8);
-        读写.readv(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_RootComponent) + 0x200, &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标)); 
-        对象信息.敌人信息.距离 = 计算.计算距离(自身数据.坐标, 对象信息.敌人信息.坐标);                                                 
+        读写.readv(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_RootComponent) + 0x200, &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
+        对象信息.敌人信息.距离 = 计算.计算距离(自身数据.坐标, 对象信息.敌人信息.坐标);
         FVector2D screenPos = WorldToScreen(对象信息.敌人信息.坐标);
-        FVector2D footPos = WorldToScreen(FVector_class{对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z - 5});   
-        FVector2D headPos = WorldToScreen(FVector_class{对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z + Offsets::HumanHeight}); 
-        float r_x = footPos.X;                                                                                                               
-        float r_y = footPos.Y;                                                                                                                
-        float r_z = headPos.Y;                                                                                                                
+        FVector2D footPos = WorldToScreen(FVector_class{对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z - 5});
+        FVector2D headPos = WorldToScreen(FVector_class{对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z + Offsets::HumanHeight});
+        float r_x = footPos.X;
+        float r_y = footPos.Y;
+        float r_z = headPos.Y;
         float camear_r = (screenPos.X != INFINITY && screenPos.Y != INFINITY) ? 1.0f : -1.0f;
         D4DVector t_屏幕坐标 = {r_x - (r_y - r_z) / 4, r_y, (r_y - r_z) / 2, r_y - r_z};
         if (对象信息.敌人信息.距离 > Offsets::MaxDrawDistance)
@@ -2128,7 +2128,7 @@ void 绘制::更新对象数据()
         sprintf(自救计算地址, "%lx", 对象地址.敌人地址);
         if (按钮.手雷预警)
         {
-            int 手雷ID = 读写.getDword(对象地址.敌人地址 + 0x794); 
+            int 手雷ID = 读写.getDword(对象地址.敌人地址 + 0x794);
             const char *投掷物信息 = Getagrenade(手雷ID);
             if (手雷ID == 602004 or 手雷ID == 9825004)
             {
@@ -2152,7 +2152,7 @@ void 绘制::更新对象数据()
                         name += "[" + std::to_string((int)对象信息.敌人信息.距离) + "米]";
                         auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 35);
                         if (手雷ID != 602004 && 手雷ID != 9825004)
-                        { 
+                        {
                             ImGui::GetForegroundDrawList()->AddText(NULL, 35, {r_x - (textSize.x / 2), r_y + 30}, ImColor(255, 0, 0, 255), name.c_str());
                         }
                         if (手雷ID == 602004 or 手雷ID == 9825004)
@@ -2189,11 +2189,11 @@ void 绘制::更新对象数据()
         int ClassID = 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_ClassID);
         long int FNameEntry;
         if (t_屏幕坐标.W > 0)
-        { 
+        {
             FNameEntry = 读写.getPtr64(读写.getPtr64(地址.类地址 + (ClassID / 0x4000) * 0x8) + (ClassID % 0x4000) * 0x8);
             读写.readv(FNameEntry + 0xC, ClassName, 64);
 
-            ImColor outlineColor = ImColor(0, 0, 0, 255); 
+            ImColor outlineColor = ImColor(0, 0, 0, 255);
 
             if (按钮.Debug)
             {
@@ -2385,15 +2385,15 @@ void 绘制::更新对象数据()
                 auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 30);
                 ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
 
-                ImColor textColor = ImColor(255, 0, 0, 255);  
-                ImColor outlineColor = ImColor(0, 0, 0, 255); 
+                ImColor textColor = ImColor(255, 0, 0, 255);
+                ImColor outlineColor = ImColor(0, 0, 0, 255);
 
                 for (int x = -1; x <= 1; x++)
                 {
                     for (int y = -1; y <= 1; y++)
                     {
                         if (x != 0 || y != 0)
-                        { 
+                        {
                             ImGui::GetForegroundDrawList()->AddText(
                                 NULL, 30,
                                 {textPos.x + x, textPos.y + y},
@@ -2767,25 +2767,42 @@ void 绘制::更新对象数据()
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
-            if (按钮.盒子 && (strstr(ClassName, "CharacterDeadInventoryBox_C") != 0 or strstr(ClassName, "PickUpListWrapperActor") != 0 or strstr(ClassName, "RollTombBox_") != 0 or strstr(ClassName, "EscapePlayerTombBox") != 0 or strstr(ClassName, "DeadInventoryBox") != 0 or strstr(ClassName, "_TrainingBoxLi") != 0))
+            if (按钮.盒子)
             {
-                std::string name = "盒子[";
-                name += std::to_string((int)对象信息.敌人信息.距离);
-                name += "M]";
-                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
-                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-
-                for (int x = -1; x <= 1; x++)
+                std::string classNameStr(ClassName);
+                if (classNameStr.find("CharacterDeadInventoryBox_C") != std::string::npos ||
+                    classNameStr.find("PickUpListWrapperActor") != std::string::npos ||
+                    classNameStr.find("RollTombBox_") != std::string::npos ||
+                    classNameStr.find("EscapePlayerTombBox") != std::string::npos ||
+                    classNameStr.find("DeadInventoryBox") != std::string::npos ||
+                    classNameStr.find("_TrainingBoxLi") != std::string::npos)
                 {
-                    for (int y = -1; y <= 1; y++)
-                    {
-                        if (x != 0 || y != 0)
-                        {
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
-                        }
-                    }
+                    std::string lootText = "盒子[" + std::to_string((int)对象信息.敌人信息.距离) + "米]";
+                    ImVec2 textPos = {r_x, r_y};
+                    const char *text = lootText.c_str();
+                    float fontSize = 15.0f; // 可根据需要调整
+
+                    // 使用字体精确计算文本尺寸（避免默认CalcTextSize包含额外间距）
+                    ImFont *font = ImGui::GetFont();
+                    ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, text);
+
+                    // 紧凑内边距：水平2px，垂直1px（或0px）
+                    float paddingX = 2.0f;
+                    float paddingY = 1.0f; // 调小此处可降低矩形高度
+
+                    ImVec2 rectMin = {textPos.x - textSize.x / 2.0f - paddingX, textPos.y - textSize.y / 2.0f - paddingY};
+                    ImVec2 rectMax = {textPos.x + textSize.x / 2.0f + paddingX, textPos.y + textSize.y / 2.0f + paddingY};
+
+                    ImColor yellowColor = ImColor(255, 255, 0, 255);
+                    ImDrawList *draw = ImGui::GetForegroundDrawList();
+
+                    // 绘制边框（圆角值可调，999表示最大圆角即半圆，实际效果接近圆角矩形）
+                    draw->AddRect(rectMin, rectMax, yellowColor, 5.0f, 0, 1.0f); // 圆角半径5px更自然
+
+                    // 绘制文本（居中对齐）
+                    ImVec2 textDrawPos = {rectMin.x + paddingX, rectMin.y + paddingY};
+                    draw->AddText(font, fontSize, textDrawPos, yellowColor, text);
                 }
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 255, 0, 255), name.c_str());
             }
 
             int 开启状态 = 读写.getDword(对象地址.敌人地址 + Offsets::Box_OpenState);
@@ -2948,7 +2965,7 @@ void 绘制::更新对象数据()
 
                             float fontSize = info->fontSize;
                             if (fontSize <= 0)
-                                fontSize = 物资字体大小; 
+                                fontSize = 物资字体大小;
 
                             ImVec2 textSize = ImGui::CalcTextSize(buffer, 0, fontSize);
                             ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
@@ -2983,34 +3000,34 @@ void 绘制::更新对象数据()
         if (读写.getFloat(对象地址.敌人地址 + Offsets::Actor_HighWalkSpeed) == 479.5 || strstr(ClassName, "BPPawn_Escape_") != 0 || isboss)
         {
             D4DVector 屏外预警坐标(r_x, r_y, r_y - r_z, (r_y - r_z) / 2);
-            对象信息.敌人信息.队伍 = 读写.getDword(对象地址.敌人地址 + Offsets::Actor_TeamID);                                       
-            对象信息.敌人信息.isboot = (对象信息.敌人信息.队伍 == -1) ? 1 : 读写.getDword(对象地址.敌人地址 + Offsets::Actor_bIsAI); 
+            对象信息.敌人信息.队伍 = 读写.getDword(对象地址.敌人地址 + Offsets::Actor_TeamID);
+            对象信息.敌人信息.isboot = (对象信息.敌人信息.队伍 == -1) ? 1 : 读写.getDword(对象地址.敌人地址 + Offsets::Actor_bIsAI);
             对象信息.敌人信息.高级人机 = 读写.getDword(对象地址.敌人地址 + 0xb88);
             if (按钮.忽略人机 && 对象信息.敌人信息.isboot == 1)
             {
                 continue;
             }
-            对象信息.敌人信息.状态 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_PawnState)); 
+            对象信息.敌人信息.状态 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_PawnState));
             对象信息.敌人信息.雷达 = 计算.rotateCoord(自身数据.准星Y, (自身数据.坐标.X - 对象信息.敌人信息.坐标.X) / 200, (自身数据.坐标.Y - 对象信息.敌人信息.坐标.Y) / 200);
-            读写.readv(对象地址.敌人地址 + Offsets::Actor_Velocity, &对象信息.敌人信息.向量, sizeof(对象信息.敌人信息.向量)); 
-            对象信息.敌人信息.Rotator = 读写.getFloat(对象地址.敌人地址 + Offsets::Actor_Rotator);                                    
-            对象信息.敌人信息.当前血量 = 读写.getFloat(对象地址.敌人地址 + Offsets::Actor_Health);                                  
-            对象信息.敌人信息.最大血量 = 读写.getFloat(对象地址.敌人地址 + Offsets::Actor_HealthMax);                               
-            对象信息.敌人信息.乘坐载具 = 读写.getDword(对象地址.敌人地址 + Offsets::Actor_Vehicle) != 0;                              
+            读写.readv(对象地址.敌人地址 + Offsets::Actor_Velocity, &对象信息.敌人信息.向量, sizeof(对象信息.敌人信息.向量));
+            对象信息.敌人信息.Rotator = 读写.getFloat(对象地址.敌人地址 + Offsets::Actor_Rotator);
+            对象信息.敌人信息.当前血量 = 读写.getFloat(对象地址.敌人地址 + Offsets::Actor_Health);
+            对象信息.敌人信息.最大血量 = 读写.getFloat(对象地址.敌人地址 + Offsets::Actor_HealthMax);
+            对象信息.敌人信息.乘坐载具 = 读写.getDword(对象地址.敌人地址 + Offsets::Actor_Vehicle) != 0;
             对象信息.敌人信息.手持 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_CurrentWeapon) + Offsets::Weapon_RepID);
             对象信息.敌人信息.子弹数量 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_CurrentWeapon) + Offsets::Weapon_ClipAmmo);
             对象信息.敌人信息.子弹最大数量 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_CurrentWeapon) + Offsets::Weapon_ClipMaxAmmo);
             对象信息.敌人信息.角色实体 = 读写.getPtr64(对象地址.敌人地址 + 0x39b0);
             对象信息.敌人信息.实体列表地址 = 读写.getPtr64(对象信息.敌人信息.角色实体 + 0x818) + 0x8;
             对象信息.敌人信息.实体数量 = 读写.getDword(对象信息.敌人信息.角色实体 + 0x818 + 0x8);
-            long int MeshOffset = 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_Mesh); 
-            int Bonecount = 读写.getPtr64(MeshOffset + Offsets::Mesh_BoneArray + Offsets::Mesh_BoneCountOffset);      
+            long int MeshOffset = 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_Mesh);
+            int Bonecount = 读写.getPtr64(MeshOffset + Offsets::Mesh_BoneArray + Offsets::Mesh_BoneCountOffset);
             D3DVector tempBones[17];
             骨骼->更新骨骼数据(
-                MeshOffset + Offsets::Mesh_ComponentToWorld,                       
-                读写.getPtr64(MeshOffset + Offsets::Mesh_BoneArray) + 0x30, 
-                tempBones,                                
-                Bonecount,                                
+                MeshOffset + Offsets::Mesh_ComponentToWorld,
+                读写.getPtr64(MeshOffset + Offsets::Mesh_BoneArray) + 0x30,
+                tempBones,
+                Bonecount,
                 对象信息.敌人信息.队伍,
                 ClassName);
             for (int i = 0; i < 15; i++)
@@ -3021,7 +3038,7 @@ void 绘制::更新对象数据()
             }
 
             char temp[64];
-            读写.getUTF8(temp, 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_PlayerName)); 
+            读写.getUTF8(temp, 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_PlayerName));
             对象信息.敌人信息.名字 = temp;
             bool 是否掐雷 = false;
             if (按钮.手雷预警)
@@ -3149,9 +3166,8 @@ void 绘制::更新对象数据()
                     {
                         ImGui::GetForegroundDrawList()->AddCircleFilled(
                             {按钮.雷达X + 对象信息.敌人信息.雷达.X, 按钮.雷达Y + 对象信息.敌人信息.雷达.Y},
-                            8.0f,                       
-                            ImColor(255, 255, 255, 200) 
-                        );
+                            8.0f,
+                            ImColor(255, 255, 255, 200));
                     }
                     else
                     {
@@ -3162,14 +3178,14 @@ void 绘制::更新对象数据()
 
                         float hue = static_cast<float>(adjusted_team) / 50.0f;
 
-                        float saturation = 1.0f;                                             
-                        float value = 1.0f - (static_cast<float>(adjusted_team % 5) * 0.1f); 
+                        float saturation = 1.0f;
+                        float value = 1.0f - (static_cast<float>(adjusted_team % 5) * 0.1f);
 
-                        ImColor team_color = ImColor::HSV(hue, saturation, value, 0.8f); 
+                        ImColor team_color = ImColor::HSV(hue, saturation, value, 0.8f);
 
                         ImGui::GetForegroundDrawList()->AddCircleFilled(
                             {按钮.雷达X + 对象信息.敌人信息.雷达.X, 按钮.雷达Y + 对象信息.敌人信息.雷达.Y},
-                            15.0f, 
+                            15.0f,
                             team_color);
 
                         ImVec2 text_pos = {
@@ -3223,7 +3239,7 @@ void 绘制::更新对象数据()
                                            std::chrono::steady_clock::now() - it->second)
                                            .count();
                         if (elapsed > 6)
-                        { 
+                        {
                             自救Timers[计算地址] = std::chrono::steady_clock::now();
                         }
                     }
@@ -3271,8 +3287,8 @@ void 绘制::更新对象数据()
                     自瞄函数[自瞄.瞄准对象数量].距离 = 对象信息.敌人信息.距离;
                     自瞄函数[自瞄.瞄准对象数量].人物向量 = 对象信息.敌人信息.向量;
                     自瞄函数[自瞄.瞄准对象数量].血量 = 对象信息.敌人信息.当前血量;
-                    自瞄函数[自瞄.瞄准对象数量].Bone = 读写.getPtr64(MeshOffset + Offsets::Mesh_BoneArray) + 0x30; 
-                    自瞄函数[自瞄.瞄准对象数量].Human = MeshOffset + Offsets::Mesh_ComponentToWorld;                          
+                    自瞄函数[自瞄.瞄准对象数量].Bone = 读写.getPtr64(MeshOffset + Offsets::Mesh_BoneArray) + 0x30;
+                    自瞄函数[自瞄.瞄准对象数量].Human = MeshOffset + Offsets::Mesh_ComponentToWorld;
                     自瞄函数[自瞄.瞄准对象数量].名字 = 对象信息.敌人信息.名字;
                     自瞄函数[自瞄.瞄准对象数量].阵营 = 对象信息.敌人信息.队伍;
                     自瞄函数[自瞄.瞄准对象数量].头 = 对象信息.敌人信息.头;
@@ -3316,24 +3332,24 @@ void 绘制::更新对象数据()
 
                 auto GetTeamColor = [](int team_id) -> ImColor
                 {
-                    team_id = team_id % 50;                
-                    float hue = (team_id * 360.0f) / 50.0f; 
-                    float sat = 0.8f, val = 0.9f;           
+                    team_id = team_id % 50;
+                    float hue = (team_id * 360.0f) / 50.0f;
+                    float sat = 0.8f, val = 0.9f;
 
                     float r, g, b;
                     ImGui::ColorConvertHSVtoRGB(hue / 360.0f, sat, val, r, g, b);
-                    return ImColor(r, g, b, 1.0f); 
+                    return ImColor(r, g, b, 1.0f);
                 };
 
                 int alpha = 255;
                 if (distance > 200.0f)
                 {
-                    alpha = 200; 
+                    alpha = 200;
                 }
                 else if (distance >= 100.0f)
                 {
                     float ratio = (distance - 100.0f) / 100.0f;
-                    alpha = 255 - static_cast<int>(ratio * 55); 
+                    alpha = 255 - static_cast<int>(ratio * 55);
                 }
 
                 ImColor base_color = GetTeamColor(team);
@@ -3381,24 +3397,25 @@ void 绘制::更新对象数据()
                 }
             }
 
-            
             if (按钮.显示对局信息)
             {
                 static char buffer[3][64];
 
-                ImColor textColor = ImColor(255, 255, 255, 255); 
-                ImColor outlineColor = ImColor(0, 0, 0, 255);   
+                ImColor textColor = ImColor(255, 255, 255, 255);
+                ImColor outlineColor = ImColor(0, 0, 0, 255);
 
                 snprintf(buffer[0], sizeof(buffer[0]), "剩余真人数量:%d", 自身数据.真人数量);
                 ImVec2 textPos0 = ImVec2(PX / 10, 450);
-                for (int x = -1; x <= 1; x++) {
-                    for (int y = -1; y <= 1; y++) {
-                        if (x != 0 || y != 0) { 
+                for (int x = -1; x <= 1; x++)
+                {
+                    for (int y = -1; y <= 1; y++)
+                    {
+                        if (x != 0 || y != 0)
+                        {
                             ImGui::GetForegroundDrawList()->AddText(
                                 ImVec2(textPos0.x + x, textPos0.y + y),
                                 outlineColor,
-                                buffer[0]
-                            );
+                                buffer[0]);
                         }
                     }
                 }
@@ -3406,14 +3423,16 @@ void 绘制::更新对象数据()
 
                 snprintf(buffer[1], sizeof(buffer[1]), "剩余队伍数量:%d", 自身数据.人机数量);
                 ImVec2 textPos1 = ImVec2(PX / 10, 490);
-                for (int x = -1; x <= 1; x++) {
-                    for (int y = -1; y <= 1; y++) {
-                        if (x != 0 || y != 0) { 
+                for (int x = -1; x <= 1; x++)
+                {
+                    for (int y = -1; y <= 1; y++)
+                    {
+                        if (x != 0 || y != 0)
+                        {
                             ImGui::GetForegroundDrawList()->AddText(
                                 ImVec2(textPos1.x + x, textPos1.y + y),
                                 outlineColor,
-                                buffer[1]
-                            );
+                                buffer[1]);
                         }
                     }
                 }
@@ -3421,14 +3440,16 @@ void 绘制::更新对象数据()
 
                 snprintf(buffer[2], sizeof(buffer[2]), "剩余人数数量:%d", 自身数据.队伍数量);
                 ImVec2 textPos2 = ImVec2(PX / 10, 530);
-                for (int x = -1; x <= 1; x++) {
-                    for (int y = -1; y <= 1; y++) {
-                        if (x != 0 || y != 0) { 
+                for (int x = -1; x <= 1; x++)
+                {
+                    for (int y = -1; y <= 1; y++)
+                    {
+                        if (x != 0 || y != 0)
+                        {
                             ImGui::GetForegroundDrawList()->AddText(
                                 ImVec2(textPos2.x + x, textPos2.y + y),
                                 outlineColor,
-                                buffer[2]
-                            );
+                                buffer[2]);
                         }
                     }
                 }
@@ -3458,7 +3479,7 @@ void 绘制::更新对象数据()
                             对象信息.敌人信息.名字 += '[' + a + ']';
                     }
                 }
-            
+
                 if (按钮.方框)
                     绘图.绘制方框(LineOfSightToTab[0], 对象信息.敌人信息.isboot);
 
