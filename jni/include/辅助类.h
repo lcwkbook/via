@@ -4,7 +4,7 @@
 #include <iostream>
 #include <pthread.h>
 #include <dirent.h>
-//#include <driver.h>
+#include <driver.h>
 #include <regex.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -197,7 +197,7 @@ private:
 public:
     选择配置 选择配置;
     int fd;
-    int kpm = 0;
+    Driver* kpm_driver = nullptr;  // KPM驱动对象
     Kernel();
     ~Kernel();
     uintptr_t get_Module_On();

@@ -20,7 +20,7 @@
 #include "DataReader.h"
 #include "HookRW.h" // 添加HookRW头文件
 #include "Offsets.h"
-
+#include <unistd.h>
 // 添加ptrace过检测功能
 #include <sys/ptrace.h>
 #include "json.hpp"
@@ -741,119 +741,21 @@ void 绘制::重置配置()
 
 void 绘制::读取配置()
 {
-    // std::ifstream file("/sdcard/AuraKernel/config.json");
-    // if (!file.is_open())
-    //     return;
+    // ===== 首次运行标记检测 =====
+    const char* markFile   = "/sdcard/AuraKernel/.initialized";
+    const char* configFile = "/sdcard/AuraKernel/Aura选择配置.json";
 
-    // json config = json::parse(file);
-    // if (config.contains("status_bar_alpha"))
-    // {
-    //     statusBarAlpha = config["status_bar_alpha"].get<float>();
-    // }
-    // 读取自瞄配置文件
-    // std::ifstream aim_file("/sdcard/AuraKernel/Aura自瞄配置.json");
-    // if (aim_file.is_open())
-    // {
-    //     nlohmann::json aim_config = nlohmann::json::parse(aim_file);
+    if (access(markFile, F_OK) != 0)
+    {
+        remove(configFile);
 
-    //     // 读取自瞄配置
-    //     if (aim_config.contains("自瞄"))
-    //     {
-    //         const auto &aim = aim_config["自瞄"];
-    //         自瞄.当前自瞄范围 = aim.value("当前自瞄范围", 自瞄.当前自瞄范围);
-    //         自瞄.触摸范围 = aim.value("触摸范围", 自瞄.触摸范围);
-    //         自瞄.自瞄速度 = aim.value("自瞄速度", 自瞄.自瞄速度);
-    //         自瞄.腰射自瞄速度 = aim.value("腰射自瞄速度", 自瞄.腰射自瞄速度);
-    //         自瞄.开镜自瞄速度 = aim.value("开镜自瞄速度", 自瞄.开镜自瞄速度);
-    //         自瞄.压枪力度 = aim.value("压枪力度", 自瞄.压枪力度);
-    //         自瞄.预判力度 = aim.value("预判力度", 自瞄.预判力度);
-    //         自瞄.趴下位置调节 = aim.value("趴下位置调节", 自瞄.趴下位置调节);
-    //         自瞄.触摸采样率 = aim.value("触摸采样率", 自瞄.触摸采样率);
-    //         自瞄.喷子距离限制 = aim.value("喷子距离限制", 自瞄.喷子距离限制);
-    //         自瞄.掉血自瞄数率 = aim.value("掉血自瞄数率", 自瞄.掉血自瞄数率);
-    //         自瞄.腰射距离限制 = aim.value("腰射距离限制", 自瞄.腰射距离限制);
-    //         自瞄.自瞄距离限制 = aim.value("自瞄距离限制", 自瞄.自瞄距离限制);
-    //         自瞄.触摸范围X = aim.value("触摸范围X", 自瞄.触摸范围X);
-    //         自瞄.触摸范围Y = aim.value("触摸范围Y", 自瞄.触摸范围Y);
-    //         自瞄.自瞄条件 = aim.value("自瞄条件", 自瞄.自瞄条件);
-    //         自瞄.充电口方向 = aim.value("充电口方向", 自瞄.充电口方向);
-    //         自瞄.瞄准部位 = aim.value("瞄准部位", 自瞄.瞄准部位);
-    //         自瞄.喷子自瞄条件 = aim.value("喷子自瞄条件", 自瞄.喷子自瞄条件);
-    //         自瞄.喷子自瞄范围 = aim.value("喷子自瞄范围", 自瞄.喷子自瞄范围);
-    //         自瞄.连点速度 = aim.value("连点速度", 自瞄.连点速度);
-    //         自瞄.定速巡航速率 = aim.value("定速巡航速率", 自瞄.定速巡航速率);
-    //         自瞄.三倍压枪 = aim.value("三倍压枪", 自瞄.三倍压枪);
-    //         自瞄.四倍压枪 = aim.value("四倍压枪", 自瞄.四倍压枪);
-    //         自瞄.六倍压枪 = aim.value("六倍压枪", 自瞄.六倍压枪);
-    //         自瞄.开镜自瞄范围 = aim.value("开镜自瞄范围", 自瞄.开镜自瞄范围);
-    //         if (aim.contains("连点位置"))
-    //         {
-    //             const auto &pos = aim["连点位置"];
-    //             自瞄.连点位置.startX = pos.value("startX", 自瞄.连点位置.startX);
-    //             自瞄.连点位置.startY = pos.value("startY", 自瞄.连点位置.startY);
-    //             自瞄.连点位置.endX = pos.value("endX", 自瞄.连点位置.endX);
-    //             自瞄.连点位置.endY = pos.value("endY", 自瞄.连点位置.endY);
-    //         }
-    //         自瞄.初始化 = aim.value("初始化", 自瞄.初始化);
-    //         自瞄.隐藏自瞄圈 = aim.value("隐藏自瞄圈", 自瞄.隐藏自瞄圈);
-    //         自瞄.随机触摸点 = aim.value("随机触摸点", 自瞄.随机触摸点);
-    //         自瞄.持续锁定 = aim.value("持续锁定", 自瞄.持续锁定);
-    //         自瞄.触摸位置 = aim.value("触摸位置", 自瞄.触摸位置);
-    //         自瞄.动态自瞄 = aim.value("动态自瞄", 自瞄.动态自瞄);
-    //         自瞄.准星射线 = aim.value("准星射线", 自瞄.准星射线);
-    //         自瞄.倒地不瞄 = aim.value("倒地不瞄", 自瞄.倒地不瞄);
-    //         自瞄.掉血自瞄 = aim.value("掉血自瞄", 自瞄.掉血自瞄);
-    //         自瞄.自瞄控件 = aim.value("自瞄控件", 自瞄.自瞄控件);
-    //         自瞄.喷子自瞄 = aim.value("喷子自瞄", 自瞄.喷子自瞄);
-    //         自瞄.狙击自瞄 = aim.value("狙击自瞄", 自瞄.狙击自瞄);
-    //         自瞄.人机不瞄 = aim.value("人机不瞄", 自瞄.人机不瞄);
-    //         自瞄.框内自瞄 = aim.value("框内自瞄", 自瞄.框内自瞄);
-    //         自瞄.软锁自瞄 = aim.value("软锁自瞄", 自瞄.软锁自瞄);
-    //         自瞄.开启单发狙连点 = aim.value("开启单发狙连点", 自瞄.开启单发狙连点);
-    //         自瞄.开启喷子连点 = aim.value("开启喷子连点", 自瞄.开启喷子连点);
-    //         自瞄.扫车不瞄 = aim.value("扫车不瞄", 自瞄.扫车不瞄);
-    //         自瞄.定速巡航 = aim.value("定速巡航", 自瞄.定速巡航);
-    //         自瞄.适应系数 = aim.value("适应系数", 自瞄.适应系数);
-    //         自瞄.自动适应灵敏度 = aim.value("自动适应灵敏度", 自瞄.自动适应灵敏度);
-    //     }
-
-    //     // 读取武器触发配置
-    //     if (aim_config.contains("武器触发配置"))
-    //     {
-    //         const auto &weapon_trigger = aim_config["武器触发配置"];
-    //         for (const auto &[key, value] : weapon_trigger.items())
-    //         {
-    //             int weapon_id = std::stoi(key);
-    //             武器触发条件 condition;
-    //             condition.独立调节 = value.value("独立调节", condition.独立调节);
-    //             condition.独立压枪 = value.value("独立压枪", condition.独立压枪);
-    //             condition.独立预判 = value.value("独立预判", condition.独立预判);
-    //             condition.独立距离限制 = value.value("独立距离限制", condition.独立距离限制);
-    //             condition.启用自瞄 = value.value("启用自瞄", true);
-    //             condition.腰射距离限制 = value.value("腰射距离限制", 50.0f);
-    //             condition.自瞄距离限制 = value.value("自瞄距离限制", 100.0f);
-    //             condition.自瞄条件 = value.value("自瞄条件", 0);
-    //             武器触发配置[weapon_id] = condition;
-    //         }
-    //     }
-
-    //     // 读取武器参数配置
-    //     if (aim_config.contains("武器参数配置"))
-    //     {
-    //         const auto &weapon_params = aim_config["武器参数配置"];
-    //         for (const auto &[key, value] : weapon_params.items())
-    //         {
-    //             int weapon_id = std::stoi(key);
-    //             武器参数 params;
-    //             params.压枪力度 = value.value("压枪力度", 2.15f);
-    //             params.预判力度 = value.value("预判力度", 1.45f);
-    //             params.自瞄速度 = value.value("自瞄速度", 35.f);
-    //             武器参数配置[weapon_id] = params;
-    //         }
-    //     }
-    // }
-
-    // 读取基础配置文件
+        FILE* f = fopen(markFile, "w");
+        if (f)
+        {
+            fputs("1", f);
+            fclose(f);
+        }
+    }
     std::ifstream base_file("/sdcard/AuraKernel/Aura选择配置.json");
     if (base_file.is_open())
     {
@@ -2105,11 +2007,20 @@ void 绘制::更新对象数据()
         读写.readv(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_RootComponent) + 0x200, &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
         对象信息.敌人信息.距离 = 计算.计算距离(自身数据.坐标, 对象信息.敌人信息.坐标);
         FVector2D screenPos = WorldToScreen(对象信息.敌人信息.坐标);
-        FVector2D footPos = WorldToScreen(FVector_class{对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z - 5});
-        FVector2D headPos = WorldToScreen(FVector_class{对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z + Offsets::HumanHeight});
-        float r_x = footPos.X;
-        float r_y = footPos.Y;
-        float r_z = headPos.Y;
+FVector2D footPos = WorldToScreen(FVector_class{对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z - 5});
+FVector2D headPos = WorldToScreen(FVector_class{对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z + Offsets::HumanHeight});
+struct SmoothPos { float fx, fy, hz; };
+static std::unordered_map<uintptr_t, SmoothPos> smoothCache;
+constexpr float kSmooth = 0.35f; // 平滑系数 0.1(超平滑)~0.6(接近原始)
+auto &cached = smoothCache[对象地址.敌人地址];
+if (footPos.X != INFINITY && footPos.Y != INFINITY && headPos.Y != INFINITY) {
+    cached.fx = cached.fx + kSmooth * (footPos.X - cached.fx);
+    cached.fy = cached.fy + kSmooth * (footPos.Y - cached.fy);
+    cached.hz = cached.hz + kSmooth * (headPos.Y - cached.hz);
+}
+float r_x = cached.fx;
+float r_y = cached.fy;
+float r_z = cached.hz;
         float camear_r = (screenPos.X != INFINITY && screenPos.Y != INFINITY) ? 1.0f : -1.0f;
         D4DVector t_屏幕坐标 = {r_x - (r_y - r_z) / 4, r_y, (r_y - r_z) / 2, r_y - r_z};
         if (对象信息.敌人信息.距离 > Offsets::MaxDrawDistance)

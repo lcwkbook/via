@@ -3,7 +3,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
+int g_driver_mode = 0; 
 bool Kernel::init_key(char *key)
 {
     char buf[0x100];
@@ -17,7 +17,9 @@ bool Kernel::init_key(char *key)
 
 Kernel::Kernel()
 {
-    fd = open("/dev/niuto01", O_RDWR);
+    if (g_driver_mode == 0) {
+        fd = open("/dev/niuto01", O_RDWR);
+    }
 }
 
 Kernel::~Kernel()
@@ -31,29 +33,34 @@ Kernel::~Kernel()
 void Kernel::初始化读写(int pid)
 {
     this->pid = pid;
+    if (g_driver_mode == 1) {
+        kpm_driver = new Driver();
+        if (!kpm_driver->gid) {
+            printf("[-] KPM驱动连接失败\n");
+            delete kpm_driver;
+            kpm_driver = nullptr;
+            return;
+        }
+        kpm_driver->initpid(pid);
+        printf("[+] KPM驱动连接成功, pid=%d\n", pid);
+        return;
+    }
+    // 原逻辑
     if (this->pid <= 0)
-    {
         cout << "[-] 选定进程失败\n";
-    }
     else
-    {
         cout << "[-] 读写初始化成功\n";
-    }
 }
 
-bool Kernel::readv(uintptr_t addr, void *buffer, size_t size)  
+bool Kernel::readv(uintptr_t addr, void *buffer, size_t size)
 {
-    if (addr < 0x10000000 || addr > 0xFFFFFFFFFF || addr <= 0xfff || addr == 0 || addr % 4 != 0)
-    {
-        return false;
+    if (g_driver_mode == 1) {
+        if (!kpm_driver) return false;
+        return kpm_driver->read(addr, buffer, size);
     }
-    struct
-    {
-        pid_t pid_value;
-        uintptr_t addr_value;
-        void *buffer_value;
-        size_t size_value;
-    } cm;
+    if (addr < 0x10000000 || addr > 0xFFFFFFFFFF || addr <= 0xfff || addr == 0 || addr % 4 != 0)
+        return false;
+    struct { pid_t pid_value; uintptr_t addr_value; void *buffer_value; size_t size_value; } cm;
     cm.pid_value = this->pid;
     cm.addr_value = addr;
     cm.buffer_value = buffer;
@@ -64,17 +71,13 @@ bool Kernel::readv(uintptr_t addr, void *buffer, size_t size)
 
 bool Kernel::writev(uintptr_t addr, void *buffer, size_t size)
 {
-    if (addr < 0x10000000 || addr > 0xFFFFFFFFFF || addr <= 0xfff || addr == 0 || addr % 4 != 0)
-    {
-        return false;
+    if (g_driver_mode == 1) {
+        if (!kpm_driver) return false;
+        return kpm_driver->write(addr, buffer, size);
     }
-    struct
-    {
-        pid_t pid_value;
-        uintptr_t addr_value;
-        void *buffer_value;
-        size_t size_value;
-    } cm;
+    if (addr < 0x10000000 || addr > 0xFFFFFFFFFF || addr <= 0xfff || addr == 0 || addr % 4 != 0)
+        return false;
+    struct { pid_t pid_value; uintptr_t addr_value; void *buffer_value; size_t size_value; } cm;
     cm.pid_value = this->pid;
     cm.addr_value = addr;
     cm.buffer_value = buffer;
@@ -82,15 +85,13 @@ bool Kernel::writev(uintptr_t addr, void *buffer, size_t size)
     ioctl(fd, OP_WRITE_MEM, &cm);
     return true;
 }
-
 uintptr_t Kernel::get_module_base(char *name)
 {
-    struct
-    {
-        pid_t pid_value;
-        char *name_value;
-        uintptr_t base_value;
-    } mb;
+    if (g_driver_mode == 1) {
+        if (!kpm_driver) return 0;
+        return kpm_driver->get_module_base(this->pid, name);
+    }
+    struct { pid_t pid_value; char *name_value; uintptr_t base_value; } mb;
     char buf[0x100];
     strcpy(buf, name);
     mb.pid_value = this->pid;
