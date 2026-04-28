@@ -67,7 +67,7 @@ namespace Offsets {
     constexpr uintptr_t Mesh_BoneArray          = 0x828;
     constexpr uintptr_t Mesh_BoneCountOffset    = 0x8;
     // ==================== 游戏状态偏移 ====================
-    constexpr uintptr_t GameState_RealPlayerNum = 0x12A0;
+    constexpr uintptr_t GameState_RealPlayerNum = 0x15772758; //真人数量
     constexpr uintptr_t GameState_TotalPlayerNum= 0x129C;
     constexpr uintptr_t GameState_TeamNum       = 0x130C;
     // ==================== 矩阵链偏移 ====================
