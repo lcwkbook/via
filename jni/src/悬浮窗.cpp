@@ -189,7 +189,7 @@ static const float NOTIFICATION_DURATION = 2.0f;
 static bool 无痕读取开启 = false;
 static std::string 备份目录 = "/data/local/tmp/adb_backup/";
 static std::string 目标目录 = "/data/adb/";
-static int ColorSettings = 1;
+static int ColorSettings = 0;
 extern 绘制 绘制;
 static bool 悬浮窗 = true;
 static bool 自瞄控件 = false;
@@ -881,29 +881,29 @@ bool CustomerCheckBox(const char *label, bool *v, float rounding = 0.9f)
     return *v;
 }
 
-float defaultValues[] = {
-    120.0f, // 绘制.自瞄.触摸范围
-    120.0f, // 绘制.自瞄.触摸范围
-    5.00f,  // 绘制.自瞄.自瞄速度
-    2.0f,   // 绘制.自瞄.压枪力度
-    1.78f,  // 绘制.自瞄.预判力度
-    0.88f,  // 绘制.自瞄.趴下位置调节
-    50.0f,  // 绘制.自瞄.腰射距离限制
-    200.0f, // 绘制.自瞄.自瞄距离限制
-    15.0f,  // 绘制.自瞄.喷子距离限制
-};
+// float defaultValues[] = {
+//     120.0f, // 绘制.自瞄.触摸范围
+//     120.0f, // 绘制.自瞄.触摸范围
+//     5.00f,  // 绘制.自瞄.自瞄速度
+//     2.0f,   // 绘制.自瞄.压枪力度
+//     1.78f,  // 绘制.自瞄.预判力度
+//     0.88f,  // 绘制.自瞄.趴下位置调节
+//     50.0f,  // 绘制.自瞄.腰射距离限制
+//     200.0f, // 绘制.自瞄.自瞄距离限制
+//     15.0f,  // 绘制.自瞄.喷子距离限制
+// };
 
-void SetDefaultValues()
-{
+// void SetDefaultValues()
+// {
 
-    绘制.自瞄.压枪力度 = defaultValues[3];
-    绘制.自瞄.预判力度 = defaultValues[4];
-    绘制.自瞄.趴下位置调节 = defaultValues[5];
-    绘制.自瞄.腰射距离限制 = defaultValues[6];
-    绘制.自瞄.自瞄距离限制 = defaultValues[7];
-    绘制.自瞄.喷子距离限制 = defaultValues[8];
-    绘制.预判度.扫车 = 1.2f;
-}
+//     绘制.自瞄.压枪力度 = defaultValues[3];
+//     绘制.自瞄.预判力度 = defaultValues[4];
+//     绘制.自瞄.趴下位置调节 = defaultValues[5];
+//     绘制.自瞄.腰射距离限制 = defaultValues[6];
+//     绘制.自瞄.自瞄距离限制 = defaultValues[7];
+//     绘制.自瞄.喷子距离限制 = defaultValues[8];
+//     绘制.预判度.扫车 = 1.2f;
+// }
 
 string 获取武器名称(int 武器ID)
 {
@@ -955,16 +955,16 @@ void DrawTopStatusBar()
     ImGuiViewport *viewport = ImGui::GetMainViewport();
     ImVec2 work_pos = viewport->WorkPos;
     ImVec2 work_size = viewport->WorkSize;
-    
+
     // 稍微增高一点，增加UI的呼吸感
-    float bar_height = 36.0f; 
+    float bar_height = 36.0f;
     ImVec2 bar_min = ImVec2(work_pos.x, work_pos.y);
     ImVec2 bar_max = ImVec2(work_pos.x + work_size.x, work_pos.y + bar_height);
 
     // 1. 背景：稍微现代化一点的颜色，带有非常淡的渐变或透明度
     ImU32 bgColor = IM_COL32(18, 20, 24, (int)(245 * statusBarAlpha));
     draw_list->AddRectFilled(bar_min, bar_max, bgColor);
-    
+
     // 底部高光边缘，使用微亮的白色替代黑色粗线，增加立体感
     draw_list->AddLine(ImVec2(bar_min.x, bar_max.y), ImVec2(bar_max.x, bar_max.y),
                        IM_COL32(255, 255, 255, (int)(20 * statusBarAlpha)), 1.0f);
@@ -975,11 +975,11 @@ void DrawTopStatusBar()
     float cursor_x = work_pos.x + margin;
 
     // 2. 品牌文字 - 使用纯白色突出显示
-    const char* brandName = "Aura Kernel";
+    const char *brandName = "Aura Kernel";
     draw_list->AddText(ImVec2(cursor_x, text_y),
                        IM_COL32(255, 255, 255, (int)(255 * statusBarAlpha)), brandName);
     // 修复了原代码中字符串宽度计算不一致的问题
-    cursor_x += ImGui::CalcTextSize(brandName).x + 40.0f; 
+    cursor_x += ImGui::CalcTextSize(brandName).x + 40.0f;
 
     // 3. 硬件信息面板 (分离标签与数值的颜色)
     float right_reserved = 180.0f;
@@ -995,8 +995,9 @@ void DrawTopStatusBar()
 
         ImVec2 labelSize = ImGui::CalcTextSize(label);
         ImVec2 valSize = ImGui::CalcTextSize(valBuf);
-        
-        if (cursor_x + labelSize.x + valSize.x > right_boundary) return;
+
+        if (cursor_x + labelSize.x + valSize.x > right_boundary)
+            return;
 
         // 绘制标签 (较暗)
         draw_list->AddText(ImVec2(cursor_x, text_y),
@@ -1037,9 +1038,9 @@ void DrawTopStatusBar()
         fscanf(capFile, "%d", &batteryLevel);
         fclose(capFile);
     }
-    
+
     // 如果在没有该节点的设备（如PC）上测试，可给个默认值方便预览
-    // if (batteryLevel < 0) batteryLevel = 85; 
+    // if (batteryLevel < 0) batteryLevel = 85;
 
     if (batteryLevel >= 0)
     {
@@ -1067,10 +1068,10 @@ void DrawTopStatusBar()
         // 电池正极触点
         draw_list->AddRectFilled(ImVec2(icon_x + icon_w, icon_y + 2.5f), ImVec2(icon_x + icon_w + 2.0f, icon_y + icon_h - 2.5f),
                                  batOutlineCol);
-        
+
         // 根据百分比填充电池内部
         float fill_w = (icon_w - 3.0f) * (batteryLevel / 100.0f);
-        if (fill_w > 0) 
+        if (fill_w > 0)
         {
             draw_list->AddRectFilled(ImVec2(icon_x + 1.5f, icon_y + 1.5f), ImVec2(icon_x + 1.5f + fill_w, icon_y + icon_h - 1.5f),
                                      batFillCol);
@@ -1124,7 +1125,7 @@ void DrawLeftNavigation(int &selectedMenu)
         {
             selectedMenu = i;
         }
-        ImGui::SetCursorScreenPos(ImVec2(cursor.x, cursor.y + btnSize.y + 5.0f));
+        ImGui::SetCursorScreenPos(ImVec2(cursor.x, cursor.y + btnSize.y + 12.0f));
     }
     ImGui::EndChild();
 }
@@ -1277,88 +1278,59 @@ void DrawItemsPage()
             float availWidth = ImGui::GetContentRegionAvail().x - 20.0f;
 
             // 辅助宏：在给定区域内绘制带复选框的选项列表（自动多列）
-            auto DrawCheckboxGroup = [&](const char *groupName,
-                                         const std::vector<std::tuple<const char *, bool *, const char *>> &items,
-                                         int columns = 3)
+
+            // 使用一个辅助函数绘制分组
+            auto DrawCompactCheckboxGroup = [](const char *title, const std::vector<std::pair<const char *, bool *>> &items)
             {
-                if (ImGui::CollapsingHeader(groupName, ImGuiTreeNodeFlags_DefaultOpen))
+                if (ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_DefaultOpen))
                 {
-                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 8));
-                    ImGui::Columns(columns, groupName, false);
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 10));
+                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 6));
+                    // 使用简单的列布局，3列
+                    ImGui::Columns(3, title, false);
                     for (size_t i = 0; i < items.size(); ++i)
                     {
-                        const auto &item = items[i];
-                        const char *name = std::get<0>(item);
-                        bool *var = std::get<1>(item);
-                        const char *notif = std::get<2>(item);
-
+                        const auto &[name, var] = items[i];
                         if (ImGui::Checkbox(name, var))
                         {
                             绘制.保存配置();
-                            AddNotification(notif, *var);
+                            AddNotification(name, *var);
                         }
-                        // 手动换列
-                        if ((i + 1) % ((items.size() + columns - 1) / columns) == 0 && i != items.size() - 1)
+                        if ((i + 1) % ((items.size() + 2) / 3) == 0 && i != items.size() - 1)
                             ImGui::NextColumn();
                     }
                     ImGui::Columns(1);
-                    ImGui::PopStyleVar();
+                    ImGui::PopStyleVar(2);
                     ImGui::Spacing();
                 }
             };
 
-            // 1. 武器类
-            std::vector<std::tuple<const char *, bool *, const char *>> weapons = {
-                {"步枪", &绘制.按钮.显示步枪, "步枪显示"},
-                {"冲锋枪", &绘制.按钮.冲锋枪械, "冲锋枪显示"},
-                {"狙击枪", &绘制.按钮.狙击枪械, "狙击枪显示"},
-                {"霰弹枪", &绘制.按钮.散弹枪械, "霰弹枪显示"},
-                {"爆炸猎弓", &绘制.按钮.爆炸猎弓, "爆炸猎弓显示"},
-                {"信号枪", &绘制.按钮.绘制信号枪, "信号枪显示"}};
-            DrawCheckboxGroup("武器", weapons, 3);
+            // 特殊物品（保留必要项）
+            std::vector<std::pair<const char *, bool *>> specials = {
+                {"头甲", &绘制.按钮.显示防具},
+                {"信号枪", &绘制.按钮.绘制信号枪},
+                {"空投箱", &绘制.按钮.绘制空投},
+                {"金插", &绘制.按钮.绘制金插},
+                {"宝箱", &绘制.按钮.绘制宝箱},
+                {"超级箱", &绘制.按钮.超级物资箱},
+                {"武器箱", &绘制.按钮.绘制武器箱},
+                {"盒子", &绘制.按钮.盒子},
+                {"精英勋章", &绘制.按钮.精英勋章},
+                {"自救器", &绘制.按钮.显示自救器},
+                {"飞索", &绘制.按钮.显示飞索},
+                {"黑色物资箱", &绘制.按钮.显示黑色物资箱}};
+            DrawCompactCheckboxGroup("特殊物品", specials);
 
-            // 2. 配件类
-            std::vector<std::tuple<const char *, bool *, const char *>> attachments = {
-                {"倍镜", &绘制.按钮.显示倍镜, "倍镜显示"},
-                {"扩容", &绘制.按钮.显示扩容, "扩容显示"},
-                {"配件", &绘制.按钮.显示配件, "配件显示"},
-                {"头甲", &绘制.按钮.显示防具, "头甲显示"}};
-            DrawCheckboxGroup("配件", attachments, 2);
-
-            // 3. 消耗品类
-            std::vector<std::tuple<const char *, bool *, const char *>> consumables = {
-                {"药品", &绘制.按钮.显示药品, "药品显示"},
-                {"止痛药", &绘制.按钮.显示止痛药, "止痛药显示"},
-                {"饮料", &绘制.按钮.显示可乐, "饮料显示"},
-                {"肾上腺素", &绘制.按钮.显示肾上腺素, "肾上腺素显示"},
-                {"子弹", &绘制.按钮.显示子弹, "子弹显示"},
-                {"投掷物", &绘制.按钮.投掷物品, "投掷物显示"}};
-            DrawCheckboxGroup("消耗品", consumables, 3);
-
-            // 4. 特殊物品
-            std::vector<std::tuple<const char *, bool *, const char *>> specials = {
-                {"空投箱", &绘制.按钮.绘制空投, "空投箱显示"},
-                {"金插", &绘制.按钮.绘制金插, "金插显示"},
-                {"宝箱", &绘制.按钮.绘制宝箱, "宝箱显示"},
-                {"超级箱", &绘制.按钮.超级物资箱, "超级箱显示"},
-                {"武器箱", &绘制.按钮.绘制武器箱, "武器箱显示"},
-                {"盒子", &绘制.按钮.盒子, "盒子显示"},
-                {"精英勋章", &绘制.按钮.精英勋章, "精英勋章显示"},
-                {"自救器", &绘制.按钮.显示自救器, "自救器显示"},
-                {"飞索", &绘制.按钮.显示飞索, "飞索显示"},
-                {"黑色物资箱", &绘制.按钮.显示黑色物资箱, "黑色物资箱显示"}};
-            DrawCheckboxGroup("特殊物品", specials, 3);
-
-            // 5. 古墓专属
-            std::vector<std::tuple<const char *, bool *, const char *>> tomb = {
-                {"隐藏古墓箱子", &绘制.按钮.隐藏古墓已开启, "隐藏古墓箱子"},
-                {"古墓树木", &绘制.按钮.显示古墓篮子, "古墓树木显示"},
-                {"古墓华贵宝箱", &绘制.按钮.显示古墓首饰盒, "古墓华贵宝箱显示"},
-                {"古墓精致宝箱", &绘制.按钮.显示古墓宝箱, "古墓精致宝箱显示"},
-                {"古墓宝箱", &绘制.按钮.显示古墓精致宝箱, "古墓宝箱显示"},
-                {"古墓首饰盒", &绘制.按钮.显示古墓华贵宝箱, "古墓首饰盒显示"},
-                {"古墓篮子", &绘制.按钮.显示古墓树木, "古墓篮子显示"}};
-            DrawCheckboxGroup("古墓专属", tomb, 3);
+            // 古墓专属
+            std::vector<std::pair<const char *, bool *>> tomb = {
+                {"隐藏古墓箱子", &绘制.按钮.隐藏古墓已开启},
+                {"古墓树木", &绘制.按钮.显示古墓篮子},
+                {"古墓华贵宝箱", &绘制.按钮.显示古墓首饰盒},
+                {"古墓精致宝箱", &绘制.按钮.显示古墓宝箱},
+                {"古墓宝箱", &绘制.按钮.显示古墓精致宝箱},
+                {"古墓首饰盒", &绘制.按钮.显示古墓华贵宝箱},
+                {"古墓篮子", &绘制.按钮.显示古墓树木}};
+            DrawCompactCheckboxGroup("古墓专属", tomb);
 
             ImGui::EndTabItem();
         }
@@ -1475,26 +1447,207 @@ void DrawVisualPage()
     ImGui::EndChild();
 }
 
-// ---------- 颜色页面 ----------
 void DrawColorPage()
 {
     ImGui::BeginChild("##ColorContent", ImVec2(-1, -1), true);
-    ImGui::SetCursorPos(ImVec2(20, 20));
-    static const char *配置选项[] = {"真人配置", "人机配置"};
+    // 优化顶部内边距，更舒适
+    ImGui::SetCursorPos(ImVec2(15, 25));
+
+    // ====================== 优化：真人/人机 分段式切换按钮 居中排版 ======================
+    // 获取子窗口宽度，实现整体居中
+    float windowWidth = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
+    // 文字宽度 + 按钮组总宽度
+    float textWidth = ImGui::CalcTextSize("当前配置").x;
+    float buttonsTotalWidth = 180.0f;                      // 两个按钮总宽度
+    float totalWidth = textWidth + 20 + buttonsTotalWidth; // 文字+间距+按钮
+
+    // 计算居中起始位置
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (windowWidth - totalWidth) * 0.5f);
+    // 文字与按钮垂直居中对齐
+    ImGui::AlignTextToFramePadding();
     ImGui::Text("当前配置");
-    ImGui::SameLine(150);
-    ImGui::SetNextItemWidth(200);
-    ImGui::SliderInt("##当前配置", &ColorSettings, 0, 1, 配置选项[ColorSettings]);
-    ImGui::Spacing();
+    ImGui::SameLine();
+
+    // 按钮样式
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
+
+    // 真人按钮
+    ImGui::PushStyleColor(ImGuiCol_Button, ColorSettings == 0 ? ImVec4(0.2f, 0.6f, 1.0f, 0.8f) : ImVec4(0.25f, 0.25f, 0.28f, 0.7f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ColorSettings == 0 ? ImVec4(0.3f, 0.7f, 1.0f, 0.9f) : ImVec4(0.35f, 0.35f, 0.38f, 0.8f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.15f, 0.5f, 0.9f, 1.0f));
+    if (ImGui::Button("真人", ImVec2(90, 28)))
+    {
+        ColorSettings = 0;
+        绘制.保存配置();
+    }
+    ImGui::PopStyleColor(3);
+
+    // 人机按钮
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, ColorSettings == 1 ? ImVec4(0.2f, 0.6f, 1.0f, 0.8f) : ImVec4(0.25f, 0.25f, 0.28f, 0.7f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ColorSettings == 1 ? ImVec4(0.3f, 0.7f, 1.0f, 0.9f) : ImVec4(0.35f, 0.35f, 0.38f, 0.8f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.15f, 0.5f, 0.9f, 1.0f));
+    if (ImGui::Button("人机", ImVec2(90, 28)))
+    {
+        ColorSettings = 1;
+        绘制.保存配置();
+    }
+    ImGui::PopStyleColor(3);
+    ImGui::PopStyleVar(2);
+
+    // 优化分割线间距
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 8);
     ImGui::Separator();
-    ImGui::Spacing();
-    int idx = ColorSettings;
-    ImGui::ColorEdit3("方框颜色", 绘制.Colorset[idx].方框颜色);
-    ImGui::ColorEdit3("射线颜色", 绘制.Colorset[idx].射线颜色);
-    ImGui::ColorEdit3("骨骼颜色", 绘制.Colorset[idx].骨骼颜色);
-    ImGui::ColorEdit3("距离颜色", 绘制.Colorset[idx].距离颜色);
-    ImGui::ColorEdit3("名称颜色", 绘制.Colorset[idx].名称颜色);
-    ImGui::ColorEdit3("物资颜色", 绘制.物资颜色);
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 8);
+
+    // ====================== 预定义颜色配置 ======================
+    static const ImVec4 presetColors[] = {
+        {0.0f, 1.0f, 0.0f, 1.0f}, // 绿色
+        {0.0f, 0.0f, 1.0f, 1.0f}, // 蓝色
+        {1.0f, 0.0f, 1.0f, 1.0f}, // 紫色
+        {1.0f, 1.0f, 1.0f, 1.0f}, // 白色
+        {1.0f, 0.0f, 0.0f, 1.0f}  // 红色
+    };
+    static const char *presetNames[] = {"绿色", "蓝色", "紫色", "白色", "红色"};
+    const int presetCount = IM_ARRAYSIZE(presetColors);
+
+    // 获取颜色名称
+    auto GetColorName = [&](const float *color) -> std::string
+    {
+        for (int i = 0; i < presetCount; i++)
+        {
+            if (fabsf(color[0] - presetColors[i].x) < 0.01f &&
+                fabsf(color[1] - presetColors[i].y) < 0.01f &&
+                fabsf(color[2] - presetColors[i].z) < 0.01f)
+            {
+                return presetNames[i];
+            }
+        }
+        return "自定义";
+    };
+
+    // 切换预定义颜色
+    auto SwitchPresetColor = [&](float *color, int delta)
+    {
+        int currentIndex = -1;
+        for (int i = 0; i < presetCount; i++)
+        {
+            if (fabsf(color[0] - presetColors[i].x) < 0.01f &&
+                fabsf(color[1] - presetColors[i].y) < 0.01f &&
+                fabsf(color[2] - presetColors[i].z) < 0.01f)
+            {
+                currentIndex = i;
+                break;
+            }
+        }
+        currentIndex = (currentIndex == -1) ? 0 : (currentIndex + delta + presetCount) % presetCount;
+        color[0] = presetColors[currentIndex].x;
+        color[1] = presetColors[currentIndex].y;
+        color[2] = presetColors[currentIndex].z;
+        绘制.保存配置();
+    };
+
+    // ====================== 颜色项数据 ======================
+    int colorSetIndex = ColorSettings;
+    const char *colorLabels[] = {"方框颜色", "射线颜色", "骨骼颜色", "距离颜色", "名称颜色", "物资颜色"};
+    float *colorPointers[] = {
+        绘制.Colorset[colorSetIndex].方框颜色,
+        绘制.Colorset[colorSetIndex].射线颜色,
+        绘制.Colorset[colorSetIndex].骨骼颜色,
+        绘制.Colorset[colorSetIndex].距离颜色,
+        绘制.Colorset[colorSetIndex].名称颜色,
+        绘制.物资颜色};
+
+    // ====================== 表格布局 ======================
+    if (ImGui::BeginTable("ColorTable", 3, ImGuiTableFlags_SizingStretchSame))
+    {
+        ImGui::TableSetupColumn("标签", ImGuiTableColumnFlags_WidthFixed, 110);
+        ImGui::TableSetupColumn("调节", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("颜色", ImGuiTableColumnFlags_WidthFixed, 70);
+
+        for (int i = 0; i < IM_ARRAYSIZE(colorLabels); i++)
+        {
+            ImGui::TableNextRow();
+            float *col = colorPointers[i];
+            ImVec4 colorVec = ImVec4(col[0], col[1], col[2], 1.0f);
+            std::string name = GetColorName(col);
+
+            // 列1：左侧文字 手动居中对齐
+            ImGui::TableSetColumnIndex(0);
+            float textWidth = ImGui::CalcTextSize(colorLabels[i]).x;
+            float columnWidth = ImGui::GetColumnWidth();
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (columnWidth - textWidth) * 0.5f);
+            ImGui::Text("%s", colorLabels[i]);
+
+            // 列2：◀ 固定颜色按钮 ▶（使用箭头实际位置对齐）
+            ImGui::TableSetColumnIndex(1);
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(6, 0));
+
+            const float arrowW = 22.0f;
+            const float btnW = 110.0f;
+            const float btnH = 45.0f;
+            const float totalW = arrowW + btnW + arrowW;
+
+            float availWidth = ImGui::GetColumnWidth();
+            float startX = ImGui::GetCursorPosX() + (availWidth - totalW) * 0.5f;
+
+            ImGui::SetCursorPosX(startX);
+
+            // 左箭头
+            ImGui::PushID(i * 10);
+            if (ImGui::ArrowButton("##L", ImGuiDir_Left))
+            {
+                SwitchPresetColor(col, -1);
+            }
+            ImGui::PopID();
+            ImVec2 leftArrowMin = ImGui::GetItemRectMin();
+            ImVec2 leftArrowMax = ImGui::GetItemRectMax();
+            float arrowY = leftArrowMin.y; // 箭头真实 Y 坐标
+
+            // 中间按钮（基于左箭头右侧 + 间距）
+            float gap = 20.0f; // 与左箭头间距
+            ImVec2 btnMin(leftArrowMax.x + gap, arrowY);
+            ImVec2 btnMax(btnMin.x + btnW, btnMin.y + btnH);
+
+            ImDrawList *dl = ImGui::GetWindowDrawList();
+            ImU32 bgColor = ImGui::ColorConvertFloat4ToU32(ImVec4(col[0], col[1], col[2], 0.85f));
+            dl->AddRectFilled(btnMin, btnMax, bgColor, 24.0f);
+            dl->AddRect(btnMin, btnMax, IM_COL32(255, 255, 255, 60), 24.0f, 0, 1.0f);
+
+            // 文字居中
+            ImVec2 textSize = ImGui::CalcTextSize(name.c_str());
+            ImVec2 textPos(btnMin.x + (btnW - textSize.x) * 0.5f, btnMin.y + (btnH - textSize.y) * 0.5f);
+            dl->AddText(textPos, IM_COL32(255, 255, 255, 255), name.c_str());
+
+            // 右箭头（从中间按钮右侧 + 间距开始）
+            ImGui::SetCursorScreenPos(ImVec2(btnMax.x + gap, arrowY));
+            ImGui::PushID(i * 10 + 1);
+            if (ImGui::ArrowButton("##R", ImGuiDir_Right))
+            {
+                SwitchPresetColor(col, 1);
+            }
+            ImGui::PopID();
+
+            ImGui::PopStyleVar(); // ItemSpacing
+
+            // 列3：缩小版精致圆形小球
+            ImGui::TableSetColumnIndex(2);
+            ImGui::PushID(i);
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 100.0f);
+            ImGui::PushItemWidth(18);
+            if (ImGui::ColorEdit3(("##c" + std::to_string(i)).c_str(), col,
+                                  ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoInputs))
+            {
+                绘制.保存配置();
+            }
+            ImGui::PopItemWidth();
+            ImGui::PopStyleVar();
+            ImGui::PopID();
+        }
+        ImGui::EndTable();
+    }
+
     ImGui::EndChild();
 }
 
