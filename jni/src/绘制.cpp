@@ -28,12 +28,12 @@ using json = nlohmann::json;
 extern float statusBarAlpha;
 int decrypt_zero_x()
 {
-    return 0x8; // 默认偏移值，根据你的游戏修改
+    return 0x10; // 默认偏移值，根据你的游戏修改
 }
 
 int decrypt_zero_y()
 {
-    return 0x10; // 默认偏移值，根据你的游戏修改
+    return 0x20; // 默认偏移值，根据你的游戏修改
 }
 
 extern 绘制 绘制;
@@ -1985,10 +1985,21 @@ void 绘制::更新地址数据()
     世界数量 = 读写.getDword(地址.世界地址 + Offsets::GWorld_ActorsCount);
 
     // 解密数组优先 (如果已启用)
-    if (解密数组)
+    // if (解密数组)
+    // {
+    //     地址.数组地址 = 解密数组;
+    //     世界数量 = 读写.getDword(地址.世界地址 + Offsets::GWorld_ActorsCountDec);
+    // }
+
+    if (按钮.解密)
     {
-        地址.数组地址 = 解密数组;
-        世界数量 = 读写.getDword(地址.世界地址 + Offsets::GWorld_ActorsCountDec);
+        地址.数组地址 = 读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x141BF3F8) + 0xf8) + 0x138) + 0xf0);
+        世界数量 = 读写.getDword(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x141BF3F8) + 0xf8) + 0x138) + 0xf8);
+    }
+    else
+    {
+        地址.数组地址 = 读写.getPtr64(地址.世界地址 + 0xA0);
+        世界数量 = 读写.getDword(地址.世界地址 + 0xA8);
     }
 
     地址.类地址 = 读写.getPtr64(地址.libue4 + Offsets::ClassBase);
