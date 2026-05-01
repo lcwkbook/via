@@ -461,8 +461,8 @@ float calculateDistance(float x1, float y1, float x2, float y2)
 {
     return sqrtf((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
 }
-std::unordered_map<int, 武器触发条件> 绘制::武器触发配置;
-std::unordered_map<int, 武器参数> 绘制::武器参数配置;
+// std::unordered_map<int, 武器触发条件> 绘制::武器触发配置;
+// std::unordered_map<int, 武器参数> 绘制::武器参数配置;
 std::unordered_map<uintptr_t, int> 绘制::lastBoneIndices;
 std::unordered_map<uintptr_t, std::vector<int>> 绘制::recentBoneIndices;
 
@@ -672,17 +672,17 @@ void 绘制::保存配置()
     };
 
     // 连点配置
-    base_config["连点"] = {
-        {"触摸范围X", 连点.触摸范围X},
-        {"触摸范围Y", 连点.触摸范围Y},
-        {"连点速度", 连点.连点速度},
-        {"监听边长", 连点.监听边长},
-        {"监听位置X", 连点.监听位置X},
-        {"监听位置Y", 连点.监听位置Y},
-        {"启用连点", 连点.启用连点},
-        {"连点位置", 连点.连点位置},
-        {"跟随自瞄连点", 连点.跟随自瞄连点},
-        {"监听位置", 连点.监听位置}};
+    // base_config["连点"] = {
+    //     {"触摸范围X", 连点.触摸范围X},
+    //     {"触摸范围Y", 连点.触摸范围Y},
+    //     {"连点速度", 连点.连点速度},
+    //     {"监听边长", 连点.监听边长},
+    //     {"监听位置X", 连点.监听位置X},
+    //     {"监听位置Y", 连点.监听位置Y},
+    //     {"启用连点", 连点.启用连点},
+    //     {"连点位置", 连点.连点位置},
+    //     {"跟随自瞄连点", 连点.跟随自瞄连点},
+    //     {"监听位置", 连点.监听位置}};
 
     // 其他配置
     base_config["其他"] = {
@@ -949,20 +949,20 @@ void 绘制::读取配置()
         }
 
         // 读取连点配置
-        if (base_config.contains("连点"))
-        {
-            const auto &click = base_config["连点"];
-            连点.触摸范围X = click.value("触摸范围X", 连点.触摸范围X);
-            连点.触摸范围Y = click.value("触摸范围Y", 连点.触摸范围Y);
-            连点.连点速度 = click.value("连点速度", 连点.连点速度);
-            连点.监听边长 = click.value("监听边长", 连点.监听边长);
-            连点.监听位置X = click.value("监听位置X", 连点.监听位置X);
-            连点.监听位置Y = click.value("监听位置Y", 连点.监听位置Y);
-            连点.启用连点 = click.value("启用连点", 连点.启用连点);
-            连点.连点位置 = click.value("连点位置", 连点.连点位置);
-            连点.跟随自瞄连点 = click.value("跟随自瞄连点", 连点.跟随自瞄连点);
-            连点.监听位置 = click.value("监听位置", 连点.监听位置);
-        }
+        // if (base_config.contains("连点"))
+        // {
+        //     const auto &click = base_config["连点"];
+        //     连点.触摸范围X = click.value("触摸范围X", 连点.触摸范围X);
+        //     连点.触摸范围Y = click.value("触摸范围Y", 连点.触摸范围Y);
+        //     连点.连点速度 = click.value("连点速度", 连点.连点速度);
+        //     连点.监听边长 = click.value("监听边长", 连点.监听边长);
+        //     连点.监听位置X = click.value("监听位置X", 连点.监听位置X);
+        //     连点.监听位置Y = click.value("监听位置Y", 连点.监听位置Y);
+        //     连点.启用连点 = click.value("启用连点", 连点.启用连点);
+        //     连点.连点位置 = click.value("连点位置", 连点.连点位置);
+        //     连点.跟随自瞄连点 = click.value("跟随自瞄连点", 连点.跟随自瞄连点);
+        //     连点.监听位置 = click.value("监听位置", 连点.监听位置);
+        // }
 
         // 读取其他配置
         if (base_config.contains("其他"))
@@ -1183,8 +1183,8 @@ bool Read(pid_t pid, uint64_t addr, void *buffer, size_t size)
 }
 
 #include "Event.h"
-static Gyro *gyro = nullptr;
-bool 陀螺仪开启状态 = false;
+// static Gyro *gyro = nullptr;
+// bool 陀螺仪开启状态 = false;
 void 绘制::初始化绘制(string 包名, int 真实X, int 真实Y)
 {
     真实PX = 真实X;
@@ -1208,11 +1208,11 @@ void 绘制::初始化绘制(string 包名, int 真实X, int 真实Y)
     地址.libue4 = 读写.get_module_base((char *)"libUE4.so");
 
     // 陀螺仪初始化
-    if (!陀螺仪开启状态)
-    {
-        gyro = new Gyro(); // 这里会自动检测并选择驱动模式
-        陀螺仪开启状态 = true;
-    }
+    // if (!陀螺仪开启状态)
+    // {
+    //     gyro = new Gyro(); // 这里会自动检测并选择驱动模式
+    //     陀螺仪开启状态 = true;
+    // }
 
     // 设置启动时间
     启动时间 = std::chrono::steady_clock::now();

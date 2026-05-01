@@ -1450,25 +1450,12 @@ void DrawVisualPage()
 void DrawColorPage()
 {
     ImGui::BeginChild("##ColorContent", ImVec2(-1, -1), true);
-    // 优化顶部内边距，更舒适
-    ImGui::SetCursorPos(ImVec2(15, 25));
+    ImGui::SetCursorPos(ImVec2(20, 20));
 
-    // ====================== 优化：真人/人机 分段式切换按钮 居中排版 ======================
-    // 获取子窗口宽度，实现整体居中
-    float windowWidth = ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x;
-    // 文字宽度 + 按钮组总宽度
-    float textWidth = ImGui::CalcTextSize("当前配置").x;
-    float buttonsTotalWidth = 180.0f;                      // 两个按钮总宽度
-    float totalWidth = textWidth + 20 + buttonsTotalWidth; // 文字+间距+按钮
-
-    // 计算居中起始位置
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (windowWidth - totalWidth) * 0.5f);
-    // 文字与按钮垂直居中对齐
-    ImGui::AlignTextToFramePadding();
+    // ====================== 真人/人机 分段式切换按钮 ======================
     ImGui::Text("当前配置");
-    ImGui::SameLine();
+    ImGui::SameLine(120);
 
-    // 按钮样式
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 6.0f);
 
@@ -1496,10 +1483,9 @@ void DrawColorPage()
     ImGui::PopStyleColor(3);
     ImGui::PopStyleVar(2);
 
-    // 优化分割线间距
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 8);
+    ImGui::Spacing();
     ImGui::Separator();
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 8);
+    ImGui::Spacing();
 
     // ====================== 预定义颜色配置 ======================
     static const ImVec4 presetColors[] = {
