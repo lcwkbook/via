@@ -2040,12 +2040,12 @@ void 绘制::更新地址数据()
     }
 
     // ========== 子弹速度与后坐力 ==========
-    uintptr_t weaponEntityComp = 读写.getPtr64(weaponPtr + Offsets::Weapon_EntityComp);
-    if (weaponEntityComp != 0)
-    {
-        自身数据.子弹速度 = 读写.getFloat(weaponEntityComp + Offsets::Weapon_BulletSpeed);
-        自身数据.后坐力数据 = 读写.getFloat(weaponEntityComp + Offsets::Weapon_RecoilFactor);
-    }
+    // uintptr_t weaponEntityComp = 读写.getPtr64(weaponPtr + Offsets::Weapon_EntityComp);
+    // if (weaponEntityComp != 0)
+    // {
+    //     自身数据.子弹速度 = 读写.getFloat(weaponEntityComp + Offsets::Weapon_BulletSpeed);
+    //     自身数据.后坐力数据 = 读写.getFloat(weaponEntityComp + Offsets::Weapon_RecoilFactor);
+    // }
 
     // ========== 人物高度 (用于趴下调节) ==========
     自身数据.人物高度 = 读写.getFloat(地址.自身地址 + Offsets::Actor_SpeedValue);
