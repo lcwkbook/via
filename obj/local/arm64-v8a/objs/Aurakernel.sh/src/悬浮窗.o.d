@@ -1,31 +1,11 @@
-D:/文档/GitHub/via/obj/local/arm64-v8a/objs/Vkernel.sh/src/main.o: \
-  D:/文档/GitHub/via/jni/src/main.cpp \
-  D:/文档/GitHub/via/jni/include/Draw.h \
-  D:/文档/GitHub/via/jni/include/ImGui/ANativeWindowCreator.h \
+D:/文档/GitHub/via/obj/local/arm64-v8a/objs/Aurakernel.sh/src/悬浮窗.o: \
+  D:/文档/GitHub/via/jni/src/悬浮窗.cpp \
+  D:/文档/GitHub/via/jni/src/json.hpp \
   D:/文档/GitHub/via/jni/include/ImGui/imgui.h \
   D:/文档/GitHub/via/jni/include/ImGui/imconfig.h \
-  D:/文档/GitHub/via/jni/include/ImGui/imgui_internal.h \
-  D:/文档/GitHub/via/jni/include/ImGui/imstb_textedit.h \
-  D:/文档/GitHub/via/jni/include/ImGui/imgui_impl_android.h \
-  D:/文档/GitHub/via/jni/include/Touch/TouchHelperA.h \
-  D:/文档/GitHub/via/jni/include/ImGui/imgui_impl_vulkan.h \
-  D:/文档/GitHub/via/jni/include/vulkan/vulkan_wrapper.h \
-  D:/文档/GitHub/via/jni/include/vulkan/VulkanUtils.h \
-  D:/文档/GitHub/via/jni/include/辅助类.h \
-  D:/文档/GitHub/via/jni/include/driver.h \
-  D:/文档/GitHub/via/jni/include/timer.h \
-  D:/文档/GitHub/via/jni/include/obfuscate.h \
-  D:/文档/GitHub/via/jni/include/结构体.h \
-  D:/文档/GitHub/via/jni/include/matrix.h \
-  D:/文档/GitHub/via/jni/include/ue4math.h \
-  D:/文档/GitHub/via/jni/include/rotator.h \
-  D:/文档/GitHub/via/jni/include/vector.h \
-  D:/文档/GitHub/via/jni/include/transform.h \
-  D:/文档/GitHub/via/jni/include/quat.h \
-  D:/文档/GitHub/via/jni/include/LineOfSightToAPI.h \
-  D:/文档/GitHub/via/jni/include/骨骼.hpp \
   D:/文档/GitHub/via/jni/include/图片调用.h \
   D:/文档/GitHub/via/jni/./include/vulkan/VulkanUtils.h \
+  D:/文档/GitHub/via/jni/./include/vulkan/vulkan_wrapper.h \
   D:/文档/GitHub/via/jni/include/手持图片/101001.h \
   D:/文档/GitHub/via/jni/include/手持图片/101002.h \
   D:/文档/GitHub/via/jni/include/手持图片/101003.h \
@@ -142,52 +122,39 @@ D:/文档/GitHub/via/obj/local/arm64-v8a/objs/Vkernel.sh/src/main.o: \
   D:/文档/GitHub/via/jni/include/images/颜色.h \
   D:/文档/GitHub/via/jni/include/images/视觉.h \
   D:/文档/GitHub/via/jni/include/images/设置.h \
-  D:/文档/GitHub/via/jni/src/弄死/模块.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.14.117.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.14.141.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.14.180.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.14.186.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.19.81.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.19.113.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.19.157.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.19.157coloros.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.19.191.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-5.4.61.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-5.4.86.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-5.4.147.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-5.4.147coloros.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-5.10.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-5.15.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-6.1.h \
-  D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-6.6.h \
-  D:/文档/GitHub/via/jni/src/weiyan/Util.h \
-  D:/文档/GitHub/via/jni/src/weiyan/json.hpp
-D:/文档/GitHub/via/jni/include/Draw.h:
-D:/文档/GitHub/via/jni/include/ImGui/ANativeWindowCreator.h:
+  D:/文档/GitHub/via/jni/include/辅助类.h \
+  D:/文档/GitHub/via/jni/include/driver.h \
+  D:/文档/GitHub/via/jni/include/timer.h \
+  D:/文档/GitHub/via/jni/include/obfuscate.h \
+  D:/文档/GitHub/via/jni/include/结构体.h \
+  D:/文档/GitHub/via/jni/include/matrix.h \
+  D:/文档/GitHub/via/jni/include/ue4math.h \
+  D:/文档/GitHub/via/jni/include/rotator.h \
+  D:/文档/GitHub/via/jni/include/vector.h \
+  D:/文档/GitHub/via/jni/include/transform.h \
+  D:/文档/GitHub/via/jni/include/quat.h \
+  D:/文档/GitHub/via/jni/include/LineOfSightToAPI.h \
+  D:/文档/GitHub/via/jni/include/Draw.h \
+  D:/文档/GitHub/via/jni/include/ImGui/ANativeWindowCreator.h \
+  D:/文档/GitHub/via/jni/include/ImGui/imgui_internal.h \
+  D:/文档/GitHub/via/jni/include/ImGui/imstb_textedit.h \
+  D:/文档/GitHub/via/jni/include/ImGui/imgui_impl_android.h \
+  D:/文档/GitHub/via/jni/include/Touch/TouchHelperA.h \
+  D:/文档/GitHub/via/jni/include/ImGui/imgui_impl_vulkan.h \
+  D:/文档/GitHub/via/jni/include/vulkan/vulkan_wrapper.h \
+  D:/文档/GitHub/via/jni/include/vulkan/VulkanUtils.h \
+  D:/文档/GitHub/via/jni/include/骨骼.hpp \
+  D:/文档/GitHub/via/jni/include/Utils/Utils.h \
+  D:/文档/GitHub/via/jni/include/Utils/Logger.h \
+  D:/文档/GitHub/via/jni/include/ImGui/custom.hpp \
+  D:/文档/GitHub/via/jni/include/ImGui/imgui_tricks.hpp \
+  D:/文档/GitHub/via/jni/include/DataReader.h
+D:/文档/GitHub/via/jni/src/json.hpp:
 D:/文档/GitHub/via/jni/include/ImGui/imgui.h:
 D:/文档/GitHub/via/jni/include/ImGui/imconfig.h:
-D:/文档/GitHub/via/jni/include/ImGui/imgui_internal.h:
-D:/文档/GitHub/via/jni/include/ImGui/imstb_textedit.h:
-D:/文档/GitHub/via/jni/include/ImGui/imgui_impl_android.h:
-D:/文档/GitHub/via/jni/include/Touch/TouchHelperA.h:
-D:/文档/GitHub/via/jni/include/ImGui/imgui_impl_vulkan.h:
-D:/文档/GitHub/via/jni/include/vulkan/vulkan_wrapper.h:
-D:/文档/GitHub/via/jni/include/vulkan/VulkanUtils.h:
-D:/文档/GitHub/via/jni/include/辅助类.h:
-D:/文档/GitHub/via/jni/include/driver.h:
-D:/文档/GitHub/via/jni/include/timer.h:
-D:/文档/GitHub/via/jni/include/obfuscate.h:
-D:/文档/GitHub/via/jni/include/结构体.h:
-D:/文档/GitHub/via/jni/include/matrix.h:
-D:/文档/GitHub/via/jni/include/ue4math.h:
-D:/文档/GitHub/via/jni/include/rotator.h:
-D:/文档/GitHub/via/jni/include/vector.h:
-D:/文档/GitHub/via/jni/include/transform.h:
-D:/文档/GitHub/via/jni/include/quat.h:
-D:/文档/GitHub/via/jni/include/LineOfSightToAPI.h:
-D:/文档/GitHub/via/jni/include/骨骼.hpp:
 D:/文档/GitHub/via/jni/include/图片调用.h:
 D:/文档/GitHub/via/jni/./include/vulkan/VulkanUtils.h:
+D:/文档/GitHub/via/jni/./include/vulkan/vulkan_wrapper.h:
 D:/文档/GitHub/via/jni/include/手持图片/101001.h:
 D:/文档/GitHub/via/jni/include/手持图片/101002.h:
 D:/文档/GitHub/via/jni/include/手持图片/101003.h:
@@ -304,23 +271,30 @@ D:/文档/GitHub/via/jni/include/images/物资.h:
 D:/文档/GitHub/via/jni/include/images/颜色.h:
 D:/文档/GitHub/via/jni/include/images/视觉.h:
 D:/文档/GitHub/via/jni/include/images/设置.h:
-D:/文档/GitHub/via/jni/src/弄死/模块.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.14.117.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.14.141.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.14.180.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.14.186.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.19.81.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.19.113.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.19.157.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.19.157coloros.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-4.19.191.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-5.4.61.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-5.4.86.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-5.4.147.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-5.4.147coloros.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-5.10.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-5.15.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-6.1.h:
-D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-6.6.h:
-D:/文档/GitHub/via/jni/src/weiyan/Util.h:
-D:/文档/GitHub/via/jni/src/weiyan/json.hpp:
+D:/文档/GitHub/via/jni/include/辅助类.h:
+D:/文档/GitHub/via/jni/include/driver.h:
+D:/文档/GitHub/via/jni/include/timer.h:
+D:/文档/GitHub/via/jni/include/obfuscate.h:
+D:/文档/GitHub/via/jni/include/结构体.h:
+D:/文档/GitHub/via/jni/include/matrix.h:
+D:/文档/GitHub/via/jni/include/ue4math.h:
+D:/文档/GitHub/via/jni/include/rotator.h:
+D:/文档/GitHub/via/jni/include/vector.h:
+D:/文档/GitHub/via/jni/include/transform.h:
+D:/文档/GitHub/via/jni/include/quat.h:
+D:/文档/GitHub/via/jni/include/LineOfSightToAPI.h:
+D:/文档/GitHub/via/jni/include/Draw.h:
+D:/文档/GitHub/via/jni/include/ImGui/ANativeWindowCreator.h:
+D:/文档/GitHub/via/jni/include/ImGui/imgui_internal.h:
+D:/文档/GitHub/via/jni/include/ImGui/imstb_textedit.h:
+D:/文档/GitHub/via/jni/include/ImGui/imgui_impl_android.h:
+D:/文档/GitHub/via/jni/include/Touch/TouchHelperA.h:
+D:/文档/GitHub/via/jni/include/ImGui/imgui_impl_vulkan.h:
+D:/文档/GitHub/via/jni/include/vulkan/vulkan_wrapper.h:
+D:/文档/GitHub/via/jni/include/vulkan/VulkanUtils.h:
+D:/文档/GitHub/via/jni/include/骨骼.hpp:
+D:/文档/GitHub/via/jni/include/Utils/Utils.h:
+D:/文档/GitHub/via/jni/include/Utils/Logger.h:
+D:/文档/GitHub/via/jni/include/ImGui/custom.hpp:
+D:/文档/GitHub/via/jni/include/ImGui/imgui_tricks.hpp:
+D:/文档/GitHub/via/jni/include/DataReader.h:

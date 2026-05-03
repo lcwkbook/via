@@ -22,6 +22,17 @@
 using namespace std;
 extern int g_driver_mode;
 // 全局变量
+// 打字机输出函数
+void type_print(const char *str, int ms = 5)
+{
+    setvbuf(stdout, NULL, _IONBF, 0);
+    while (*str)
+    {
+        printf("%c", *str++);
+        usleep(ms * 200);
+    }
+}
+
 int abs_ScreenX, abs_ScreenY;
 int 无后台;
 string Wht, FlP;
@@ -59,6 +70,7 @@ int main()
         printf("[-] 无效输入\n");
         return 1;
     }
+
     if (mkdir("/sdcard/AuraKernel", 0777) == -1)
     {
         if (errno != EEXIST)
@@ -67,8 +79,10 @@ int main()
         }
     }
     system("chmod 777 -R /sdcard/AuraKernel");
+
     // 显示免责声明
     // displayAgreement();
+
     if (g_driver_mode == 0)
     {
         printf("\033[1;34m[+] 正在检测Aura独家驱动状态...\033[0m\n");
@@ -95,10 +109,11 @@ int main()
         printf("\033[1;32m[+] Aura驱动已就绪, 正在启动功能...\033[0m\n");
     }
 
+    // ========== 防录屏选择（两种模式都会询问） ==========
     if (绘制.防录屏 == 999)
     {
         printf("是否开启防录屏[1[是]/2[否]]：");
-        cin >> FlP;
+        std::cin >> FlP;
         if (FlP == "1" || FlP == "1")
         {
             绘制.防录屏 = 1;
@@ -115,27 +130,38 @@ int main()
         绘制.读写.选择配置.防录屏 = 绘制.防录屏;
     }
 
-    printf("1.有后台\n2.无后台\n\n");
-    std::cin >> 无后台;
+    // ========== 后台模式选择 ==========
+    if (choice == 2) // KPM模式：默认有后台，不询问
+    {
+        printf("[*] KPM模式默认有后台\n");
+    }
+    else // 原驱动模式：询问后台模式
+    {
+        printf("1.有后台\n2.无后台\n\n");
+        std::cin >> 无后台;
 
-    if (无后台 == 1)
-    {
-        std::cout << "有后台开启成功\n";
-    }
-    else
-    {
-        pid_t pids = fork();
-        if (pids > 0)
+        if (无后台 == 1)
         {
-            exit(0);
+            std::cout << "有后台开启成功\n";
         }
-        std::cout << "无后台开启成功\n";
+        else
+        {
+            pid_t pids = fork();
+            if (pids > 0)
+            {
+                exit(0);
+            }
+            std::cout << "无后台开启成功\n";
+        }
     }
-    printf("开始验证卡密信息...");
+    type_print("\n\033[33;1m意见反馈邮箱    velxevor@op.pl\033[0m\n", 40);
+    usleep(200000);
+    type_print("\n\033[33;1m========== 开始验证卡密信息... ==========\033[0m\n", 40);
+    usleep(100000);
     // 微验接口域名
     const string k490073cb44c9cfd61086662c8a70aa74 = "wy.llua.cn";
     // 当前版本，用于检查更新
-    const string currentVersion = "1.36.4.2";
+    const string currentVersion = "1.36.4.3";
     // 卡密存储路径
     const string kmPath = "/sdcard/AuraKernel/Aura.km";
 
@@ -297,7 +323,8 @@ int main()
         //}
         std::cout << std::endl;
     }
-
+    type_print("\n\033[33;1m正在加载悬浮窗...\033[0m\n", 40);
+    usleep(100000);
     布局.初始化程序();
     加载内存图片();
     绘制.自瞄主线程();

@@ -9,7 +9,7 @@ include $(PREBUILT_STATIC_LIBRARY)
 # ========== 主模块 ==========
 include $(CLEAR_VARS)
 
-LOCAL_MODULE := Vkernel.sh
+LOCAL_MODULE := Aurakernel.sh
 
 LOCAL_CFLAGS   := -w -s -Wno-error=format-security -fvisibility=hidden -fpermissive -fexceptions
 LOCAL_CFLAGS   += -std=c++17
