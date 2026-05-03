@@ -1344,7 +1344,11 @@ void DrawItemsPage()
             {
                 绘制.保存配置();
             }
-
+            ImGui::Checkbox("开发者:", &绘制.按钮.Debug);
+            ImGui::SameLine();
+            ImGui::RadioButton("类名", &绘制.按钮.Debug模式, 0);
+            ImGui::SameLine();
+            ImGui::RadioButton("地址", &绘制.按钮.Debug模式, 1);
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
