@@ -605,8 +605,8 @@ void 绘制::保存配置()
         {"方框粗细", 按钮.方框粗细},
         {"射线粗细", 按钮.射线粗细},
         {"骨骼粗细", 按钮.骨骼粗细},
-        {"速度值", 按钮.速度值},
-        {"第三人称", 按钮.第三人称},
+        // {"速度值", 按钮.速度值},
+        // {"第三人称", 按钮.第三人称},
         {"当前帧率", 按钮.当前帧率},
         {"帧率选项", 按钮.帧率选项},
         {"血条绘图", 按钮.血条绘图},
@@ -616,7 +616,7 @@ void 绘制::保存配置()
         {"忽略人机", 按钮.忽略人机},
         {"手持2", 按钮.手持2},
         {"被瞄预警", 按钮.被瞄预警},
-        {"人物加速", 按钮.人物加速},
+        // {"人物加速", 按钮.人物加速},
         {"物资总开关", 按钮.物资总开关},
         {"绘制信号枪", 按钮.绘制信号枪},
         {"绘制金插", 按钮.绘制金插},
@@ -882,8 +882,8 @@ void 绘制::读取配置()
             按钮.方框粗细 = button.value("方框粗细", 按钮.方框粗细);
             按钮.射线粗细 = button.value("射线粗细", 按钮.射线粗细);
             按钮.骨骼粗细 = button.value("骨骼粗细", 按钮.骨骼粗细);
-            按钮.速度值 = button.value("速度值", 按钮.速度值);
-            按钮.第三人称 = button.value("第三人称", 按钮.第三人称);
+            // 按钮.速度值 = button.value("速度值", 按钮.速度值);
+            // 按钮.第三人称 = button.value("第三人称", 按钮.第三人称);
             按钮.当前帧率 = button.value("当前帧率", 按钮.当前帧率);
             按钮.帧率选项 = button.value("帧率选项", 按钮.帧率选项);
             按钮.血条绘图 = button.value("血条绘图", 按钮.血条绘图);
@@ -893,7 +893,7 @@ void 绘制::读取配置()
             按钮.忽略人机 = button.value("忽略人机", 按钮.忽略人机);
             按钮.手持2 = button.value("手持2", 按钮.手持2);
             按钮.被瞄预警 = button.value("被瞄预警", 按钮.被瞄预警);
-            按钮.人物加速 = button.value("人物加速", 按钮.人物加速);
+            // 按钮.人物加速 = button.value("人物加速", 按钮.人物加速);
             按钮.物资总开关 = button.value("物资总开关", 按钮.物资总开关);
             按钮.绘制信号枪 = button.value("绘制信号枪", 按钮.绘制信号枪);
             按钮.绘制金插 = button.value("绘制金插", 按钮.绘制金插);
@@ -2129,7 +2129,7 @@ void 绘制::更新对象数据()
     {
         // 主循环
         对象地址.敌人地址 = 读写.getPtr64(地址.数组地址 + a * 8);
-        读写.readv(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_RootComponent) + 0x200, &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
+        读写.readv(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_RootComponent) + 0x1B0, &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
         对象信息.敌人信息.距离 = 计算.计算距离(自身数据.坐标, 对象信息.敌人信息.坐标);
         FVector2D screenPos = WorldToScreen(对象信息.敌人信息.坐标);
         FVector2D footPos = WorldToScreen(FVector_class{对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z - 5});
@@ -3593,6 +3593,31 @@ void 绘制::运行绘制()
 {
     更新地址数据();
     更新对象数据();
+    if (按钮.全图人数) {
+    ImGui::SetNextWindowPos(ImVec2(400, 100), ImGuiCond_Always);
+
+    // 推送透明背景样式
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // 背景透明
+    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));   // 边框透明
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 1.0f, 1.0f));     // 粉色文本 (RGBA: 1,0,1,1)
+    
+    ImGui::Begin("游戏信息", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration);
+
+    // 显示存活真实玩家数量
+    ImGui::Text("剩余真人: %d", 地址.真实玩家);
+
+    // 显示存活队伍数
+    ImGui::Text("剩余队伍: %d", 地址.队伍数);
+
+    // 显示全图人数（人机 + 真人）
+    ImGui::Text("全图剩余人数: %d", 地址.全图人数);
+
+    // 结束窗口
+    ImGui::End();
+
+    // 弹出之前推送的样式（注意弹出的顺序要与推送的顺序相反）
+    ImGui::PopStyleColor(3); // 弹出3次（文本颜色、边框颜色、背景颜色）
+}
     if (按钮.手雷预警 || 按钮.瞬爆雷预测 || 按钮.自救倒计时)
     {
         计时器.updateTimers();

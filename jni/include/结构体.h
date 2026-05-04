@@ -141,6 +141,7 @@ struct 开关
     bool 手雷预警 = false;
     bool 被瞄预警 = false;
     bool 背敌预警 = false;
+    bool 全图人数 = false;
     bool 雷达 = false;
     //    bool 人物加速 = false;
     bool 隐藏方框背景 = false;
@@ -198,18 +199,18 @@ struct 开关
 
     // 新添加
     //  刷刀功能相关变量
-    bool 人物聚点;
-    bool 人物无后;
-    bool 人物防抖;
-    bool 人物射速;
-    bool 人物瞬击;
-    bool 人物加速;
-    bool 广角设置;
-    float 速度值 = 1.0f;
-    float 第三人称 = 105.0f;
-    float 第一人称 = 100.0f;
-    bool 自动开火;
-    bool 内透;
+    // bool 人物聚点;
+    // bool 人物无后;
+    // bool 人物防抖;
+    // bool 人物射速;
+    // bool 人物瞬击;
+    // bool 人物加速;
+    // bool 广角设置;
+    // float 速度值 = 1.0f;
+    // float 第三人称 = 105.0f;
+    // float 第一人称 = 100.0f;
+    // bool 自动开火;
+    // bool 内透;
     bool 解密模式;
 
     bool 解密;
@@ -281,6 +282,9 @@ struct 地址
     uintptr_t 矩阵地址;
     uintptr_t 矩阵地址_Tol;
     uintptr_t 数组地址;
+    uintptr_t 全图人数;
+    uintptr_t 队伍数;
+    uintptr_t 真实玩家;
     uintptr_t 相机;
 };
 

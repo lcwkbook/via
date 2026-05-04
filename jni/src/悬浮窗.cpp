@@ -196,7 +196,7 @@ static bool 自瞄控件 = false;
 ImVec2 Pos2;
 ImVec2 windowSize, windowSize_max;
 static bool 窗口状态 = false;
-static bool 广角设置 = false;
+// static bool 广角设置 = false;
 
 // 解绑相关变量
 static bool 显示解绑窗口 = false;
@@ -1243,6 +1243,7 @@ void DrawCharacterPage()
         {"手雷预警", &绘制.按钮.手雷预警},
         {"绘制雷达", &绘制.按钮.雷达},
         {"忽略人机", &绘制.按钮.忽略人机},
+        {"全图人数", &绘制.按钮.全图人数},
         {"敌人动作", &绘制.按钮.动作},
         {"盒内物资", &绘制.按钮.盒子物资},
     };
@@ -1783,49 +1784,49 @@ void 布局::绘制悬浮窗()
         绘制.运行绘制();
     DrawThreeColorBalls();
 
-    if (广角设置)
-    {
-        long 广角地址 = 绘制.读写.getPtr64(绘制.地址.自身地址 + 0x1010);
-        绘制.读写.WriteFloat(绘制.读写.getPtr64(广角地址 + 0x10) + 0x2f4, 绘制.按钮.第三人称);
-    }
+    // if (广角设置)
+    // {
+    //     long 广角地址 = 绘制.读写.getPtr64(绘制.地址.自身地址 + 0x1010);
+    //     绘制.读写.WriteFloat(绘制.读写.getPtr64(广角地址 + 0x10) + 0x2f4, 绘制.按钮.第三人称);
+    // }
 
-    if (绘制.自瞄.自瞄控件)
-    {
-        ImGui::SetNextWindowSize({200, 200});
-        if (ImGui::Begin("自瞄控件", &自瞄控件, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar))
-        {
-            auto Pos = ImGui::GetWindowPos();
-            static bool isMouseDown = false, wasMousePressed = false, isTe = false;
-            static ImVec2 mousePressPos;
-            bool mouseDown = ImGui::IsMouseDown(ImGuiMouseButton_Left);
-            bool windowHovered = ImGui::IsWindowHovered();
-            if (mouseDown && !isMouseDown && windowHovered && ImGui::IsMouseHoveringRect(Pos, {Pos.x + 100, Pos.y + 100}))
-            {
-                isMouseDown = true;
-                wasMousePressed = true;
-                mousePressPos = ImGui::GetMousePos();
-            }
-            else if (!mouseDown && isMouseDown && wasMousePressed)
-            {
-                ImVec2 mouseReleasePos = ImGui::GetMousePos();
-                if (mousePressPos.x == mouseReleasePos.x && mousePressPos.y == mouseReleasePos.y)
-                    isTe = !isTe;
-                isMouseDown = false;
-                wasMousePressed = false;
-            }
-            if (isTe)
-            {
-                绘制.自瞄.初始化 = true;
-                ImGui::GetWindowDrawList()->AddImage(手持图片[4].DS, {Pos.x + 20, Pos.y + 20}, {Pos.x + 120, Pos.y + 120});
-            }
-            else
-            {
-                绘制.自瞄.初始化 = false;
-                ImGui::GetWindowDrawList()->AddImage(手持图片[3].DS, {Pos.x + 20, Pos.y + 20}, {Pos.x + 120, Pos.y + 120});
-            }
-        }
-        ImGui::End();
-    }
+    // if (绘制.自瞄.自瞄控件)
+    // {
+    //     ImGui::SetNextWindowSize({200, 200});
+    //     if (ImGui::Begin("自瞄控件", &自瞄控件, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar))
+    //     {
+    //         auto Pos = ImGui::GetWindowPos();
+    //         static bool isMouseDown = false, wasMousePressed = false, isTe = false;
+    //         static ImVec2 mousePressPos;
+    //         bool mouseDown = ImGui::IsMouseDown(ImGuiMouseButton_Left);
+    //         bool windowHovered = ImGui::IsWindowHovered();
+    //         if (mouseDown && !isMouseDown && windowHovered && ImGui::IsMouseHoveringRect(Pos, {Pos.x + 100, Pos.y + 100}))
+    //         {
+    //             isMouseDown = true;
+    //             wasMousePressed = true;
+    //             mousePressPos = ImGui::GetMousePos();
+    //         }
+    //         else if (!mouseDown && isMouseDown && wasMousePressed)
+    //         {
+    //             ImVec2 mouseReleasePos = ImGui::GetMousePos();
+    //             if (mousePressPos.x == mouseReleasePos.x && mousePressPos.y == mouseReleasePos.y)
+    //                 isTe = !isTe;
+    //             isMouseDown = false;
+    //             wasMousePressed = false;
+    //         }
+    //         if (isTe)
+    //         {
+    //             绘制.自瞄.初始化 = true;
+    //             ImGui::GetWindowDrawList()->AddImage(手持图片[4].DS, {Pos.x + 20, Pos.y + 20}, {Pos.x + 120, Pos.y + 120});
+    //         }
+    //         else
+    //         {
+    //             绘制.自瞄.初始化 = false;
+    //             ImGui::GetWindowDrawList()->AddImage(手持图片[3].DS, {Pos.x + 20, Pos.y + 20}, {Pos.x + 120, Pos.y + 120});
+    //         }
+    //     }
+    //     ImGui::End();
+    // }
 
     // 绘制顶部状态栏（由开关控制）
     if (showTopStatusBar)
