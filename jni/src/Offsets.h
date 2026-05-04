@@ -67,23 +67,24 @@ namespace Offsets {
     constexpr uintptr_t Mesh_BoneArray          = 0x828;
     constexpr uintptr_t Mesh_BoneCountOffset    = 0x8;
     // ==================== 全图人数偏移 ====================
-    constexpr uintptr_t AliveNum = 0xab0;
-    constexpr uintptr_t AliveRealPlayerNum = 0x12ac;
-    constexpr uintptr_t AlivePlayerNum = 0x121c;
-    constexpr uintptr_t AliveTeamNum= 0x12ac;
+    constexpr uintptr_t AliveNum = 0xb0;
+    constexpr uintptr_t AllivePlayerNum = 0x12ac;    //全图人数
+    constexpr uintptr_t AliveRealPlayerNum = 0x131c;    //真人数量
+    // constexpr uintptr_t AlivePlayerNum = 0x12ac;    //人机数量
+    constexpr uintptr_t AliveTeamNum= 0x12ac;   //队伍数量
     // ==================== 矩阵链偏移 ====================
     constexpr uintptr_t Matrix_ViewMatrix       = 0x270;
     constexpr uintptr_t Matrix_Tol_Offset1      = 0x98;
     constexpr uintptr_t Matrix_Tol_Offset2      = 0x10440;
     // ==================== 陀螺仪灵敏度偏移 ====================
-    constexpr uintptr_t Gyro_ThirdPerson        = 0x58C;
-    constexpr uintptr_t Gyro_FirstPerson        = 0x5B0;
-    constexpr uintptr_t Gyro_RedDot             = 0x590;
-    constexpr uintptr_t Gyro_2x                 = 0x594;
-    constexpr uintptr_t Gyro_3x                 = 0x5A0;
-    constexpr uintptr_t Gyro_4x                 = 0x598;
-    constexpr uintptr_t Gyro_6x                 = 0x5A4;
-    constexpr uintptr_t Gyro_8x                 = 0x59C;
+    // constexpr uintptr_t Gyro_ThirdPerson        = 0x58C;
+    // constexpr uintptr_t Gyro_FirstPerson        = 0x5B0;
+    // constexpr uintptr_t Gyro_RedDot             = 0x590;
+    // constexpr uintptr_t Gyro_2x                 = 0x594;
+    // constexpr uintptr_t Gyro_3x                 = 0x5A0;
+    // constexpr uintptr_t Gyro_4x                 = 0x598;
+    // constexpr uintptr_t Gyro_6x                 = 0x5A4;
+    // constexpr uintptr_t Gyro_8x                 = 0x59C;
     // ==================== 解密相关偏移 ====================
     constexpr uintptr_t Decrypt_Step1           = 0x1495C2A0;
     constexpr uintptr_t Decrypt_Step2_Offset1   = 0x30;

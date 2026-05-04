@@ -2061,10 +2061,12 @@ void 绘制::更新地址数据()
         }
     }
 
+    自身数据.全图数量 = 读写.getDword(
+        读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AllivePlayerNum);
     自身数据.真人数量 = 读写.getDword(
         读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AliveRealPlayerNum);
     自身数据.人机数量 = 读写.getDword(
-        读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AlivePlayerNum) - 自身数据.真人数量;
+        读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AllivePlayerNum) - 自身数据.真人数量;
     自身数据.队伍数量 = 读写.getDword(
         读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AliveTeamNum);
 
@@ -3466,64 +3468,64 @@ void 绘制::更新对象数据()
             //     }
             // }
 
-            if (按钮.显示对局信息)
-            {
-                static char buffer[3][64];
+            // if (按钮.全图人数)
+            // {
+            //     static char buffer[3][64];
 
-                ImColor textColor = ImColor(255, 255, 255, 255);
-                ImColor outlineColor = ImColor(0, 0, 0, 255);
+            //     ImColor textColor = ImColor(255, 255, 255, 255);
+            //     ImColor outlineColor = ImColor(0, 0, 0, 255);
 
-                snprintf(buffer[0], sizeof(buffer[0]), "剩余真人数量:%d", 自身数据.真人数量);
-                ImVec2 textPos0 = ImVec2(PX / 10, 450);
-                for (int x = -1; x <= 1; x++)
-                {
-                    for (int y = -1; y <= 1; y++)
-                    {
-                        if (x != 0 || y != 0)
-                        {
-                            ImGui::GetForegroundDrawList()->AddText(
-                                ImVec2(textPos0.x + x, textPos0.y + y),
-                                outlineColor,
-                                buffer[0]);
-                        }
-                    }
-                }
-                ImGui::GetForegroundDrawList()->AddText(textPos0, textColor, buffer[0]);
+            //     snprintf(buffer[0], sizeof(buffer[0]), "剩余真人数量:%d", 自身数据.真人数量);
+            //     ImVec2 textPos0 = ImVec2(PX / 10, 450);
+            //     for (int x = -1; x <= 1; x++)
+            //     {
+            //         for (int y = -1; y <= 1; y++)
+            //         {
+            //             if (x != 0 || y != 0)
+            //             {
+            //                 ImGui::GetForegroundDrawList()->AddText(
+            //                     ImVec2(textPos0.x + x, textPos0.y + y),
+            //                     outlineColor,
+            //                     buffer[0]);
+            //             }
+            //         }
+            //     }
+            //     ImGui::GetForegroundDrawList()->AddText(textPos0, textColor, buffer[0]);
 
-                snprintf(buffer[1], sizeof(buffer[1]), "剩余队伍数量:%d", 自身数据.人机数量);
-                ImVec2 textPos1 = ImVec2(PX / 10, 490);
-                for (int x = -1; x <= 1; x++)
-                {
-                    for (int y = -1; y <= 1; y++)
-                    {
-                        if (x != 0 || y != 0)
-                        {
-                            ImGui::GetForegroundDrawList()->AddText(
-                                ImVec2(textPos1.x + x, textPos1.y + y),
-                                outlineColor,
-                                buffer[1]);
-                        }
-                    }
-                }
-                ImGui::GetForegroundDrawList()->AddText(textPos1, textColor, buffer[1]);
+            //     snprintf(buffer[1], sizeof(buffer[1]), "剩余队伍数量:%d", 自身数据.人机数量);
+            //     ImVec2 textPos1 = ImVec2(PX / 10, 490);
+            //     for (int x = -1; x <= 1; x++)
+            //     {
+            //         for (int y = -1; y <= 1; y++)
+            //         {
+            //             if (x != 0 || y != 0)
+            //             {
+            //                 ImGui::GetForegroundDrawList()->AddText(
+            //                     ImVec2(textPos1.x + x, textPos1.y + y),
+            //                     outlineColor,
+            //                     buffer[1]);
+            //             }
+            //         }
+            //     }
+            //     ImGui::GetForegroundDrawList()->AddText(textPos1, textColor, buffer[1]);
 
-                snprintf(buffer[2], sizeof(buffer[2]), "剩余人数数量:%d", 自身数据.队伍数量);
-                ImVec2 textPos2 = ImVec2(PX / 10, 530);
-                for (int x = -1; x <= 1; x++)
-                {
-                    for (int y = -1; y <= 1; y++)
-                    {
-                        if (x != 0 || y != 0)
-                        {
-                            ImGui::GetForegroundDrawList()->AddText(
-                                ImVec2(textPos2.x + x, textPos2.y + y),
-                                outlineColor,
-                                buffer[2]);
-                        }
-                    }
-                }
-                ImGui::GetForegroundDrawList()->AddText(textPos2, textColor, buffer[2]);
-            }
+            //     snprintf(buffer[2], sizeof(buffer[2]), "剩余人数数量:%d", 自身数据.队伍数量);
+            //     ImVec2 textPos2 = ImVec2(PX / 10, 530);
+            //     for (int x = -1; x <= 1; x++)
+            //     {
+            //         for (int y = -1; y <= 1; y++)
+            //         {
+            //             if (x != 0 || y != 0)
+            //             {
+            //                 ImGui::GetForegroundDrawList()->AddText(
+            //                     ImVec2(textPos2.x + x, textPos2.y + y),
+            //                     outlineColor,
+            //                     buffer[2]);
+            //             }
+            //         }
+            //     }
+            //     ImGui::GetForegroundDrawList()->AddText(textPos2, textColor, buffer[2]);
+            // }
 
             if (t_屏幕坐标.W >= 0)
             {
@@ -3612,13 +3614,16 @@ void 绘制::运行绘制()
         ImGui::Begin("游戏信息", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration);
 
         // 显示存活真实玩家数量
-        ImGui::Text("剩余真人: %d", 地址.真实玩家);
+        ImGui::Text("剩余真人: %d", 自身数据.真人数量);
+
+        // 显示人机数量
+        ImGui::Text("剩余人机: %d", 自身数据.人机数量);
 
         // 显示存活队伍数
-        ImGui::Text("剩余队伍: %d", 地址.队伍数);
-
-        // 显示全图人数（人机 + 真人）
-        ImGui::Text("全图剩余人数: %d", 地址.全图人数);
+        ImGui::Text("剩余队伍: %d",  自身数据.队伍数量);
+        
+          // 显示全图人数（人机 + 真人）
+        ImGui::Text("全图剩余人数: %d", 自身数据.全图数量);
 
         // 结束窗口
         ImGui::End();

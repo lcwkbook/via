@@ -742,7 +742,7 @@ struct 自身数据
     int 自身状态;
     int 射出子弹数量;
     int 真人数量;
-    int 总人数;
+    int 全图数量;
     int 人机数量;
     int 队伍数量;
     int 开火;
