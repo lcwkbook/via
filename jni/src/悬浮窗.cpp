@@ -1548,7 +1548,7 @@ void DrawColorPage()
         绘制.Colorset[colorSetIndex].骨骼颜色,
         绘制.Colorset[colorSetIndex].距离颜色,
         绘制.Colorset[colorSetIndex].名称颜色,
-        绘制.Colorset[colorSetIndex].物资颜色};
+        绘制.物资颜色};
 
     // ====================== 表格布局 ======================
     if (ImGui::BeginTable("ColorTable", 3, ImGuiTableFlags_SizingStretchSame))
