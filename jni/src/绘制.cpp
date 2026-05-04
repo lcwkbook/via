@@ -2061,17 +2061,24 @@ void 绘制::更新地址数据()
         }
     }
 
+    自身数据.真人数量 = 读写.getDword(
+        读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AliveRealPlayerNum);
+    自身数据.人机数量 = 读写.getDword(
+        读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AlivePlayerNum) - 自身数据.真人数量;
+    自身数据.队伍数量 = 读写.getDword(
+        读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AliveTeamNum);
+
     // ========== 对局信息 (新偏移链) ==========
-    if (按钮.显示对局信息)
-    {
-        uintptr_t gameState = 读写.getPtr64(地址.世界地址 + Offsets::GWorld_GameState);
-        if (gameState != 0)
-        {
-            自身数据.真人数量 = 读写.getDword(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GameState_RealPlayerNum) + 0xac0) + 0x12bc);
-            自身数据.人机数量 = 读写.getDword(gameState + Offsets::GameState_TotalPlayerNum) - 自身数据.真人数量;
-            自身数据.队伍数量 = 读写.getDword(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GameState_RealPlayerNum) + 0xac0) + 0x131c);
-        }
-    }
+    // if (按钮.显示对局信息)
+    // {
+    //     uintptr_t gameState = 读写.getPtr64(地址.世界地址 + Offsets::GWorld_GameState);
+    //     if (gameState != 0)
+    //     {
+    //         自身数据.真人数量 = 读写.getDword(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GameState_RealPlayerNum) + 0xac0) + 0x12bc);
+    //         自身数据.人机数量 = 读写.getDword(gameState + Offsets::GameState_TotalPlayerNum) - 自身数据.真人数量;
+    //         自身数据.队伍数量 = 读写.getDword(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GameState_RealPlayerNum) + 0xac0) + 0x131c);
+    //     }
+    // }
 
     // ========== 陀螺仪灵敏度 ==========
     // if (按钮.刷新灵敏度)
@@ -3439,25 +3446,25 @@ void 绘制::更新对象数据()
     printf("\n")
 #endif
 
-            if (按钮.不想吃鸡)
-            {
-                if (自身数据.真人数量 <= 5 && 自身数据.真人数量 >= 0)
-                {
-                    LOGI("真人数量:%d，自动结束游戏", 自身数据.真人数量);
+            // if (按钮.不想吃鸡)
+            // {
+            //     if (自身数据.真人数量 <= 5 && 自身数据.真人数量 >= 0)
+            //     {
+            //         LOGI("真人数量:%d，自动结束游戏", 自身数据.真人数量);
 
-                    int result = system("/system/bin/am force-stop com.tencent.tmgp.pubgmhd");
+            //         int result = system("/system/bin/am force-stop com.tencent.tmgp.pubgmhd");
 
-                    if (result != 0)
-                    {
-                        result = system("am force-stop com.tencent.tmgp.pubgmhd");
-                    }
+            //         if (result != 0)
+            //         {
+            //             result = system("am force-stop com.tencent.tmgp.pubgmhd");
+            //         }
 
-                    if (result != 0)
-                    {
-                        LOGI("结束游戏失败，错误码: %d", result);
-                    }
-                }
-            }
+            //         if (result != 0)
+            //         {
+            //             LOGI("结束游戏失败，错误码: %d", result);
+            //         }
+            //     }
+            // }
 
             if (按钮.显示对局信息)
             {
@@ -3593,31 +3600,32 @@ void 绘制::运行绘制()
 {
     更新地址数据();
     更新对象数据();
-    if (按钮.全图人数) {
-    ImGui::SetNextWindowPos(ImVec2(400, 100), ImGuiCond_Always);
+    if (按钮.全图人数)
+    {
+        ImGui::SetNextWindowPos(ImVec2(400, 100), ImGuiCond_Always);
 
-    // 推送透明背景样式
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // 背景透明
-    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));   // 边框透明
-    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 1.0f, 1.0f));     // 粉色文本 (RGBA: 1,0,1,1)
-    
-    ImGui::Begin("游戏信息", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration);
+        // 推送透明背景样式
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // 背景透明
+        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));   // 边框透明
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 1.0f, 1.0f));     // 粉色文本 (RGBA: 1,0,1,1)
 
-    // 显示存活真实玩家数量
-    ImGui::Text("剩余真人: %d", 地址.真实玩家);
+        ImGui::Begin("游戏信息", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration);
 
-    // 显示存活队伍数
-    ImGui::Text("剩余队伍: %d", 地址.队伍数);
+        // 显示存活真实玩家数量
+        ImGui::Text("剩余真人: %d", 地址.真实玩家);
 
-    // 显示全图人数（人机 + 真人）
-    ImGui::Text("全图剩余人数: %d", 地址.全图人数);
+        // 显示存活队伍数
+        ImGui::Text("剩余队伍: %d", 地址.队伍数);
 
-    // 结束窗口
-    ImGui::End();
+        // 显示全图人数（人机 + 真人）
+        ImGui::Text("全图剩余人数: %d", 地址.全图人数);
 
-    // 弹出之前推送的样式（注意弹出的顺序要与推送的顺序相反）
-    ImGui::PopStyleColor(3); // 弹出3次（文本颜色、边框颜色、背景颜色）
-}
+        // 结束窗口
+        ImGui::End();
+
+        // 弹出之前推送的样式（注意弹出的顺序要与推送的顺序相反）
+        ImGui::PopStyleColor(3); // 弹出3次（文本颜色、边框颜色、背景颜色）
+    }
     if (按钮.手雷预警 || 按钮.瞬爆雷预测 || 按钮.自救倒计时)
     {
         计时器.updateTimers();

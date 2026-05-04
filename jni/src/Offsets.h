@@ -66,10 +66,11 @@ namespace Offsets {
     constexpr uintptr_t Mesh_ComponentToWorld   = 0x1F0;
     constexpr uintptr_t Mesh_BoneArray          = 0x828;
     constexpr uintptr_t Mesh_BoneCountOffset    = 0x8;
-    // ==================== 游戏状态偏移 ====================
-    constexpr uintptr_t GameState_RealPlayerNum = 0x15772758; //真人数量
-    constexpr uintptr_t GameState_TotalPlayerNum= 0x129C;
-    constexpr uintptr_t GameState_TeamNum       = 0x130C;
+    // ==================== 全图人数偏移 ====================
+    constexpr uintptr_t AliveNum = 0xab0;
+    constexpr uintptr_t AliveRealPlayerNum = 0x12ac;
+    constexpr uintptr_t AlivePlayerNum = 0x121c;
+    constexpr uintptr_t AliveTeamNum= 0x12ac;
     // ==================== 矩阵链偏移 ====================
     constexpr uintptr_t Matrix_ViewMatrix       = 0x270;
     constexpr uintptr_t Matrix_Tol_Offset1      = 0x98;
