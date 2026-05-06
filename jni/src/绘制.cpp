@@ -1100,10 +1100,10 @@ void 绘制::更新地址数据()
     自身数据.真人数量 = 读写.getDword(
         读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AliveRealPlayerNum);
     自身数据.人机数量 = 读写.getDword(
-        读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AllivePlayerNum) - 自身数据.真人数量;
+                            读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AllivePlayerNum) -
+                        自身数据.真人数量;
     自身数据.队伍数量 = 读写.getDword(
         读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AliveTeamNum);
-
 }
 
 ImColor 绘制::floatArrToImColor(float arr[4])
@@ -1300,57 +1300,86 @@ void 绘制::更新对象数据()
                     if (name != "Error" && 读写.getPtr64(地址.自身地址 + Offsets::Actor_Vehicle) != 对象地址.敌人地址 && 对象信息.敌人信息.距离 > 5)
                     {
                         name += std::to_string((int)对象信息.敌人信息.距离) + "米";
-                        auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 20);
-                        ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-                        ImColor color = ImColor(static_cast<int>(车辆颜色[0] * 255 + 0.5), static_cast<int>(车辆颜色[1] * 255 + 0.5), static_cast<int>(车辆颜色[2] * 255 + 0.5), static_cast<int>(车辆颜色[3] * 255 + 0.5));
 
+                        // 动态字号：远小近大，最大 20
+                        float baseFontSize = 25.0f; // 最大字号
+                        float minFontSize = 12.0f;  // 最远保留的最小字号
+                        float maxDist = 50.0f;     // 开始缩小的距离
+
+                        float scale = (对象信息.敌人信息.距离 > maxDist) ? (maxDist / 对象信息.敌人信息.距离) : 1.0f;
+                        float fontSize = baseFontSize * scale;
+                        if (fontSize < minFontSize)
+                            fontSize = minFontSize;
+
+                        ImColor color = ImColor(
+                            static_cast<int>(车辆颜色[0] * 255 + 0.5),
+                            static_cast<int>(车辆颜色[1] * 255 + 0.5),
+                            static_cast<int>(车辆颜色[2] * 255 + 0.5),
+                            static_cast<int>(车辆颜色[3] * 255 + 0.5));
+
+                        // 计算载具名称大小与位置
+                        auto textSize = ImGui::CalcTextSize(name.c_str(), 0, fontSize);
+                        ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                        // 描边（黑色轮廓）
                         for (int x = -1; x <= 1; x++)
                         {
                             for (int y = -1; y <= 1; y++)
                             {
                                 if (x != 0 || y != 0)
                                 {
-                                    ImGui::GetForegroundDrawList()->AddText(NULL, 20, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                                    ImGui::GetForegroundDrawList()->AddText(
+                                        NULL, fontSize,
+                                        {textPos.x + x, textPos.y + y},
+                                        outlineColor, name.c_str());
                                 }
                             }
                         }
-                        ImGui::GetForegroundDrawList()->AddText(NULL, 20, textPos, color, name.c_str());
+                        // 主体文字
+                        ImGui::GetForegroundDrawList()->AddText(NULL, fontSize, textPos, color, name.c_str());
 
-                        char healthText[32];
-                        sprintf(healthText, "血量: %.0f", 载具血量);
-                        char fuelText[32];
-                        sprintf(fuelText, "油量: %.0f", 载具油量);
-
-                        ImVec2 healthTextSize = ImGui::CalcTextSize(healthText);
-                        ImVec2 fuelTextSize = ImGui::CalcTextSize(fuelText);
+                        // 血量/油量（仅当 Mlline <= 80 时显示，也使用缩放后的字号）
                         if (Mlline <= 80.0f)
                         {
+                            char healthText[32];
+                            sprintf(healthText, "血量: %.0f", 载具血量);
+                            char fuelText[32];
+                            sprintf(fuelText, "油量: %.0f", 载具油量);
+
+                            // 用动态字号计算尺寸
+                            ImVec2 healthTextSize = ImGui::CalcTextSize(healthText, 0, fontSize);
+                            ImVec2 fuelTextSize = ImGui::CalcTextSize(fuelText, 0, fontSize);
+
                             ImVec2 healthPos = {r_x - (healthTextSize.x + fuelTextSize.x + 10) / 2, r_y + 25};
                             ImVec2 fuelPos = {r_x + (healthTextSize.x + fuelTextSize.x + 10) / 2 - fuelTextSize.x, r_y + 25};
 
+                            // 血量描边
                             for (int x = -1; x <= 1; x++)
                             {
                                 for (int y = -1; y <= 1; y++)
                                 {
                                     if (x != 0 || y != 0)
                                     {
-                                        ImGui::GetForegroundDrawList()->AddText(NULL, 20, {healthPos.x + x, healthPos.y + y}, outlineColor, healthText);
+                                        ImGui::GetForegroundDrawList()->AddText(NULL, fontSize,
+                                                                                {healthPos.x + x, healthPos.y + y}, outlineColor, healthText);
                                     }
                                 }
                             }
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 20, healthPos, ImColor(255, 0, 0, 255), healthText);
+                            ImGui::GetForegroundDrawList()->AddText(NULL, fontSize, healthPos, ImColor(255, 0, 0, 255), healthText);
 
+                            // 油量描边
                             for (int x = -1; x <= 1; x++)
                             {
                                 for (int y = -1; y <= 1; y++)
                                 {
                                     if (x != 0 || y != 0)
                                     {
-                                        ImGui::GetForegroundDrawList()->AddText(NULL, 20, {fuelPos.x + x, fuelPos.y + y}, outlineColor, fuelText);
+                                        ImGui::GetForegroundDrawList()->AddText(NULL, fontSize,
+                                                                                {fuelPos.x + x, fuelPos.y + y}, outlineColor, fuelText);
                                     }
                                 }
                             }
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 20, fuelPos, ImColor(0, 255, 0, 255), fuelText);
+                            ImGui::GetForegroundDrawList()->AddText(NULL, fontSize, fuelPos, ImColor(0, 255, 0, 255), fuelText);
                         }
                     }
                 }
@@ -2492,9 +2521,9 @@ void 绘制::运行绘制()
         ImGui::Text("剩余人机: %d", 自身数据.人机数量);
 
         // 显示存活队伍数
-        ImGui::Text("剩余队伍: %d",  自身数据.队伍数量);
-        
-          // 显示全图人数（人机 + 真人）
+        ImGui::Text("剩余队伍: %d", 自身数据.队伍数量);
+
+        // 显示全图人数（人机 + 真人）
         ImGui::Text("全图剩余人数: %d", 自身数据.全图数量);
 
         // 结束窗口

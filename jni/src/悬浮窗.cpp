@@ -1015,7 +1015,6 @@ void DrawTopStatusBar()
         fclose(capFile);
     }
 
-
     if (batteryLevel >= 0)
     {
         char batBuf[32];
@@ -1516,14 +1515,16 @@ void DrawColorPage()
 
     // ====================== 颜色项数据 ======================
     int colorSetIndex = ColorSettings;
-    const char *colorLabels[] = {"方框颜色", "射线颜色", "骨骼颜色", "距离颜色", "名称颜色", "物资颜色"};
+    const char *colorLabels[] = {"方框颜色", "射线颜色", "骨骼颜色", "距离颜色", "名称颜色", "物资颜色", "车辆颜色"};
     float *colorPointers[] = {
         绘制.Colorset[colorSetIndex].方框颜色,
         绘制.Colorset[colorSetIndex].射线颜色,
         绘制.Colorset[colorSetIndex].骨骼颜色,
         绘制.Colorset[colorSetIndex].距离颜色,
         绘制.Colorset[colorSetIndex].名称颜色,
-        绘制.物资颜色};
+        绘制.物资颜色, 
+        绘制.车辆颜色 
+    };
 
     // ====================== 表格布局 ======================
     if (ImGui::BeginTable("ColorTable", 3, ImGuiTableFlags_SizingStretchSame))
