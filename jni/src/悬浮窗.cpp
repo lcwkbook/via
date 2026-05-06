@@ -881,30 +881,6 @@ bool CustomerCheckBox(const char *label, bool *v, float rounding = 0.9f)
     return *v;
 }
 
-// float defaultValues[] = {
-//     120.0f, // 绘制.自瞄.触摸范围
-//     120.0f, // 绘制.自瞄.触摸范围
-//     5.00f,  // 绘制.自瞄.自瞄速度
-//     2.0f,   // 绘制.自瞄.压枪力度
-//     1.78f,  // 绘制.自瞄.预判力度
-//     0.88f,  // 绘制.自瞄.趴下位置调节
-//     50.0f,  // 绘制.自瞄.腰射距离限制
-//     200.0f, // 绘制.自瞄.自瞄距离限制
-//     15.0f,  // 绘制.自瞄.喷子距离限制
-// };
-
-// void SetDefaultValues()
-// {
-
-//     绘制.自瞄.压枪力度 = defaultValues[3];
-//     绘制.自瞄.预判力度 = defaultValues[4];
-//     绘制.自瞄.趴下位置调节 = defaultValues[5];
-//     绘制.自瞄.腰射距离限制 = defaultValues[6];
-//     绘制.自瞄.自瞄距离限制 = defaultValues[7];
-//     绘制.自瞄.喷子距离限制 = defaultValues[8];
-//     绘制.预判度.扫车 = 1.2f;
-// }
-
 string 获取武器名称(int 武器ID)
 {
     if (auto it = 绘制.武器名字.find(武器ID); it != 绘制.武器名字.end())
@@ -1039,8 +1015,6 @@ void DrawTopStatusBar()
         fclose(capFile);
     }
 
-    // 如果在没有该节点的设备（如PC）上测试，可给个默认值方便预览
-    // if (batteryLevel < 0) batteryLevel = 85;
 
     if (batteryLevel >= 0)
     {
@@ -1783,50 +1757,6 @@ void 布局::绘制悬浮窗()
     if (绘制.按钮.绘制)
         绘制.运行绘制();
     DrawThreeColorBalls();
-
-    // if (广角设置)
-    // {
-    //     long 广角地址 = 绘制.读写.getPtr64(绘制.地址.自身地址 + 0x1010);
-    //     绘制.读写.WriteFloat(绘制.读写.getPtr64(广角地址 + 0x10) + 0x2f4, 绘制.按钮.第三人称);
-    // }
-
-    // if (绘制.自瞄.自瞄控件)
-    // {
-    //     ImGui::SetNextWindowSize({200, 200});
-    //     if (ImGui::Begin("自瞄控件", &自瞄控件, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar))
-    //     {
-    //         auto Pos = ImGui::GetWindowPos();
-    //         static bool isMouseDown = false, wasMousePressed = false, isTe = false;
-    //         static ImVec2 mousePressPos;
-    //         bool mouseDown = ImGui::IsMouseDown(ImGuiMouseButton_Left);
-    //         bool windowHovered = ImGui::IsWindowHovered();
-    //         if (mouseDown && !isMouseDown && windowHovered && ImGui::IsMouseHoveringRect(Pos, {Pos.x + 100, Pos.y + 100}))
-    //         {
-    //             isMouseDown = true;
-    //             wasMousePressed = true;
-    //             mousePressPos = ImGui::GetMousePos();
-    //         }
-    //         else if (!mouseDown && isMouseDown && wasMousePressed)
-    //         {
-    //             ImVec2 mouseReleasePos = ImGui::GetMousePos();
-    //             if (mousePressPos.x == mouseReleasePos.x && mousePressPos.y == mouseReleasePos.y)
-    //                 isTe = !isTe;
-    //             isMouseDown = false;
-    //             wasMousePressed = false;
-    //         }
-    //         if (isTe)
-    //         {
-    //             绘制.自瞄.初始化 = true;
-    //             ImGui::GetWindowDrawList()->AddImage(手持图片[4].DS, {Pos.x + 20, Pos.y + 20}, {Pos.x + 120, Pos.y + 120});
-    //         }
-    //         else
-    //         {
-    //             绘制.自瞄.初始化 = false;
-    //             ImGui::GetWindowDrawList()->AddImage(手持图片[3].DS, {Pos.x + 20, Pos.y + 20}, {Pos.x + 120, Pos.y + 120});
-    //         }
-    //     }
-    //     ImGui::End();
-    // }
 
     // 绘制顶部状态栏（由开关控制）
     if (showTopStatusBar)

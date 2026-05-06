@@ -734,58 +734,6 @@ void 绘图::绘制骨骼(骨骼数据 &骨骼, D4DVector &屏幕坐标, bool Li
     }
 }
 
-void 绘图::绘制自瞄触摸范围(float 触摸范围, float 触摸范围X, float 触摸范围Y)
-{
-    auto textSize = ImGui::CalcTextSize("触摸位置,长按拖动", 0, 30);
-    // 修复矩形坐标计算（原Y轴坐标方向颠倒）
-    ImGui::GetForegroundDrawList()->AddRectFilled(
-        {触摸范围X - 触摸范围 / 2, PY * 2 - 触摸范围Y - 触摸范围 / 2}, // 左上Y坐标应更小
-        {触摸范围X + 触摸范围 / 2, PY * 2 - 触摸范围Y + 触摸范围 / 2}, // 右下Y坐标应更大
-        ImColor(255, 0, 0, 120));
-    // 添加垂直居中文本（原文本位置偏上）
-    ImGui::GetForegroundDrawList()->AddText(
-        NULL, 30,
-        {触摸范围X - (textSize.x / 2), (PY * 2 - 触摸范围Y) - textSize.y / 2},
-        ImColor(255, 255, 255),
-        "触摸位置,长按拖动");
-}
-
-void 绘图::绘制连点位置(float 触摸范围X, float 触摸范围Y)
-{
-    auto textSize = ImGui::CalcTextSize("连点位置,长按拖动", 0, 30);
-
-    // 绘制黄色圆圈
-    ImGui::GetForegroundDrawList()->AddCircleFilled(
-        {触摸范围X, PY * 2 - 触摸范围Y}, // 圆心位置
-        50,                              // 半径
-        ImColor(255, 255, 0, 255)        // 黄色
-    );
-
-    // 添加垂直居中的文本
-    ImGui::GetForegroundDrawList()->AddText(
-        NULL, 30,
-        {触摸范围X - (textSize.x / 2), (PY * 2 - 触摸范围Y) - textSize.y / 2},
-        ImColor(255, 255, 255),
-        "连点位置,长按拖动");
-}
-
-void 绘图::绘制监听区域(float 触摸范围, float 触摸范围X, float 触摸范围Y)
-{
-    auto textSize = ImGui::CalcTextSize("连点开火", 0, 30);
-    // 绘制深绿色圆形
-    ImGui::GetForegroundDrawList()->AddCircleFilled(
-        {触摸范围X, PY * 2 - 触摸范围Y},
-        触摸范围,
-        ImColor(0, 100, 0, 120));
-
-    // 添加居中文字
-    ImGui::GetForegroundDrawList()->AddText(
-        nullptr, 30,
-        {触摸范围X - (textSize.x / 2), (PY * 2 - 触摸范围Y) - textSize.y / 2},
-        ImColor(255, 255, 255),
-        "连点开火");
-}
-
 void 绘图::绘制字体描边(float size, int x, int y, ImVec4 color, const char *str)
 {
     ImGui::GetBackgroundDrawList()->AddText(nullptr, size, ImVec2(x + 1, y), ImGui::ColorConvertFloat4ToU32(ImVec4(0.0f, 0.0f, 0.0f, 1.0f)), str);

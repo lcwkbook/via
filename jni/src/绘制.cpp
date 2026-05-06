@@ -425,38 +425,6 @@ void 绘制::选择解密数组(uintptr_t 数组地址)
     }
 }
 
-// 修改 ShelterJudgment 函数
-// int ShelterJudgment(bool LineOfSightToTab[15], int enemyState = 16)
-// {
-//     // 如果选择智能瞄准部位，根据敌人状态动态选择
-//     if (绘制.自瞄.瞄准部位 == 3)
-//     { // 假设3是智能选项
-//         int smartBone = GetSmartAimBone(enemyState);
-//         if (!LineOfSightToTab[smartBone])
-//         {
-//             return smartBone;
-//         }
-//     }
-
-//     // 优先检查设置的瞄准部位
-//     if (!LineOfSightToTab[绘制.自瞄.瞄准部位])
-//     {
-//         return 绘制.自瞄.瞄准部位;
-//     }
-
-//     // 遍历其他骨骼部位
-//     for (int i = 0; i < 15; i++)
-//     {
-//         if (i == 绘制.自瞄.瞄准部位)
-//             continue; // 跳过已检查的瞄准部位
-//         if (!LineOfSightToTab[i])
-//         {
-//             return i;
-//         }
-//     }
-//     return 999;
-// }
-
 float calculateDistance(float x1, float y1, float x2, float y2)
 {
     return sqrtf((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
@@ -503,98 +471,6 @@ double normalizeAngle180(double angle) // 角度转换
 
 void 绘制::保存配置()
 {
-    // 保存自瞄和武器配置
-    // nlohmann::json aim_config;
-    // json config;
-    // // ... 其他配置项 ...
-    // config["status_bar_alpha"] = statusBarAlpha; // 现在 json 和 statusBarAlpha 均已声明
-
-    // std::ofstream file("/sdcard/AuraKernel/config.json"); // 示例路径
-    // if (file.is_open())
-    // {
-    //     file << config.dump(4);
-    // }
-    // 自瞄配置
-    // aim_config["自瞄"] = {
-    //     {"当前自瞄范围", 自瞄.当前自瞄范围},
-    //     {"触摸范围", 自瞄.触摸范围},
-    //     {"自瞄速度", 自瞄.自瞄速度},
-    //     {"腰射自瞄速度", 自瞄.腰射自瞄速度},
-    //     {"开镜自瞄速度", 自瞄.开镜自瞄速度},
-    //     {"压枪力度", 自瞄.压枪力度},
-    //     {"预判力度", 自瞄.预判力度},
-    //     {"趴下位置调节", 自瞄.趴下位置调节},
-    //     {"触摸采样率", 自瞄.触摸采样率},
-    //     {"喷子距离限制", 自瞄.喷子距离限制},
-    //     {"掉血自瞄数率", 自瞄.掉血自瞄数率},
-    //     {"腰射距离限制", 自瞄.腰射距离限制},
-    //     {"自瞄距离限制", 自瞄.自瞄距离限制},
-    //     {"触摸范围X", 自瞄.触摸范围X},
-    //     {"触摸范围Y", 自瞄.触摸范围Y},
-    //     {"自瞄条件", 自瞄.自瞄条件},
-    //     {"充电口方向", 自瞄.充电口方向},
-    //     {"瞄准部位", 自瞄.瞄准部位},
-    //     {"喷子自瞄条件", 自瞄.喷子自瞄条件},
-    //     {"喷子自瞄范围", 自瞄.喷子自瞄范围},
-    //     {"连点速度", 自瞄.连点速度},
-    //     {"定速巡航速率", 自瞄.定速巡航速率},
-    //     {"三倍压枪", 自瞄.三倍压枪},
-    //     {"四倍压枪", 自瞄.四倍压枪},
-    //     {"六倍压枪", 自瞄.六倍压枪},
-    //     {"开镜自瞄范围", 自瞄.开镜自瞄范围},
-    //     {"连点位置", {{"startX", 自瞄.连点位置.startX}, {"startY", 自瞄.连点位置.startY}, {"endX", 自瞄.连点位置.endX}, {"endY", 自瞄.连点位置.endY}}},
-    //     {"初始化", 自瞄.初始化},
-    //     {"隐藏自瞄圈", 自瞄.隐藏自瞄圈},
-    //     {"随机触摸点", 自瞄.随机触摸点},
-    //     {"持续锁定", 自瞄.持续锁定},
-    //     {"触摸位置", 自瞄.触摸位置},
-    //     {"动态自瞄", 自瞄.动态自瞄},
-    //     {"准星射线", 自瞄.准星射线},
-    //     {"倒地不瞄", 自瞄.倒地不瞄},
-    //     {"掉血自瞄", 自瞄.掉血自瞄},
-    //     {"自瞄控件", 自瞄.自瞄控件},
-    //     {"喷子自瞄", 自瞄.喷子自瞄},
-    //     {"狙击自瞄", 自瞄.狙击自瞄},
-    //     {"人机不瞄", 自瞄.人机不瞄},
-    //     {"框内自瞄", 自瞄.框内自瞄},
-    //     {"软锁自瞄", 自瞄.软锁自瞄},
-    //     {"开启单发狙连点", 自瞄.开启单发狙连点},
-    //     {"开启喷子连点", 自瞄.开启喷子连点},
-    //     {"扫车不瞄", 自瞄.扫车不瞄},
-    //     {"定速巡航", 自瞄.定速巡航},
-    //     {"适应系数", 自瞄.适应系数},
-    //     {"自动适应灵敏度", 自瞄.自动适应灵敏度},
-    // };
-
-    // // 武器配置
-    // aim_config["武器触发配置"] = nlohmann::json::object();
-    // for (const auto &pair : 武器触发配置)
-    // {
-    //     aim_config["武器触发配置"][std::to_string(pair.first)] = {
-    //         {"独立调节", pair.second.独立调节},
-    //         {"独立压枪", pair.second.独立压枪},
-    //         {"独立预判", pair.second.独立预判},
-    //         {"独立距离限制", pair.second.独立距离限制},
-    //         {"启用自瞄", pair.second.启用自瞄},
-    //         {"腰射距离限制", pair.second.腰射距离限制},
-    //         {"自瞄距离限制", pair.second.自瞄距离限制},
-    //         {"自瞄条件", pair.second.自瞄条件}};
-    // }
-
-    // aim_config["武器参数配置"] = nlohmann::json::object();
-    // for (const auto &pair : 武器参数配置)
-    // {
-    //     aim_config["武器参数配置"][std::to_string(pair.first)] = {
-    //         {"压枪力度", pair.second.压枪力度},
-    //         {"预判力度", pair.second.预判力度},
-    //         {"自瞄速度", pair.second.自瞄速度}};
-    // }
-
-    // 保存自瞄配置到文件
-    // std::ofstream aim_file("/sdcard/AuraKernel/Aura自瞄配置.json");
-    // aim_file << aim_config.dump(4);
-    // aim_file.close();
-
     // 保存基础配置
     nlohmann::json base_config;
 
@@ -605,8 +481,6 @@ void 绘制::保存配置()
         {"方框粗细", 按钮.方框粗细},
         {"射线粗细", 按钮.射线粗细},
         {"骨骼粗细", 按钮.骨骼粗细},
-        // {"速度值", 按钮.速度值},
-        // {"第三人称", 按钮.第三人称},
         {"当前帧率", 按钮.当前帧率},
         {"帧率选项", 按钮.帧率选项},
         {"血条绘图", 按钮.血条绘图},
@@ -616,7 +490,6 @@ void 绘制::保存配置()
         {"忽略人机", 按钮.忽略人机},
         {"手持2", 按钮.手持2},
         {"被瞄预警", 按钮.被瞄预警},
-        // {"人物加速", 按钮.人物加速},
         {"物资总开关", 按钮.物资总开关},
         {"绘制信号枪", 按钮.绘制信号枪},
         {"绘制金插", 按钮.绘制金插},
@@ -670,19 +543,6 @@ void 绘制::保存配置()
         {"黑色物资箱", 按钮.显示黑色物资箱},
         {"绘制最大距离", 按钮.绘制最大距离},
     };
-
-    // 连点配置
-    // base_config["连点"] = {
-    //     {"触摸范围X", 连点.触摸范围X},
-    //     {"触摸范围Y", 连点.触摸范围Y},
-    //     {"连点速度", 连点.连点速度},
-    //     {"监听边长", 连点.监听边长},
-    //     {"监听位置X", 连点.监听位置X},
-    //     {"监听位置Y", 连点.监听位置Y},
-    //     {"启用连点", 连点.启用连点},
-    //     {"连点位置", 连点.连点位置},
-    //     {"跟随自瞄连点", 连点.跟随自瞄连点},
-    //     {"监听位置", 连点.监听位置}};
 
     // 其他配置
     base_config["其他"] = {
@@ -745,24 +605,10 @@ void 绘制::读取配置()
     const char *markFile = "/sdcard/AuraKernel/.initialized";
     const char *configFile = "/sdcard/AuraKernel/Aura选择配置.json";
     if (access(markFile, F_OK) != 0)
-        // std::ifstream file("/sdcard/AuraKernel/config.json");
-        // if (!file.is_open())
-        //     return;
 
         if (access(markFile, F_OK) != 0)
         {
             remove(configFile);
-            // json config = json::parse(file);
-            // if (config.contains("status_bar_alpha"))
-            // {
-            //     statusBarAlpha = config["status_bar_alpha"].get<float>();
-            // }
-            // 读取自瞄配置文件
-            // std::ifstream aim_file("/sdcard/AuraKernel/Aura自瞄配置.json");
-            // if (aim_file.is_open())
-            // {
-            //     nlohmann::json aim_config = nlohmann::json::parse(aim_file);
-
             FILE *f = fopen(markFile, "w");
             if (f)
             {
@@ -770,102 +616,6 @@ void 绘制::读取配置()
                 fclose(f);
             }
         }
-    //     // 读取自瞄配置
-    //     if (aim_config.contains("自瞄"))
-    //     {
-    //         const auto &aim = aim_config["自瞄"];
-    //         自瞄.当前自瞄范围 = aim.value("当前自瞄范围", 自瞄.当前自瞄范围);
-    //         自瞄.触摸范围 = aim.value("触摸范围", 自瞄.触摸范围);
-    //         自瞄.自瞄速度 = aim.value("自瞄速度", 自瞄.自瞄速度);
-    //         自瞄.腰射自瞄速度 = aim.value("腰射自瞄速度", 自瞄.腰射自瞄速度);
-    //         自瞄.开镜自瞄速度 = aim.value("开镜自瞄速度", 自瞄.开镜自瞄速度);
-    //         自瞄.压枪力度 = aim.value("压枪力度", 自瞄.压枪力度);
-    //         自瞄.预判力度 = aim.value("预判力度", 自瞄.预判力度);
-    //         自瞄.趴下位置调节 = aim.value("趴下位置调节", 自瞄.趴下位置调节);
-    //         自瞄.触摸采样率 = aim.value("触摸采样率", 自瞄.触摸采样率);
-    //         自瞄.喷子距离限制 = aim.value("喷子距离限制", 自瞄.喷子距离限制);
-    //         自瞄.掉血自瞄数率 = aim.value("掉血自瞄数率", 自瞄.掉血自瞄数率);
-    //         自瞄.腰射距离限制 = aim.value("腰射距离限制", 自瞄.腰射距离限制);
-    //         自瞄.自瞄距离限制 = aim.value("自瞄距离限制", 自瞄.自瞄距离限制);
-    //         自瞄.触摸范围X = aim.value("触摸范围X", 自瞄.触摸范围X);
-    //         自瞄.触摸范围Y = aim.value("触摸范围Y", 自瞄.触摸范围Y);
-    //         自瞄.自瞄条件 = aim.value("自瞄条件", 自瞄.自瞄条件);
-    //         自瞄.充电口方向 = aim.value("充电口方向", 自瞄.充电口方向);
-    //         自瞄.瞄准部位 = aim.value("瞄准部位", 自瞄.瞄准部位);
-    //         自瞄.喷子自瞄条件 = aim.value("喷子自瞄条件", 自瞄.喷子自瞄条件);
-    //         自瞄.喷子自瞄范围 = aim.value("喷子自瞄范围", 自瞄.喷子自瞄范围);
-    //         自瞄.连点速度 = aim.value("连点速度", 自瞄.连点速度);
-    //         自瞄.定速巡航速率 = aim.value("定速巡航速率", 自瞄.定速巡航速率);
-    //         自瞄.三倍压枪 = aim.value("三倍压枪", 自瞄.三倍压枪);
-    //         自瞄.四倍压枪 = aim.value("四倍压枪", 自瞄.四倍压枪);
-    //         自瞄.六倍压枪 = aim.value("六倍压枪", 自瞄.六倍压枪);
-    //         自瞄.开镜自瞄范围 = aim.value("开镜自瞄范围", 自瞄.开镜自瞄范围);
-    //         if (aim.contains("连点位置"))
-    //         {
-    //             const auto &pos = aim["连点位置"];
-    //             自瞄.连点位置.startX = pos.value("startX", 自瞄.连点位置.startX);
-    //             自瞄.连点位置.startY = pos.value("startY", 自瞄.连点位置.startY);
-    //             自瞄.连点位置.endX = pos.value("endX", 自瞄.连点位置.endX);
-    //             自瞄.连点位置.endY = pos.value("endY", 自瞄.连点位置.endY);
-    //         }
-    //         自瞄.初始化 = aim.value("初始化", 自瞄.初始化);
-    //         自瞄.隐藏自瞄圈 = aim.value("隐藏自瞄圈", 自瞄.隐藏自瞄圈);
-    //         自瞄.随机触摸点 = aim.value("随机触摸点", 自瞄.随机触摸点);
-    //         自瞄.持续锁定 = aim.value("持续锁定", 自瞄.持续锁定);
-    //         自瞄.触摸位置 = aim.value("触摸位置", 自瞄.触摸位置);
-    //         自瞄.动态自瞄 = aim.value("动态自瞄", 自瞄.动态自瞄);
-    //         自瞄.准星射线 = aim.value("准星射线", 自瞄.准星射线);
-    //         自瞄.倒地不瞄 = aim.value("倒地不瞄", 自瞄.倒地不瞄);
-    //         自瞄.掉血自瞄 = aim.value("掉血自瞄", 自瞄.掉血自瞄);
-    //         自瞄.自瞄控件 = aim.value("自瞄控件", 自瞄.自瞄控件);
-    //         自瞄.喷子自瞄 = aim.value("喷子自瞄", 自瞄.喷子自瞄);
-    //         自瞄.狙击自瞄 = aim.value("狙击自瞄", 自瞄.狙击自瞄);
-    //         自瞄.人机不瞄 = aim.value("人机不瞄", 自瞄.人机不瞄);
-    //         自瞄.框内自瞄 = aim.value("框内自瞄", 自瞄.框内自瞄);
-    //         自瞄.软锁自瞄 = aim.value("软锁自瞄", 自瞄.软锁自瞄);
-    //         自瞄.开启单发狙连点 = aim.value("开启单发狙连点", 自瞄.开启单发狙连点);
-    //         自瞄.开启喷子连点 = aim.value("开启喷子连点", 自瞄.开启喷子连点);
-    //         自瞄.扫车不瞄 = aim.value("扫车不瞄", 自瞄.扫车不瞄);
-    //         自瞄.定速巡航 = aim.value("定速巡航", 自瞄.定速巡航);
-    //         自瞄.适应系数 = aim.value("适应系数", 自瞄.适应系数);
-    //         自瞄.自动适应灵敏度 = aim.value("自动适应灵敏度", 自瞄.自动适应灵敏度);
-    //     }
-
-    //     // 读取武器触发配置
-    //     if (aim_config.contains("武器触发配置"))
-    //     {
-    //         const auto &weapon_trigger = aim_config["武器触发配置"];
-    //         for (const auto &[key, value] : weapon_trigger.items())
-    //         {
-    //             int weapon_id = std::stoi(key);
-    //             武器触发条件 condition;
-    //             condition.独立调节 = value.value("独立调节", condition.独立调节);
-    //             condition.独立压枪 = value.value("独立压枪", condition.独立压枪);
-    //             condition.独立预判 = value.value("独立预判", condition.独立预判);
-    //             condition.独立距离限制 = value.value("独立距离限制", condition.独立距离限制);
-    //             condition.启用自瞄 = value.value("启用自瞄", true);
-    //             condition.腰射距离限制 = value.value("腰射距离限制", 50.0f);
-    //             condition.自瞄距离限制 = value.value("自瞄距离限制", 100.0f);
-    //             condition.自瞄条件 = value.value("自瞄条件", 0);
-    //             武器触发配置[weapon_id] = condition;
-    //         }
-    //     }
-
-    //     // 读取武器参数配置
-    //     if (aim_config.contains("武器参数配置"))
-    //     {
-    //         const auto &weapon_params = aim_config["武器参数配置"];
-    //         for (const auto &[key, value] : weapon_params.items())
-    //         {
-    //             int weapon_id = std::stoi(key);
-    //             武器参数 params;
-    //             params.压枪力度 = value.value("压枪力度", 2.15f);
-    //             params.预判力度 = value.value("预判力度", 1.45f);
-    //             params.自瞄速度 = value.value("自瞄速度", 35.f);
-    //             武器参数配置[weapon_id] = params;
-    //         }
-    //     }
-    // }
 
     // 读取基础配置文件
     std::ifstream base_file("/sdcard/AuraKernel/Aura选择配置.json");
@@ -882,8 +632,6 @@ void 绘制::读取配置()
             按钮.方框粗细 = button.value("方框粗细", 按钮.方框粗细);
             按钮.射线粗细 = button.value("射线粗细", 按钮.射线粗细);
             按钮.骨骼粗细 = button.value("骨骼粗细", 按钮.骨骼粗细);
-            // 按钮.速度值 = button.value("速度值", 按钮.速度值);
-            // 按钮.第三人称 = button.value("第三人称", 按钮.第三人称);
             按钮.当前帧率 = button.value("当前帧率", 按钮.当前帧率);
             按钮.帧率选项 = button.value("帧率选项", 按钮.帧率选项);
             按钮.血条绘图 = button.value("血条绘图", 按钮.血条绘图);
@@ -893,7 +641,6 @@ void 绘制::读取配置()
             按钮.忽略人机 = button.value("忽略人机", 按钮.忽略人机);
             按钮.手持2 = button.value("手持2", 按钮.手持2);
             按钮.被瞄预警 = button.value("被瞄预警", 按钮.被瞄预警);
-            // 按钮.人物加速 = button.value("人物加速", 按钮.人物加速);
             按钮.物资总开关 = button.value("物资总开关", 按钮.物资总开关);
             按钮.绘制信号枪 = button.value("绘制信号枪", 按钮.绘制信号枪);
             按钮.绘制金插 = button.value("绘制金插", 按钮.绘制金插);
@@ -947,22 +694,6 @@ void 绘制::读取配置()
             按钮.显示黑色物资箱 = button.value("黑色物资箱", false);
             按钮.绘制最大距离 = button.value("绘制最大距离", 按钮.绘制最大距离);
         }
-
-        // 读取连点配置
-        // if (base_config.contains("连点"))
-        // {
-        //     const auto &click = base_config["连点"];
-        //     连点.触摸范围X = click.value("触摸范围X", 连点.触摸范围X);
-        //     连点.触摸范围Y = click.value("触摸范围Y", 连点.触摸范围Y);
-        //     连点.连点速度 = click.value("连点速度", 连点.连点速度);
-        //     连点.监听边长 = click.value("监听边长", 连点.监听边长);
-        //     连点.监听位置X = click.value("监听位置X", 连点.监听位置X);
-        //     连点.监听位置Y = click.value("监听位置Y", 连点.监听位置Y);
-        //     连点.启用连点 = click.value("启用连点", 连点.启用连点);
-        //     连点.连点位置 = click.value("连点位置", 连点.连点位置);
-        //     连点.跟随自瞄连点 = click.value("跟随自瞄连点", 连点.跟随自瞄连点);
-        //     连点.监听位置 = click.value("监听位置", 连点.监听位置);
-        // }
 
         // 读取其他配置
         if (base_config.contains("其他"))
@@ -1183,8 +914,6 @@ bool Read(pid_t pid, uint64_t addr, void *buffer, size_t size)
 }
 
 #include "Event.h"
-// static Gyro *gyro = nullptr;
-// bool 陀螺仪开启状态 = false;
 void 绘制::初始化绘制(string 包名, int 真实X, int 真实Y)
 {
     真实PX = 真实X;
@@ -1207,13 +936,6 @@ void 绘制::初始化绘制(string 包名, int 真实X, int 真实Y)
     }
     地址.libue4 = 读写.get_module_base((char *)"libUE4.so");
 
-    // 陀螺仪初始化
-    // if (!陀螺仪开启状态)
-    // {
-    //     gyro = new Gyro(); // 这里会自动检测并选择驱动模式
-    //     陀螺仪开启状态 = true;
-    // }
-
     // 设置启动时间
     启动时间 = std::chrono::steady_clock::now();
 
@@ -1229,686 +951,6 @@ void 绘制::初始化绘制(string 包名, int 真实X, int 真实Y)
     网络延迟 = 0;
 }
 
-// int 绘制::findminat()
-// {
-// float DistanceMin = 450.0f;
-// float min = 自瞄.自瞄范围;
-// int minAt = 999;
-// bool foundNewTarget = false;
-
-// 持续锁定逻辑：只在开火状态下生效
-// if (自瞄.持续锁定 && 自瞄.持续自瞄中 && 自瞄.瞄准目标 != -1 && 自瞄.瞄准目标 < 自瞄.瞄准总数量 && 自身数据.开火 == 1)
-// {
-//     // 检查当前锁定目标是否仍然有效
-//     if (自瞄函数[自瞄.瞄准目标].准心距离 <= 自瞄.自瞄范围 &&
-//         自瞄函数[自瞄.瞄准目标].距离 <= 自瞄.自瞄距离限制 &&
-//         自瞄函数[自瞄.瞄准目标].掩体部位 != 999)
-//     {
-//         return 自瞄.瞄准目标;
-//     }
-//     else
-//     {
-//         // 当前目标失效，重置持续锁定状态
-//         自瞄.持续自瞄中 = false;
-//         strncpy(AimName, "", sizeof(AimName) - 1);
-//     }
-// }
-
-// for (int i = 0; i < 自瞄.瞄准总数量; i++)
-// {
-//     switch ((int)自瞄.瞄准优先)
-//     {
-//     case 0:
-//         if (自瞄.持续自瞄中 && 自身数据.开火 == 1) // 只在开火状态下持续锁定
-//         {
-//             if (strcmp(自瞄函数[i].名字.c_str(), AimName) == 0 && 自瞄函数[i].准心距离 <= min)
-//             {
-//                 minAt = i;
-//                 min = 自瞄函数[i].准心距离;
-//             }
-//         }
-//         else
-//         {
-//             if (自瞄函数[i].准心距离 < min && 自瞄函数[i].准心距离 != 0)
-//             {
-//                 min = 自瞄函数[i].准心距离;
-//                 foundNewTarget = true;
-//                 minAt = i;
-//             }
-//         }
-//         break;
-//     case 1:
-//         if (自瞄.持续自瞄中 && 自身数据.开火 == 1) // 只在开火状态下持续锁定
-//         {
-//             if (strcmp(自瞄函数[i].名字.c_str(), AimName) == 0 &&
-//                 自瞄函数[i].准心距离 <= 自瞄.自瞄范围 &&
-//                 自瞄函数[i].距离 < DistanceMin)
-//             {
-//                 DistanceMin = 自瞄函数[i].距离;
-//                 minAt = i;
-//             }
-//         }
-//         else
-//         {
-//             if (自瞄函数[i].准心距离 < 自瞄.自瞄范围)
-//             {
-//                 if (自瞄函数[i].距离 < DistanceMin)
-//                 {
-//                     DistanceMin = 自瞄函数[i].距离;
-//                     foundNewTarget = true;
-//                     minAt = i;
-//                 }
-//             }
-//         }
-//         break;
-//     }
-// }
-
-// if (foundNewTarget && 自瞄.持续锁定 && 自身数据.开火 == 1) // 只在开火状态下设置持续锁定
-// {
-//     strncpy(AimName, 自瞄函数[minAt].名字.c_str(), sizeof(AimName) - 1);
-//     AimName[sizeof(AimName) - 1] = '\0';
-// }
-// if (minAt == 999)
-// {
-//     自瞄.瞄准目标 = -1;
-//     自瞄.持续自瞄中 = false;
-//     return -1;
-// }
-// 自瞄.瞄准目标 = minAt;
-// if (自瞄.持续锁定 && 自身数据.开火 == 1) // 只在开火状态下设置持续自瞄标志
-// {
-//     自瞄.持续自瞄中 = true;
-// }
-// if (自瞄函数[自瞄.瞄准目标].掩体部位 == 999)
-// {
-//     自瞄.瞄准目标 = -1;
-//     return -1;
-// }
-// return minAt;
-// }
-
-void 绘制::GetTouch()
-{
-    // std::thread *触摸位置线程 = new std::thread([&]
-    //                                             {
-    // for(;;)
-    // {
-    //     usleep(1000000 / 120);
-    //     ImGuiIO& iooi = ImGui::GetIO();
-
-    //     // 新增连点位置调整逻辑
-    //     if (连点.连点位置 && iooi.MouseDown[0] && iooi.MousePos.x <= 连点.触摸范围X + 连点.触摸范围 && iooi.MousePos.y <= displayInfo.height - 连点.触摸范围Y + 连点.触摸范围 && iooi.MousePos.x >= 连点.触摸范围X - 连点.触摸范围 && iooi.MousePos.y >= displayInfo.height - 连点.触摸范围Y - 连点.触摸范围)
-    //     {
-    //       usleep(30000);
-    //       if (连点.连点位置 && iooi.MouseDown[0] && iooi.MousePos.x <= 连点.触摸范围X + 连点.触摸范围 && iooi.MousePos.y <= displayInfo.height - 连点.触摸范围Y + 连点.触摸范围 && iooi.MousePos.x >= 连点.触摸范围X - 连点.触摸范围 && iooi.MousePos.y >= displayInfo.height - 连点.触摸范围Y - 连点.触摸范围)
-    //       {
-    //         while (连点.连点位置 && iooi.MouseDown[0] && iooi.MousePos.x <= 连点.触摸范围X + 连点.触摸范围 && iooi.MousePos.y <= displayInfo.height - 连点.触摸范围Y + 连点.触摸范围 && iooi.MousePos.x >= 连点.触摸范围X - 连点.触摸范围 && iooi.MousePos.y >= displayInfo.height - 连点.触摸范围Y - 连点.触摸范围)
-    //         {
-    //           连点.触摸范围X = iooi.MousePos.x;
-    //           连点.触摸范围Y = displayInfo.height - iooi.MousePos.y;
-    //           usleep(500);
-    //         }
-    //       }
-    //     }
-
-    //   if (自瞄.触摸位置 && iooi.MouseDown[0] && iooi.MousePos.x <= 自瞄.触摸范围X + 自瞄.触摸范围 && iooi.MousePos.y <= displayInfo.height - 自瞄.触摸范围Y + 自瞄.触摸范围 && iooi.MousePos.x >= 自瞄.触摸范围X - 自瞄.触摸范围 && iooi.MousePos.y >= displayInfo.height - 自瞄.触摸范围Y - 自瞄.触摸范围)
-    //   {
-    //     usleep(30000);
-    //     if (自瞄.触摸位置 && iooi.MouseDown[0] && iooi.MousePos.x <= 自瞄.触摸范围X + 自瞄.触摸范围 && iooi.MousePos.y <= displayInfo.height - 自瞄.触摸范围Y + 自瞄.触摸范围 && iooi.MousePos.x >= 自瞄.触摸范围X - 自瞄.触摸范围 && iooi.MousePos.y >= displayInfo.height - 自瞄.触摸范围Y - 自瞄.触摸范围)
-    //     {
-    //       while (自瞄.触摸位置 && iooi.MouseDown[0] && iooi.MousePos.x <= 自瞄.触摸范围X + 自瞄.触摸范围 && iooi.MousePos.y <= displayInfo.height - 自瞄.触摸范围Y + 自瞄.触摸范围 && iooi.MousePos.x >= 自瞄.触摸范围X - 自瞄.触摸范围 && iooi.MousePos.y >= displayInfo.height - 自瞄.触摸范围Y - 自瞄.触摸范围)
-    //       {
-    //         自瞄.触摸范围X = iooi.MousePos.x;
-    //         自瞄.触摸范围Y = displayInfo.height - iooi.MousePos.y;
-    //         usleep(500);
-    //       }
-    //     }
-    //   }
-    // } });
-    // 触摸位置线程->detach();
-}
-
-// bool 绘制::自瞄触发(float 距离)
-// {
-//     // 如果开启持续锁定且正在持续自瞄中，并且正在开火，直接返回true
-//     if (自瞄.持续锁定 && 自瞄.持续自瞄中 && 自身数据.开火 == 1)
-//     {
-//         return true;
-//     }
-
-//     // 原有的自瞄触发逻辑...
-//     if (自瞄.喷子自瞄)
-//     {
-//         if (自身数据.手持 == 104003 or 自身数据.手持 == 104005 or 自身数据.手持 == 104100 or 自身数据.手持 == 104004)
-//         {
-//             if (距离 < 自瞄.喷子距离限制)
-//             {
-//                 if (自瞄.喷子自瞄条件 == 0 or (自瞄.喷子自瞄条件 == 1 && 自身数据.开镜 != 0) or (自瞄.喷子自瞄条件 == 2 && 自身数据.射出子弹数量 != 0))
-//                 {
-//                     if (自瞄.开启喷子连点)
-//                     {
-//                         clickRegion(true, 自瞄.连点位置);
-//                     }
-//                     return true;
-//                 }
-//             }
-//         }
-//     }
-
-//     auto &配置 = 武器触发配置[自身数据.手持];
-//     if (配置.独立距离限制)
-//     {
-//         if (自瞄函数[自瞄.瞄准目标].距离 > 配置.自瞄距离限制)
-//         {
-//             return false;
-//         }
-//         if (自瞄函数[自瞄.瞄准目标].距离 > 配置.腰射距离限制 && 自身数据.Fov > 75)
-//         {
-//             return false;
-//         }
-//     }
-//     else
-//     {
-//         if (自瞄函数[自瞄.瞄准目标].距离 > 自瞄.自瞄距离限制)
-//         {
-//             return false;
-//         }
-//         if (自瞄函数[自瞄.瞄准目标].距离 > 自瞄.腰射距离限制 && 自身数据.Fov > 75)
-//         {
-//             return false;
-//         }
-//     }
-//     if (自瞄.狙击自瞄)
-//     {
-//         if (自身数据.手持 == 103011 or 自身数据.手持 == 103001 or 自身数据.手持 == 103003 or 自身数据.手持 == 103015 or 自身数据.手持 == 103012 or 自身数据.手持 == 103002)
-//         {
-//             if (自身数据.Fov < 75)
-//             {
-//                 return true;
-//             }
-//         }
-//     }
-
-//     int 触发条件 = 配置.独立调节 ? 配置.自瞄条件 : 自瞄.自瞄条件;
-//     switch (触发条件)
-//     {
-//     case 0:
-//         if (自身数据.开火 != 1)
-//         {
-//             return false;
-//         }
-//         break;
-//     case 1:
-//         if (自身数据.开镜 != 1)
-//         {
-//             return false;
-//         }
-//         break;
-//     case 2:
-//         if (自身数据.开火 == 0 && 自身数据.开镜 != 1)
-//         {
-//             return false;
-//         }
-//         break;
-//     }
-//     return true;
-// }
-
-// float 绘制::陀螺仪灵敏度补偿(float Fov)
-// {
-//     int 补偿系数 = 自瞄.适应系数;
-//     float 当前灵敏度 = 0;
-
-//     if (自瞄.自适应腰射灵敏度 && Fov > 75)
-//     {
-//         // 启用自适应腰射灵敏度，且处于腰射状态
-//         // 根据FOV计算腰射灵敏度
-//         float 腰射系数 = 1.0f + (Fov - 75) / 15.0f * 0.5f; // FOV越大，灵敏度越高
-//         当前灵敏度 = 自身数据.陀螺仪灵敏度第一人称 * 腰射系数;
-//         return 补偿系数 / 当前灵敏度;
-//     }
-
-//     if (Fov > 80)
-//     {
-//         当前灵敏度 = 自身数据.陀螺仪灵敏度第一人称;
-//         return 补偿系数 / 当前灵敏度;
-//     }
-//     else if (Fov > 75 && Fov <= 80)
-//     {
-//         当前灵敏度 = 自身数据.陀螺仪灵敏度第三人称;
-//         return 补偿系数 / 当前灵敏度;
-//     }
-//     int 倍镜 = 90 / Fov;
-//     const std::unordered_map<int, float> scopeMap = {
-//         {0, 自身数据.陀螺仪灵敏度第三人称},
-//         {1, 自身数据.陀螺仪灵敏度红点}, // 红点
-//         {2, 自身数据.陀螺仪灵敏度二倍},
-//         {3, 自身数据.陀螺仪灵敏度三倍},
-//         {4, 自身数据.陀螺仪灵敏度四倍},
-//         {5, 自身数据.陀螺仪灵敏度四倍},
-//         {6, 自身数据.陀螺仪灵敏度六倍},
-//         {7, 自身数据.陀螺仪灵敏度六倍},
-//         {8, 自身数据.陀螺仪灵敏度八倍}};
-//     auto it = scopeMap.find(倍镜);
-//     当前灵敏度 = it->second;
-//     return 补偿系数 / 当前灵敏度;
-// }
-
-void 绘制::自瞄主线程()
-{
-    //     std::thread *自瞄线程 = new std::thread([&]
-    //                                             {
-    //         bool isDown = false;
-    //         float halfSize = 自瞄.触摸范围 / 2;
-    //         double RandomnumberX = 自瞄.触摸范围Y, RandomnumberY = 自瞄.触摸范围X;
-    //         double tx = 自瞄.触摸范围Y, ty = 自瞄.触摸范围X;
-
-    //         if (自瞄.随机触摸点) {
-    //             RandomnumberY = 自瞄.触摸范围X - halfSize + (rand() % (int)自瞄.触摸范围);
-    //             RandomnumberX = 自瞄.触摸范围Y - halfSize + (rand() % (int)自瞄.触摸范围);
-    //             tx = RandomnumberX, ty = RandomnumberY;
-    //         }
-
-    //         double ScreenX, ScreenY;
-    //         if(displayInfo.orientation == 1 || displayInfo.orientation == 3) {
-    //             ScreenX = displayInfo.height;
-    //             ScreenY = displayInfo.width;
-    //         } else {
-    //             ScreenX = displayInfo.width;
-    //             ScreenY = displayInfo.height;
-    //         }
-
-    //         double ScrXH = ScreenX / 2.0f;
-    //         double ScrYH = ScreenY / 2.0f;
-    //         static float TargetX = 0;
-    //         static float TargetY = 0;
-    //         FVector_class obj;
-    //         float NowCoor[3];
-    //         float zm_x, zm_y;
-
-    //         int 目标血量 = 100;
-    //         string 目标名字;
-    //         bool 自瞄测试 = false;
-    //         int 数率 = 0;
-
-    //         timer AimFPS;
-    //         AimFPS.SetFps(120);
-    //         AimFPS.AotuFPS_init();
-    //         AimFPS.setAffinity();
-
-    //         // 新增：平滑过渡变量
-    //         float lastTargetX = 0, lastTargetY = 0;
-    //         const float smoothFactor = 0.3f; // 平滑系数
-
-    //         // 新增：当前自瞄速度变量
-    //         float 当前自瞄速度 = 自瞄.自瞄速度;
-
-    //         // 新增：陀螺仪状态跟踪
-    //         bool 上次陀螺仪状态 = false;
-    //         bool 当前陀螺仪状态 = false;
-    //         int 无目标计数 = 0;
-    //         const int 最大无目标计数 = 1; // 连续5帧无目标则停止陀螺仪
-
-    //         while (1)
-    //         {
-    //             // 检查自瞄是否初始化
-    //             if (!自瞄.初始化)
-    //             {
-    //                 // 自瞄未初始化时，确保陀螺仪停止
-    //                 if (上次陀螺仪状态 && gyro != nullptr && gyro->isRunning()) {
-    //                     gyro->update(0, 0, false);
-    //                     上次陀螺仪状态 = false;
-    //                 }
-    //                 usleep(当前自瞄速度 * 10000);
-    //                 continue;
-    //             }
-
-    //             auto &配置 = 武器触发配置[自身数据.手持];
-    //             int TempRange = 0;
-    //             if (自身数据.Fov < 75)
-    //             {
-    //                 TempRange = 自瞄.开镜自瞄范围;
-    //             }
-    //             else
-    //             {
-    //                 TempRange = 自瞄.当前自瞄范围;
-    //             }
-
-    //             自瞄.自瞄范围 = (自身数据.手持 == 104003 || 自身数据.手持 == 104005 ||
-    //                           自身数据.手持 == 104100 || 自身数据.手持 == 104004) ?
-    //                           自瞄.喷子自瞄范围 : TempRange;
-
-    //             // 寻找最近目标
-    //             findminat();
-
-    //             // 更新陀螺仪状态
-    //             当前陀螺仪状态 = (自瞄.瞄准目标 != -1 &&
-    //                             自瞄函数[自瞄.瞄准目标].准心距离 <= 自瞄.自瞄范围 &&
-    //                             自瞄触发(自瞄函数[自瞄.瞄准目标].距离));
-
-    //             // 跟踪无目标计数
-    //             if (!当前陀螺仪状态) {
-    //                 无目标计数++;
-    //                 if (无目标计数 >= 最大无目标计数 && 上次陀螺仪状态) {
-    //                     // 连续多帧无目标，停止陀螺仪
-    //                     if (gyro != nullptr && gyro->isRunning()) {
-    //                         gyro->update(0, 0, false);
-    //                       //  printf("连续%d帧无目标，停止陀螺仪\n", 最大无目标计数);
-    //                     }
-    //                     上次陀螺仪状态 = false;
-    //                     无目标计数 = 0;
-    //                 }
-    //             } else {
-    //                 无目标计数 = 0; // 重置计数
-    //             }
-
-    //             // 如果陀螺仪状态从开启变为关闭，发送停止命令
-    //             if (上次陀螺仪状态 && !当前陀螺仪状态 && gyro != nullptr && gyro->isRunning()) {
-    //                 gyro->update(0, 0, false);
-    //               //  printf("自瞄目标丢失，停止陀螺仪\n");
-    //             }
-
-    //             上次陀螺仪状态 = 当前陀螺仪状态;
-
-    //             if (自瞄.瞄准目标 == -1)
-    //             {
-    //                 if (自瞄.持续自瞄中) {
-    //                     自瞄.持续自瞄中 = false;
-    //                     strncpy(AimName, "", sizeof(AimName) - 1);
-    //                 }
-    //                 usleep(当前自瞄速度 * 10000);
-    //                 continue;
-    //             }
-
-    //             if (自瞄.持续锁定 && 自瞄.持续自瞄中 && 自身数据.开火 == 1) {
-    //                 if (strcmp(自瞄函数[自瞄.瞄准目标].名字.c_str(), AimName) != 0) {
-    //                     strncpy(AimName, 自瞄函数[自瞄.瞄准目标].名字.c_str(), sizeof(AimName) - 1);
-    //                     AimName[sizeof(AimName) - 1] = '\0';
-    //                 }
-    //             }
-
-    //             if (自瞄.持续锁定 && 自瞄.持续自瞄中 && 自身数据.开火 != 1) {
-    //                 自瞄.持续自瞄中 = false;
-    //                 strncpy(AimName, "", sizeof(AimName) - 1);
-    //             }
-
-    //             // =============== 动态自瞄速度计算 ===============
-    //             当前自瞄速度 = 自瞄.自瞄速度;
-
-    //             // 根据自瞄条件和FOV状态选择速度
-    //             if (自瞄.自瞄条件 == 0 || 自瞄.自瞄条件 == 2) {
-    //                 if (自身数据.Fov > 75) {
-    //                     // 腰射状态
-    //                     当前自瞄速度 = 自瞄.腰射自瞄速度;
-    //                 } else {
-    //                     // 开镜状态
-    //                     当前自瞄速度 = 自瞄.开镜自瞄速度;
-    //                 }
-    //             } else if (自瞄.自瞄条件 == 1) {
-    //                 当前自瞄速度 = 自瞄.开镜自瞄速度;
-    //             }
-
-    //             // 检查武器独立配置
-    //    /*         if (配置.独立调节) {
-    //                 当前自瞄速度 = 武器参数配置[自身数据.手持].自瞄速度;
-    //             }*/
-    //             // ===================================================
-
-    //             float ToReticleDistance = 自瞄函数[自瞄.瞄准目标].准心距离;
-    //             float BulletFlightTime = 自瞄函数[自瞄.瞄准目标].距离 / 自身数据.子弹速度;
-    //             float FlyTime;
-    //             float 预判力度a = 自瞄.预判力度;
-
-    //             if (对象信息.敌人信息.乘坐载具)
-    //             {
-    //                 预判力度a = 预判度.扫车;
-    //             }
-    //             else
-    //             {
-    //                 if (武器触发配置[自身数据.手持].独立预判)
-    //                 {
-    //                     预判力度a = 武器参数配置[自身数据.手持].预判力度;
-    //                 }
-    //             }
-
-    //             if (自瞄函数[自瞄.瞄准目标].距离 >= 40) {
-    //                 FlyTime = 自瞄函数[自瞄.瞄准目标].距离 / (自身数据.子弹速度 * 0.01f) * 预判力度a;
-    //             } else {
-    //                 FlyTime = 自瞄函数[自瞄.瞄准目标].距离 / (自身数据.子弹速度 * 0.0055f) * 预判力度a;
-    //             }
-
-    //             float DropM = 540.0f * BulletFlightTime * BulletFlightTime;
-    //             float 压枪力度 = 自瞄.压枪力度;
-
-    //             if (武器触发配置[自身数据.手持].独立压枪)
-    //             {
-    //                 压枪力度 = 武器参数配置[自身数据.手持].压枪力度;
-    //             }
-
-    //             if (自身数据.人物高度 == 120.0f) {
-    //                 压枪力度 = 自瞄.压枪力度 - (Recoil(自身数据.手持) * 自瞄.趴下位置调节);
-    //             }
-
-    //             NowCoor[0] = 自瞄函数[自瞄.瞄准目标].瞄准坐标.X;
-    //             NowCoor[1] = 自瞄函数[自瞄.瞄准目标].瞄准坐标.Y;
-    //             NowCoor[2] = 自瞄函数[自瞄.瞄准目标].瞄准坐标.Z;
-    //             obj.X = NowCoor[0] + (自瞄函数[自瞄.瞄准目标].人物向量.X * FlyTime);
-    //             obj.Y = NowCoor[1] + (自瞄函数[自瞄.瞄准目标].人物向量.Y * FlyTime);
-    //             obj.Z = NowCoor[2] + (自瞄函数[自瞄.瞄准目标].人物向量.Z * FlyTime) + DropM;
-
-    //             if (自身数据.开火 == 1) {
-    //                 obj.Z -= 自瞄函数[自瞄.瞄准目标].距离 * 压枪力度 * 自身数据.后坐力数据;
-    //             }
-
-    //             if (自身数据.手持握把 == 202004)
-    //             {
-    //                 obj.Z += 自瞄函数[自瞄.瞄准目标].距离 * 轻型压枪力度 * GetWeaponId(自身数据.手持);
-    //             } else if(自身数据.手持握把 == 202006) {
-    //                 obj.Z += 自瞄函数[自瞄.瞄准目标].距离 * 拇指压枪力度 * GetWeaponId(自身数据.手持);
-    //             } else if(自身数据.手持握把 == 202002) {
-    //                 obj.Z += 自瞄函数[自瞄.瞄准目标].距离 * 垂直压枪力度 * GetWeaponId(自身数据.手持);
-    //             } else if(自身数据.手持握把 == 202001) {
-    //                 obj.Z += 自瞄函数[自瞄.瞄准目标].距离 * 直角压枪力度 * GetWeaponId(自身数据.手持);
-    //             }
-
-    //             D2DVector vpvp = WorldToScreen2(obj);
-    //             float AimDs = sqrt(pow(PX - vpvp.X, 2) + pow(PY - vpvp.Y, 2));
-
-    //             if(自瞄.动态自瞄 && (自身数据.开火==1 || 自身数据.开镜 == 1))
-    //             {
-    //                 自瞄.动态范围 = AimDs;
-    //             } else {
-    //                 自瞄.动态范围 = 自瞄.自瞄范围;
-    //             }
-
-    //             zm_y = vpvp.X;
-    //             zm_x = ScreenX - vpvp.Y;
-
-    //             if (zm_x <= 0 || zm_x >= ScreenX || zm_y <= 0 || zm_y >= ScreenY)
-    //             {
-    //                 if (gyro != nullptr && gyro->isRunning()) {
-    //                     gyro->update(0, 0, false);
-    //                 }
-    //                 usleep(当前自瞄速度 * 10000);
-    //                 continue;
-    //             }
-
-    //             if (ToReticleDistance <= 自瞄.自瞄范围)
-    //             {
-    //                 if (!自瞄触发(自瞄函数[自瞄.瞄准目标].距离))
-    //                 {
-    //                     if (gyro != nullptr && gyro->isRunning()) {
-    //                         gyro->update(0, 0, false);
-    //                     }
-    //                     usleep(当前自瞄速度 * 10000);
-    //                     continue;
-    //                 }
-
-    //                 // 优化后的FOV灵敏度计算
-    //                 float FovFactor = 计算FovFactor(自身数据.Fov);
-    //                 float Acc = getScopeAcc((int)(90 / 自身数据.Fov)) * FovFactor;
-
-    //                 // 计算目标偏移量
-    //                 float deltaX = zm_x - ScrXH;
-    //                 float deltaY = zm_y - ScrYH;
-
-    //                 // 应用FOV缩放
-    //                 deltaX *= FovFactor;
-    //                 deltaY *= FovFactor;
-
-    //                 // 使用计算出的自瞄速度进行平滑过渡
-    //                 TargetX = lastTargetX * (1 - smoothFactor) + (-deltaX / 当前自瞄速度 * Acc) * smoothFactor;
-    //                 TargetY = lastTargetY * (1 - smoothFactor) + (deltaY / 当前自瞄速度 * Acc) * smoothFactor;
-
-    //                 // 边界检查
-    //                 if (TargetY >= 35 || TargetX >= 35 || TargetY <= -35 || TargetX <= -35)
-    //                 {
-    //                     if (gyro != nullptr && gyro->isRunning()) {
-    //                         gyro->update(0, 0, false);
-    //                     }
-    //                     usleep(当前自瞄速度 * 10000);
-    //                     continue;
-    //                 }
-
-    //                 // 陀螺仪控制部分
-    //                 float dx = vpvp.X - (ScreenY / 2);
-    //                 float dy = vpvp.Y - (ScreenX / 2);
-
-    //                 float gyroAcc = getScopeAcc((int)(90 / 自身数据.Fov));
-    //                 dx *= gyroAcc;
-    //                 dy *= gyroAcc;
-    //                 dx *= 当前自瞄速度;
-    //                 dy *= 当前自瞄速度;
-
-    //                 float pitch = -dy;
-    //                 float yaw = dx;
-
-    //                 if (自瞄.充电口方向)
-    //                 {
-    //                     pitch = -pitch;
-    //                     yaw = -yaw;
-    //                 }
-
-    //                 float sendX = pitch * 0.004f;
-    //                 float sendY = yaw * 0.004f;
-
-    //                 if (displayInfo.orientation == 3)
-    //                 {
-    //                     sendX = -sendX;
-    //                     sendY = -sendY;
-    //                 }
-
-    //                 if (gyro && 当前陀螺仪状态)
-    //                 {
-    //                     gyro->update(sendX, sendY, true);
-    //                 }
-
-    //                 // 保存当前值用于下一次平滑
-    //                 lastTargetX = TargetX;
-    //                 lastTargetY = TargetY;
-    //             }
-    //             else
-    //             {
-    //                 // 目标不在自瞄范围内，确保陀螺仪停止
-    //                 if (上次陀螺仪状态 && gyro != nullptr && gyro->isRunning()) {
-    //                     gyro->update(0, 0, false);
-    //                     上次陀螺仪状态 = false;
-    //                 }
-    //             }
-
-    //             usleep(当前自瞄速度 * 10000);
-    //             AimFPS.SetFps(按钮.当前帧率);
-    //             AimFPS.AotuFPS();
-    //         } });
-    //     自瞄线程->detach();
-}
-
-// // 在 绘制 类中添加停止陀螺仪的方法
-
-// void 绘制::停止陀螺仪()
-// {
-//     if (gyro != nullptr && gyro->isRunning())
-//     {
-//         gyro->stop();
-//         //    printf("手动停止陀螺仪\n");
-//     }
-// }
-
-// void 绘制::重置陀螺仪()
-// {
-//     if (gyro != nullptr)
-//     {
-//         gyro->reset();
-//         //   printf("重置陀螺仪\n");
-//     }
-// }
-// // 修复：FOV因子计算函数
-// float 绘制::计算FovFactor(float currentFov)
-// {
-//     // FOV越小（开镜），灵敏度越低，瞄准越精确
-//     // FOV越大（腰射），灵敏度越高，反应越快
-
-//     const float baseFov = 80.0f; // 基础FOV
-//     float factor = 1.0f;
-
-//     if (currentFov <= 45.0f)
-//     {
-//         // 高倍镜：更低的灵敏度，更精确的瞄准
-//         factor = 0.3f + (currentFov / 45.0f) * 0.3f;
-//     }
-//     else if (currentFov <= 60.0f)
-//     {
-//         // 低倍镜：中等灵敏度
-//         factor = 0.6f + ((currentFov - 45.0f) / 15.0f) * 0.2f;
-//     }
-//     else if (currentFov <= 75.0f)
-//     {
-//         // 腰射/肩射：较高灵敏度
-//         factor = 0.8f + ((currentFov - 60.0f) / 15.0f) * 0.15f;
-//     }
-//     else
-//     {
-//         // 第三人称：最高灵敏度
-//         factor = 0.95f + ((currentFov - 75.0f) / 15.0f) * 0.05f;
-//     }
-
-//     // 确保因子在合理范围内
-//     factor = std::max(0.1f, std::min(1.5f, factor));
-
-//     return factor;
-// }
-
-// // 修复：删除重复的陀螺仪灵敏度补偿函数，只保留一个
-// // 注意：删除原来第1326行的重复定义
-
-// // 新增：动态FOV范围调整函数
-// float 绘制::动态Fov范围调整(float baseRange, float currentFov)
-// {
-//     // FOV越小，瞄准范围应该越小（更精确）
-//     // FOV越大，瞄准范围可以适当增大（更宽松）
-
-//     float adjustment = 1.0f;
-
-//     if (currentFov <= 45.0f)
-//     {
-//         adjustment = 0.7f; // 高倍镜缩小范围
-//     }
-//     else if (currentFov <= 60.0f)
-//     {
-//         adjustment = 0.85f;
-//     }
-//     else if (currentFov <= 75.0f)
-//     {
-//         adjustment = 1.0f;
-//     }
-//     else
-//     {
-//         adjustment = 1.15f; // 腰射适当扩大范围
-//     }
-
-//     return baseRange * adjustment;
-// }
 FVector2D 绘制::WorldToScreen(const FVector_class &WorldLocation)
 {
     FVector2D ScreenLocation;
@@ -2039,14 +1081,6 @@ void 绘制::更新地址数据()
         自身数据.准星Y = 读写.getFloat(controller + Offsets::Controller_AimYaw) - 90.0f;
     }
 
-    // ========== 子弹速度与后坐力 ==========
-    // uintptr_t weaponEntityComp = 读写.getPtr64(weaponPtr + Offsets::Weapon_EntityComp);
-    // if (weaponEntityComp != 0)
-    // {
-    //     自身数据.子弹速度 = 读写.getFloat(weaponEntityComp + Offsets::Weapon_BulletSpeed);
-    //     自身数据.后坐力数据 = 读写.getFloat(weaponEntityComp + Offsets::Weapon_RecoilFactor);
-    // }
-
     // ========== 人物高度 (用于趴下调节) ==========
     自身数据.人物高度 = 读写.getFloat(地址.自身地址 + Offsets::Actor_SpeedValue);
 
@@ -2070,34 +1104,6 @@ void 绘制::更新地址数据()
     自身数据.队伍数量 = 读写.getDword(
         读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AliveTeamNum);
 
-    // ========== 对局信息 (新偏移链) ==========
-    // if (按钮.显示对局信息)
-    // {
-    //     uintptr_t gameState = 读写.getPtr64(地址.世界地址 + Offsets::GWorld_GameState);
-    //     if (gameState != 0)
-    //     {
-    //         自身数据.真人数量 = 读写.getDword(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GameState_RealPlayerNum) + 0xac0) + 0x12bc);
-    //         自身数据.人机数量 = 读写.getDword(gameState + Offsets::GameState_TotalPlayerNum) - 自身数据.真人数量;
-    //         自身数据.队伍数量 = 读写.getDword(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GameState_RealPlayerNum) + 0xac0) + 0x131c);
-    //     }
-    // }
-
-    // ========== 陀螺仪灵敏度 ==========
-    // if (按钮.刷新灵敏度)
-    // {
-    //     自身数据.陀螺仪灵敏度第三人称 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GyroBase) + 0x438) + 0x80) + 0xbb8) + Offsets::Gyro_ThirdPerson);
-    //     自身数据.陀螺仪灵敏度第一人称 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GyroBase) + 0x438) + 0x80) + 0xbb8) + Offsets::Gyro_FirstPerson);
-    //     自身数据.陀螺仪灵敏度红点 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GyroBase) + 0x438) + 0x80) + 0xbb8) + Offsets::Gyro_RedDot);
-    //     自身数据.陀螺仪灵敏度二倍 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GyroBase) + 0x438) + 0x80) + 0xbb8) + Offsets::Gyro_2x);
-    //     自身数据.陀螺仪灵敏度三倍 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GyroBase) + 0x438) + 0x80) + 0xbb8) + Offsets::Gyro_3x);
-    //     自身数据.陀螺仪灵敏度四倍 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GyroBase) + 0x438) + 0x80) + 0xbb8) + Offsets::Gyro_4x);
-    //     自身数据.陀螺仪灵敏度六倍 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GyroBase) + 0x438) + 0x80) + 0xbb8) + Offsets::Gyro_6x);
-    //     自身数据.陀螺仪灵敏度八倍 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GyroBase) + 0x438) + 0x80) + 0xbb8) + Offsets::Gyro_8x);
-    //     if (自身数据.陀螺仪灵敏度第三人称 != 0)
-    //     {
-    //         按钮.刷新灵敏度 = false;
-    //     }
-    // }
 }
 
 ImColor 绘制::floatArrToImColor(float arr[4])
@@ -2107,25 +1113,6 @@ ImColor 绘制::floatArrToImColor(float arr[4])
 
 void 绘制::更新对象数据()
 {
-    // if (自瞄.触摸位置)
-    //     绘图.绘制自瞄触摸范围(自瞄.触摸范围, 自瞄.触摸范围X, 自瞄.触摸范围Y);
-    // if (连点.连点位置)
-    //     绘图.绘制连点位置(连点.触摸范围X, 连点.触摸范围Y);
-    // if (!自瞄.动态自瞄)
-    // {
-    //     自瞄.动态范围 = 自瞄.自瞄范围;
-    // }
-    // if (连点.监听位置)
-    // {
-    //     绘图.绘制监听区域(连点.监听边长, 连点.监听位置X, 连点.监听位置Y);
-    // }
-    // if (自瞄.初始化 && !自瞄.隐藏自瞄圈)
-    // {
-    //     if (自身数据.手持 != 0)
-    //     {
-    //         ImGui::GetForegroundDrawList()->AddCircle({PX, PY}, 自瞄.动态范围, ImColor(255, 255, 255, 255), 0, 1.5f);
-    //     }
-    // }
     if (按钮.雷达)
     {
         绘图.RenderRadarScan(ImGui::GetForegroundDrawList(), ImVec2(按钮.雷达X, 按钮.雷达Y), 150.0f, 100, 按钮.rotationAngle, 150.0f, 自身数据.准星Y);
@@ -2448,7 +1435,7 @@ void 绘制::更新对象数据()
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
-            if (按钮.绘制空投 && (strstr(ClassName, "AirDropBox") != 0))
+            if (按钮.绘制空投 && (strstr(ClassName, "BP_AirDropBox_Helicopter_C") != 0))
             {
                 std::string name = "空投[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -2480,7 +1467,7 @@ void 绘制::更新对象数据()
                     name.c_str());
             }
 
-            if (按钮.显示自救器 && strstr(ClassName, "_revivalAED_Pickup_C") != 0)
+            if (按钮.显示自救器 && strstr(ClassName, "BP_revivalAED_Pickup_C") != 0)
             {
                 std::string name = "自救器[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -2817,7 +1804,7 @@ void 绘制::更新对象数据()
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 0, 255), name.c_str());
             }
 
-            if (按钮.绘制金插 && strstr(ClassName, "PeopleSkill") != 0)
+            if (按钮.绘制金插 && strstr(ClassName, "SuperPeopleSkillReplaceActor1_BP_C") != 0)
             {
                 std::string name = "金色插件[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -3342,42 +2329,6 @@ void 绘制::更新对象数据()
             骨骼数据 t_骨骼数据 = 计算.计算骨骼(自身数据.相机坐标, 对象信息.敌人信息.骨骼坐标, PX, PY);
             std::vector<D2DVector *> 骨骼二维坐标 = t_骨骼数据.获取所有骨骼指针();
             绘图.初始化坐标(t_屏幕坐标, t_骨骼数据);
-            // if (t_屏幕坐标.W >= 0)
-            // {
-            //     if (自瞄.倒地不瞄 && 对象信息.敌人信息.当前血量 <= 0)
-            //     {
-            //     }
-            //     else if (自瞄.人机不瞄 && 对象信息.敌人信息.isboot == 1)
-            //     {
-            //     }
-            //     else if (自瞄.扫车不瞄 && 对象信息.敌人信息.状态 == 2097168 || 对象信息.敌人信息.状态 == 4194320)
-            //     {
-            //     }
-            //     else
-            //     {
-            //         自瞄函数[自瞄.瞄准对象数量].距离 = 对象信息.敌人信息.距离;
-            //         自瞄函数[自瞄.瞄准对象数量].人物向量 = 对象信息.敌人信息.向量;
-            //         自瞄函数[自瞄.瞄准对象数量].血量 = 对象信息.敌人信息.当前血量;
-            //         自瞄函数[自瞄.瞄准对象数量].Bone = 读写.getPtr64(MeshOffset + Offsets::Mesh_BoneArray) + 0x30;
-            //         自瞄函数[自瞄.瞄准对象数量].Human = MeshOffset + Offsets::Mesh_ComponentToWorld;
-            //         自瞄函数[自瞄.瞄准对象数量].名字 = 对象信息.敌人信息.名字;
-            //         自瞄函数[自瞄.瞄准对象数量].阵营 = 对象信息.敌人信息.队伍;
-            //         自瞄函数[自瞄.瞄准对象数量].头 = 对象信息.敌人信息.头;
-            //         自瞄函数[自瞄.瞄准对象数量].甲 = 对象信息.敌人信息.甲;
-            //         自瞄函数[自瞄.瞄准对象数量].头甲包地址 = 对象信息.敌人信息.头甲包地址;
-            //         memcpy(自瞄函数[自瞄.瞄准对象数量].骨骼坐标, 对象信息.敌人信息.骨骼坐标, sizeof(对象信息.敌人信息.骨骼坐标));
-            //         int BonePointer = ShelterJudgment(LineOfSightToTab, 对象信息.敌人信息.状态);
-            //         自瞄函数[自瞄.瞄准对象数量].掩体部位 = BonePointer;
-            //         if (BonePointer == 999)
-            //         {
-            //             BonePointer = 自瞄.瞄准部位;
-            //         }
-            //         自瞄函数[自瞄.瞄准对象数量].瞄准坐标 = 对象信息.敌人信息.骨骼坐标[BonePointer];
-            //         自瞄函数[自瞄.瞄准对象数量].准心距离 = sqrt(pow(PX - 骨骼二维坐标[BonePointer]->X, 2) + pow(PY - 骨骼二维坐标[BonePointer]->Y, 2));
-            //         自瞄函数[自瞄.瞄准对象数量].对象骨骼 = *骨骼二维坐标[BonePointer];
-            //         自瞄.瞄准对象数量++;
-            //     }
-            // }
 
             if (按钮.被瞄预警)
             {
@@ -3447,85 +2398,6 @@ void 绘制::更新对象数据()
     printf(__VA_ARGS__); \
     printf("\n")
 #endif
-
-            // if (按钮.不想吃鸡)
-            // {
-            //     if (自身数据.真人数量 <= 5 && 自身数据.真人数量 >= 0)
-            //     {
-            //         LOGI("真人数量:%d，自动结束游戏", 自身数据.真人数量);
-
-            //         int result = system("/system/bin/am force-stop com.tencent.tmgp.pubgmhd");
-
-            //         if (result != 0)
-            //         {
-            //             result = system("am force-stop com.tencent.tmgp.pubgmhd");
-            //         }
-
-            //         if (result != 0)
-            //         {
-            //             LOGI("结束游戏失败，错误码: %d", result);
-            //         }
-            //     }
-            // }
-
-            // if (按钮.全图人数)
-            // {
-            //     static char buffer[3][64];
-
-            //     ImColor textColor = ImColor(255, 255, 255, 255);
-            //     ImColor outlineColor = ImColor(0, 0, 0, 255);
-
-            //     snprintf(buffer[0], sizeof(buffer[0]), "剩余真人数量:%d", 自身数据.真人数量);
-            //     ImVec2 textPos0 = ImVec2(PX / 10, 450);
-            //     for (int x = -1; x <= 1; x++)
-            //     {
-            //         for (int y = -1; y <= 1; y++)
-            //         {
-            //             if (x != 0 || y != 0)
-            //             {
-            //                 ImGui::GetForegroundDrawList()->AddText(
-            //                     ImVec2(textPos0.x + x, textPos0.y + y),
-            //                     outlineColor,
-            //                     buffer[0]);
-            //             }
-            //         }
-            //     }
-            //     ImGui::GetForegroundDrawList()->AddText(textPos0, textColor, buffer[0]);
-
-            //     snprintf(buffer[1], sizeof(buffer[1]), "剩余队伍数量:%d", 自身数据.人机数量);
-            //     ImVec2 textPos1 = ImVec2(PX / 10, 490);
-            //     for (int x = -1; x <= 1; x++)
-            //     {
-            //         for (int y = -1; y <= 1; y++)
-            //         {
-            //             if (x != 0 || y != 0)
-            //             {
-            //                 ImGui::GetForegroundDrawList()->AddText(
-            //                     ImVec2(textPos1.x + x, textPos1.y + y),
-            //                     outlineColor,
-            //                     buffer[1]);
-            //             }
-            //         }
-            //     }
-            //     ImGui::GetForegroundDrawList()->AddText(textPos1, textColor, buffer[1]);
-
-            //     snprintf(buffer[2], sizeof(buffer[2]), "剩余人数数量:%d", 自身数据.队伍数量);
-            //     ImVec2 textPos2 = ImVec2(PX / 10, 530);
-            //     for (int x = -1; x <= 1; x++)
-            //     {
-            //         for (int y = -1; y <= 1; y++)
-            //         {
-            //             if (x != 0 || y != 0)
-            //             {
-            //                 ImGui::GetForegroundDrawList()->AddText(
-            //                     ImVec2(textPos2.x + x, textPos2.y + y),
-            //                     outlineColor,
-            //                     buffer[2]);
-            //             }
-            //         }
-            //     }
-            //     ImGui::GetForegroundDrawList()->AddText(textPos2, textColor, buffer[2]);
-            // }
 
             if (t_屏幕坐标.W >= 0)
             {
@@ -3695,6 +2567,7 @@ const char *绘制::getMaterialName(char *name)
         {"VH_Blanc_C", {"白色SUV", 0}},
         {"VH_Excavator_C", {"挖掘机", 0}},
         {"VH_DumpTruck_C", {"渣土车", 0}},
+        {"BP_VH_EV3F4_C", {"履带车", 0}},
         {"VH_Picobus_C", {"电动小巴", 0}}};
 
     for (const auto &载具 : 载具列表)

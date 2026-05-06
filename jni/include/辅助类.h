@@ -1020,12 +1020,6 @@ public:
     void 初始化绘制(string 包名, int 真实X, int 真实Y);
     float 倍镜判断(float Fov);
     float 倍镜压枪(int id);
-    void 自瞄主线程();
-    void 贝塞尔自瞄主线程();
-    void 欧拉角自瞄主线程();
-    void 连点主线程();
-    void 无后座主线程();
-    void 驱动自瞄主线程();
     int findminat();
     void 更新地址数据();
     void 多线程更新地址();
@@ -1037,27 +1031,12 @@ public:
     void hide_process();
     string getBoxName(int id);
     string getBoxName1(int id);
-    void OffScreen(ImDrawList *ImDraw, D4DVector Obj, float camear, ImU32 color, float Radius, float 距离);
-    void GetTouch();       
+    void OffScreen(ImDrawList *ImDraw, D4DVector Obj, float camear, ImU32 color, float Radius, float 距离);     
     void 保存配置();
     void 读取配置();
     void 重置配置();
     void 读取用户选择配置();
-    bool 自瞄触发(float 距离);
-    
-    
-    
-    void 无目标压枪();
-    
-    
-    void 停止陀螺仪();
-    void 重置陀螺仪();
-    
-    float 陀螺仪灵敏度补偿(float Fov);
-    // 新增的FOV相关函数
-    float 计算FovFactor(float currentFov);
-    float 动态Fov范围调整(float baseRange, float currentFov);
-       
+
     uintptr_t 解密数组;
 
     bool 已启用解密;
@@ -1072,14 +1051,12 @@ public:
     void 显示解密数组选择窗口();
     void 选择解密数组(uintptr_t 数组地址);
     bool 解密数组选择窗口开启;   
-    bool 连点触发(float 距离);
     const char *getMaterialName(char *name);
     int Cloudcheck();
     const char *Level(char *name);
     void InitShoot();
     FVector2D WorldToScreen(const FVector_class & WorldLocation);
     D2DVector WorldToScreen2(const FVector_class & WorldLocation);
-    void SetTouchPositionFor连点();
    
 };
 
