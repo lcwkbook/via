@@ -1473,8 +1473,8 @@ void 绘制::更新对象数据()
 
             if (按钮.绘制空投)
             {
-                // 空投箱子
-                if (strstr(ClassName, "BP_AirDropBox_Helicopter_C") != 0)
+                if (strstr(ClassName, "BP_AirDropBox_Helicopter_C") != 0 ||
+                    strstr(ClassName, "BP_AirDropBox_C") != 0)
                 {
                     std::string name = "空投[";
                     name += std::to_string((int)对象信息.敌人信息.距离);
@@ -1505,8 +1505,8 @@ void 绘制::更新对象数据()
                         textColor,
                         name.c_str());
                 }
-                // 空投飞机
-                else if (strstr(ClassName, "BP_AirDropPlane_Helicopter_C") != 0)
+                else if (strstr(ClassName, "BP_AirDropPlane_Helicopter_C") != 0 ||
+                         strstr(ClassName, "BP_AirDropPlane_C") != 0)
                 {
                     std::string name = "空投飞机来了[";
                     name += std::to_string((int)对象信息.敌人信息.距离);
