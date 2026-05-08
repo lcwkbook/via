@@ -68,8 +68,8 @@ namespace Offsets {
     constexpr uintptr_t Mesh_BoneCountOffset    = 0x8;
     // ==================== 全图人数偏移 ====================
     constexpr uintptr_t AliveNum = 0xac0;
-    constexpr uintptr_t AllivePlayerNum = 0x12ac;    //全图人数
-    constexpr uintptr_t AliveRealPlayerNum = 0x12b0;    //真人数量
+    constexpr uintptr_t AllivePlayerNum = 0x129c;    //全图人数
+    constexpr uintptr_t AliveRealPlayerNum = 0x12a0;    //真人数量
     // constexpr uintptr_t AlivePlayerNum = 0x12ac;    //人机数量
     constexpr uintptr_t AliveTeamNum= 0x131c;   //队伍数量
     // ==================== 矩阵链偏移 ====================
@@ -91,5 +91,5 @@ namespace Offsets {
     constexpr uintptr_t Decrypt_Step3_Offset2   = 0x5D0;
     // ==================== 其他常用常量 ====================
     constexpr float HumanHeight                 = 205.0f;
-    constexpr float MaxDrawDistance             = 500.0f;
+    constexpr float MaxDrawDistance             = 1500.0f; //空投绘制距离
 }

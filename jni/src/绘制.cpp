@@ -1302,14 +1302,21 @@ void 绘制::更新对象数据()
                         name += std::to_string((int)对象信息.敌人信息.距离) + "米";
 
                         // 动态字号：远小近大，最大 20
-                        float baseFontSize = 25.0f; // 最大字号
-                        float minFontSize = 12.0f;  // 最远保留的最小字号
-                        float maxDist = 50.0f;     // 开始缩小的距离
+                        float baseFontSize = 22.0f; // 最大字号
+                        float minFontSize = 8.0f;   // 最远保留的最小字号
+                        float maxDist = 100.0f;     // 开始缩小的距离
 
                         float scale = (对象信息.敌人信息.距离 > maxDist) ? (maxDist / 对象信息.敌人信息.距离) : 1.0f;
                         float fontSize = baseFontSize * scale;
                         if (fontSize < minFontSize)
                             fontSize = minFontSize;
+
+                        // 准星对准远处的载具时，恢复最大字号（Mlline 为屏幕中心到载具屏幕坐标的距离）
+                        const float aimThreshold = 50.0f; // 对准阈值，单位像素
+                        if (Mlline < aimThreshold)
+                        {
+                            fontSize = baseFontSize;
+                        }
 
                         ImColor color = ImColor(
                             static_cast<int>(车辆颜色[0] * 255 + 0.5),
@@ -1464,36 +1471,65 @@ void 绘制::更新对象数据()
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
-            if (按钮.绘制空投 && (strstr(ClassName, "BP_AirDropBox_Helicopter_C") != 0))
+            if (按钮.绘制空投)
             {
-                std::string name = "空投[";
-                name += std::to_string((int)对象信息.敌人信息.距离);
-                name += "米]";
-                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 30);
-                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-
-                ImColor textColor = ImColor(255, 0, 0, 255);
-                ImColor outlineColor = ImColor(0, 0, 0, 255);
-
-                for (int x = -1; x <= 1; x++)
+                // 空投箱子
+                if (strstr(ClassName, "BP_AirDropBox_Helicopter_C") != 0)
                 {
-                    for (int y = -1; y <= 1; y++)
+                    std::string name = "空投[";
+                    name += std::to_string((int)对象信息.敌人信息.距离);
+                    name += "米]";
+                    auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 30);
+                    ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                    ImColor textColor = ImColor(255, 0, 0, 255);
+                    ImColor outlineColor = ImColor(0, 0, 0, 255);
+
+                    for (int x = -1; x <= 1; x++)
                     {
-                        if (x != 0 || y != 0)
+                        for (int y = -1; y <= 1; y++)
                         {
-                            ImGui::GetForegroundDrawList()->AddText(
-                                NULL, 30,
-                                {textPos.x + x, textPos.y + y},
-                                outlineColor,
-                                name.c_str());
+                            if (x != 0 || y != 0)
+                            {
+                                ImGui::GetForegroundDrawList()->AddText(
+                                    NULL, 30,
+                                    {textPos.x + x, textPos.y + y},
+                                    outlineColor,
+                                    name.c_str());
+                            }
                         }
                     }
-                }
 
-                ImGui::GetForegroundDrawList()->AddText(
-                    NULL, 30, textPos,
-                    textColor,
-                    name.c_str());
+                    ImGui::GetForegroundDrawList()->AddText(
+                        NULL, 30, textPos,
+                        textColor,
+                        name.c_str());
+                }
+                // 空投飞机
+                else if (strstr(ClassName, "BP_AirDropPlane_Helicopter_C") != 0)
+                {
+                    std::string name = "空投飞机来了[";
+                    name += std::to_string((int)对象信息.敌人信息.距离);
+                    name += "米]";
+                    auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 30);
+                    ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                    ImColor textColor = ImColor(255, 255, 0, 255); // 黄色
+                    ImColor outlineColor = ImColor(0, 0, 0, 255);
+
+                    for (int x = -1; x <= 1; x++)
+                    {
+                        for (int y = -1; y <= 1; y++)
+                        {
+                            if (x != 0 || y != 0)
+                            {
+                                ImGui::GetForegroundDrawList()->AddText(NULL, 30,
+                                                                        {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                            }
+                        }
+                    }
+                    ImGui::GetForegroundDrawList()->AddText(NULL, 30, textPos, textColor, name.c_str());
+                }
             }
 
             if (按钮.显示自救器 && strstr(ClassName, "BP_revivalAED_Pickup_C") != 0)
