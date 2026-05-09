@@ -954,62 +954,50 @@ void 绘制::初始化绘制(string 包名, int 真实X, int 真实Y)
 FVector2D 绘制::WorldToScreen(const FVector_class &WorldLocation)
 {
     FVector2D ScreenLocation;
-    FMatrix_class RotationMatrix = 自身数据.准星.GetMatrix();
-    FVector_class AxisX = RotationMatrix.GetScaledAxisX();
-    FVector_class AxisY = RotationMatrix.GetScaledAxisY();
-    FVector_class AxisZ = RotationMatrix.GetScaledAxisZ();
 
-    FVector_class CameraLocation;
-    CameraLocation = 自身数据.相机坐标;
-    FVector_class vDelta(WorldLocation - CameraLocation);
-    FVector_class vTransformed(vDelta | AxisY, vDelta | AxisZ, vDelta | AxisX);
-    if (vTransformed.Z == 0.0f)
-        vTransformed.Z = -0.001f;
+    // 直接使用静态链读出的自身数据.矩阵
+    float matrix[16];
+    memcpy(matrix, 自身数据.矩阵, sizeof(matrix));
 
-    auto VieW = vTransformed.Z;
+    // 计算裁剪空间中的 w 分量
+    float w = matrix[3] * WorldLocation.X + matrix[7] * WorldLocation.Y + matrix[11] * WorldLocation.Z + matrix[15];
+    if (w < 0.001f)
+    {
+        // 在相机后方，返回 INFINITY 让上层跳过绘制
+        return FVector2D(INFINITY, INFINITY);
+    }
 
-    if (vTransformed.Z < 0.0f)
-        vTransformed.Z = -vTransformed.Z;
+    float screenW = displayInfo.width;
+    float screenH = displayInfo.height;
+    float halfW = screenW / 2.0f;
+    float halfH = screenH / 2.0f;
 
-    float ScreenWidth, ScreenHeight;
-    ScreenWidth = displayInfo.width;
-    ScreenHeight = displayInfo.height;
-    float ScreenCenterX = ScreenWidth / 2.0f;
-    float ScreenCenterY = ScreenHeight / 2.0f;
-    float TangentFOV = tanf(ConvertToRadians(自身数据.Fov / 2.0f));
+    // NDC -> 屏幕坐标
+    ScreenLocation.X = halfW + (matrix[0] * WorldLocation.X + matrix[4] * WorldLocation.Y + matrix[8] * WorldLocation.Z + matrix[12]) / w * halfW;
+    ScreenLocation.Y = halfH - (matrix[1] * WorldLocation.X + matrix[5] * WorldLocation.Y + matrix[9] * WorldLocation.Z + matrix[13]) / w * halfH;
 
-    ScreenLocation.X = (ScreenCenterX + vTransformed.X * (ScreenCenterX / TangentFOV) / vTransformed.Z);
-    ScreenLocation.Y = (ScreenCenterY - vTransformed.Y * (ScreenCenterX / TangentFOV) / vTransformed.Z);
-
-    if (VieW != INFINITY && VieW > 0.0f)
-        return ScreenLocation;
-    return FVector2D(INFINITY, INFINITY);
+    return ScreenLocation;
 }
 
 D2DVector 绘制::WorldToScreen2(const FVector_class &WorldLocation)
 {
     D2DVector ScreenLocation;
-    FMatrix_class RotationMatrix = 自身数据.准星.GetMatrix();
-    FVector_class AxisX = RotationMatrix.GetScaledAxisX();
-    FVector_class AxisY = RotationMatrix.GetScaledAxisY();
-    FVector_class AxisZ = RotationMatrix.GetScaledAxisZ();
-    FVector_class CameraLocation;
-    CameraLocation = 自身数据.相机坐标;
-    FVector_class vDelta(WorldLocation - CameraLocation);
-    FVector_class vTransformed(vDelta | AxisY, vDelta | AxisZ, vDelta | AxisX);
-    if (vTransformed.Z == 0.0f)
-        vTransformed.Z = -0.001f;
-    auto VieW = vTransformed.Z;
-    if (vTransformed.Z < 0.0f)
-        vTransformed.Z = -vTransformed.Z;
-    float ScreenWidth, ScreenHeight;
-    ScreenWidth = displayInfo.width;
-    ScreenHeight = displayInfo.height;
-    float ScreenCenterX = ScreenWidth / 2.0f;
-    float ScreenCenterY = ScreenHeight / 2.0f;
-    float TangentFOV = tanf(ConvertToRadians(自身数据.Fov / 2.0f));
-    ScreenLocation.X = (ScreenCenterX + vTransformed.X * (ScreenCenterX / TangentFOV) / vTransformed.Z);
-    ScreenLocation.Y = (ScreenCenterY - vTransformed.Y * (ScreenCenterX / TangentFOV) / vTransformed.Z);
+    float matrix[16];
+    memcpy(matrix, 自身数据.矩阵, sizeof(matrix));
+
+    float w = matrix[3] * WorldLocation.X + matrix[7] * WorldLocation.Y + matrix[11] * WorldLocation.Z + matrix[15];
+    if (w < 0.001f)
+    {
+        ScreenLocation.X = INFINITY;
+        ScreenLocation.Y = INFINITY;
+        return ScreenLocation;
+    }
+
+    float halfW = displayInfo.width / 2.0f;
+    float halfH = displayInfo.height / 2.0f;
+
+    ScreenLocation.X = halfW + (matrix[0] * WorldLocation.X + matrix[4] * WorldLocation.Y + matrix[8] * WorldLocation.Z + matrix[12]) / w * halfW;
+    ScreenLocation.Y = halfH - (matrix[1] * WorldLocation.X + matrix[5] * WorldLocation.Y + matrix[9] * WorldLocation.Z + matrix[13]) / w * halfH;
     return ScreenLocation;
 }
 
@@ -1019,29 +1007,20 @@ void 绘制::更新地址数据()
     // ========== 基础地址 (使用新偏移) ==========
     地址.世界地址 = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::GWorld_PersistentLevel);
     地址.自身地址 = 读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::GWorld_ActorsCountDec) + 0x88) + 0x30) + 0x3478);
+
+    // 静态视图矩阵链（不依赖玩家 Actor，死亡后依然有效）
     地址.矩阵地址 = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::MatrixChain1) + 0x20) + Offsets::Matrix_ViewMatrix;
     地址.矩阵地址_Tol = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::MatrixChain2) + Offsets::Matrix_Tol_Offset1) + Offsets::Matrix_Tol_Offset2;
 
-    // 数组地址与数量 (未解密时)
+    // 数组地址与数量（未解密时）
     地址.数组地址 = 读写.getPtr64(地址.世界地址 + Offsets::GWorld_ActorsArray);
     世界数量 = 读写.getDword(地址.世界地址 + Offsets::GWorld_ActorsCount);
 
-    // 解密数组优先 (如果已启用)
-    // if (解密数组)
-    // {
-    //     地址.数组地址 = 解密数组;
-    //     世界数量 = 读写.getDword(地址.世界地址 + Offsets::GWorld_ActorsCountDec);
-    // }
-
+    // 解密数组优先（如果已启用）
     if (按钮.解密)
     {
         地址.数组地址 = 读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x141BF3F8) + 0xf8) + 0x138) + 0xf0);
         世界数量 = 读写.getDword(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x141BF3F8) + 0xf8) + 0x138) + 0xf8);
-    }
-    else
-    {
-        地址.数组地址 = 读写.getPtr64(地址.世界地址 + 0xA0);
-        世界数量 = 读写.getDword(地址.世界地址 + 0xA8);
     }
 
     地址.类地址 = 读写.getPtr64(地址.libue4 + Offsets::ClassBase);
@@ -1067,24 +1046,33 @@ void 绘制::更新地址数据()
         自身数据.手持 = heldconversion(自身数据.手持id);
     }
 
-    // ========== 相机与FOV ==========
+    // 从静态矩阵链直接读取 4x4 视图矩阵（死亡后依然有效）
+    // 尝试使用矩阵链1（更通用）
+    读写.readv(地址.矩阵地址, &自身数据.矩阵, sizeof(自身数据.矩阵));
+
+    // 如果矩阵链1无效（全零），则回退到矩阵链2
+    if (自身数据.矩阵[0] == 0.0f && 自身数据.矩阵[5] == 0.0f && 自身数据.矩阵[10] == 0.0f)
+    {
+        读写.readv(地址.矩阵地址_Tol, &自身数据.矩阵, sizeof(自身数据.矩阵));
+    }
+
+    // FOV 和准星 Yaw 仍然尝试从 PlayerController 读取（自瞄可能需要，读不到也无妨）
     uintptr_t controller = 读写.getPtr64(地址.自身地址 + Offsets::Controller_Offset);
     if (controller != 0)
     {
         uintptr_t camManager = 读写.getPtr64(controller + Offsets::Controller_CameraManager);
         if (camManager != 0)
         {
-            读写.readv(camManager + Offsets::CameraManager_CameraPos, &自身数据.相机坐标, sizeof(自身数据.相机坐标));
-            读写.readv(camManager + Offsets::CameraManager_Rotation, &自身数据.准星, sizeof(自身数据.准星));
             自身数据.Fov = 读写.getFloat(camManager + Offsets::CameraManager_FOV);
+            // 注：如果 FOV 读不到，自瞄可能受影响，但不影响绘制
         }
         自身数据.准星Y = 读写.getFloat(controller + Offsets::Controller_AimYaw) - 90.0f;
     }
 
-    // ========== 人物高度 (用于趴下调节) ==========
+    // ========== 人物高度 ==========
     自身数据.人物高度 = 读写.getFloat(地址.自身地址 + Offsets::Actor_SpeedValue);
 
-    // ========== 手持握把 (新增) ==========
+    // ========== 手持握把 ==========
     uintptr_t weaponEntity = 读写.getPtr64(地址.自身地址 + Offsets::Actor_WeaponEntity);
     if (weaponEntity != 0)
     {
@@ -1095,13 +1083,12 @@ void 绘制::更新地址数据()
         }
     }
 
+    // ========== 全图人数统计 ==========
     自身数据.全图数量 = 读写.getDword(
         读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AllivePlayerNum);
     自身数据.真人数量 = 读写.getDword(
         读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AliveRealPlayerNum);
-    自身数据.人机数量 = 读写.getDword(
-                            读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AllivePlayerNum) -
-                        自身数据.真人数量;
+    自身数据.人机数量 = 自身数据.全图数量 - 自身数据.真人数量;
     自身数据.队伍数量 = 读写.getDword(
         读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AliveTeamNum);
 }
@@ -2531,7 +2518,7 @@ void 绘制::更新对象数据()
     if (按钮.被瞄预警)
         绘图.绘制瞄准信息();
     if (按钮.人数)
-        绘图.绘制人数(绘制人机, 绘制真人, 地址.自身地址);
+        绘图.绘制人数(绘制人机, 绘制真人);
     自瞄.瞄准总数量 = 自瞄.瞄准对象数量;
 }
 

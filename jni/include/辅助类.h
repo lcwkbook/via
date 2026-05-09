@@ -731,7 +731,7 @@ public:
     void 初始化绘图(int X, int Y);
     void 初始化坐标(D4DVector &屏幕坐标, 骨骼数据 &骨骼);
     void 绘制方框(bool 是否可见,bool isboot);
-    void 绘制人数(int 人机, int 真人, uintptr_t 自身);
+    void 绘制人数(int 人机, int 真人);
     void 绘制距离(int 距离, int 队伍);
     void 绘制射线(bool 是否可见,骨骼数据 &骨骼);
     void 漏手模式();

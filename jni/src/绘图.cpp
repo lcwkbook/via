@@ -262,7 +262,7 @@ void 绘图::绘制方框(bool 是否可见, bool isboot)
     ImGui::GetForegroundDrawList()->AddLine({right, bottom}, {right, bottom - 方块长度}, 方框color, 绘制.按钮.方框粗细);
 }
 
-void 绘图::绘制人数(int 人机, int 真人, uintptr_t 自身)
+void 绘图::绘制人数(int 人机, int 真人)
 {
     // ========== 灵动岛样式参数 ==========
     float capsuleWidth = 180.0f;
@@ -280,7 +280,7 @@ void 绘图::绘制人数(int 人机, int 真人, uintptr_t 自身)
     // 添加一层半透明边框使边缘更柔和
     ImGui::GetForegroundDrawList()->AddRect(capsuleMin, capsuleMax, ImColor(80, 80, 80, 100), cornerRadius, 0, 1.5f);
 
-    if (自身 == 0)
+    if (绘制.地址.世界地址 == 0)   // 世界地址为0表示未进入对局
     {
         string text = "等待进入对局";
         auto textSize = ImGui::CalcTextSize(text.c_str(), 0, fontSize);
