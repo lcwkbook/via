@@ -43,7 +43,6 @@
 #include "结构体.h"
 #include "LineOfSightToAPI.h"
 
-
 #pragma once
 
 #include <arpa/inet.h>
@@ -116,14 +115,11 @@ struct paradise_write_physical_memory_ioremap_cmd
     int prot;           /* Input: Memory protection type (use MT_*) */
 };
 
-
-
-
 // 新增的结构体定义
 struct paradise_is_proc_alive_cmd
 {
-    pid_t pid;  /* Input: Process ID */
-    int alive;  /* Output: 1 if alive, 0 if not */
+    pid_t pid; /* Input: Process ID */
+    int alive; /* Output: 1 if alive, 0 if not */
 };
 
 struct paradise_give_root_cmd
@@ -197,7 +193,7 @@ private:
 public:
     选择配置 选择配置;
     int fd;
-    Driver* kpm_driver = nullptr;  // KPM驱动对象
+    Driver *kpm_driver = nullptr; // KPM驱动对象
     Kernel();
     ~Kernel();
     uintptr_t get_Module_On();
@@ -223,8 +219,6 @@ public:
     char getByte(unsigned long addr);
     bool reopen_dev();
 };
-
-
 
 #include "Draw.h"
 #include "结构体.h"
@@ -730,13 +724,13 @@ public:
     bool isAiming;
     void 初始化绘图(int X, int Y);
     void 初始化坐标(D4DVector &屏幕坐标, 骨骼数据 &骨骼);
-    void 绘制方框(bool 是否可见,bool isboot);
+    void 绘制方框(bool 是否可见, bool isboot);
     void 绘制人数(int 人机, int 真人);
     void 绘制距离(int 距离, int 队伍);
-    void 绘制射线(bool 是否可见,骨骼数据 &骨骼);
+    void 绘制射线(bool 是否可见, 骨骼数据 &骨骼);
     void 漏手模式();
     void 绘制血量(float 最大血量, float 当前血量, bool isbot);
-    void 绘制名字(string 名字, bool isboot, float 计时, bool 是否掐雷, char *类名, int 阵营, int Bonecount, bool 是否自救,int 高级人机);
+    void 绘制名字(string 名字, bool isboot, float 计时, bool 是否掐雷, char *类名, int 阵营, int Bonecount, bool 是否自救, int 高级人机);
     void 绘制骨骼(骨骼数据 &骨骼, D4DVector &屏幕坐标, bool LineOfSightTo[15], int 距离, int Bonecount);
     void 绘制手持(int 手持, int 状态, int 子弹, int 最大子弹);
     void 绘制动作(int 状态);
@@ -746,8 +740,8 @@ public:
     void 绘制自瞄触摸范围(float 触摸范围, float 触摸范围X, float 触摸范围Y);
     void 绘制加粗字体(float size, float x, float y, ImColor color, ImColor color1, const char *str);
     void 绘制字体描边(float size, int x, int y, ImVec4 color, const char *str);
-   // void RenderRadarScan(ImDrawList *draw_list, ImVec2 center, float radius, int numSegments, float &rotationAngle, float lineLength);
-    void RenderRadarScan(ImDrawList* draw_list, ImVec2 center, float radius, int numSegments, float& rotationAngle, float lineLength, float yawRotation);
+    // void RenderRadarScan(ImDrawList *draw_list, ImVec2 center, float radius, int numSegments, float &rotationAngle, float lineLength);
+    void RenderRadarScan(ImDrawList *draw_list, ImVec2 center, float radius, int numSegments, float &rotationAngle, float lineLength, float yawRotation);
     void 绘制瞄准信息();
     void 绘制自救(float 自救倒计时);
     void 绘制头甲包(int id);
@@ -765,12 +759,12 @@ class 绘制
     int 驱动路线 = 0;
     struct ColorTable
     {
-        float 方框颜色[4] = {0.0, 1.0, 0.0, 1.0};       // 掩体前改为绿色
-        float 方框掩体颜色[4] = {1.0, 0, 0, 1.0};       // 掩体后保持红色
-        float 射线颜色[4] = {0.0, 1.0, 0.0, 1.0};       // 掩体前改为绿色
-        float 射线掩体颜色[4] = {1.0, 0, 0, 1.0};       // 掩体后保持红色
-        float 骨骼颜色[4] = {0.0, 1.0, 0.0, 1.0};        // 掩体前改为绿色
-        float 骨骼掩体颜色[4] = {1.0, 0.0, 0.0, 1.0};   // 掩体后保持红色
+        float 方框颜色[4] = {0.0, 1.0, 0.0, 1.0};     // 掩体前改为绿色
+        float 方框掩体颜色[4] = {1.0, 0, 0, 1.0};     // 掩体后保持红色
+        float 射线颜色[4] = {0.0, 1.0, 0.0, 1.0};     // 掩体前改为绿色
+        float 射线掩体颜色[4] = {1.0, 0, 0, 1.0};     // 掩体后保持红色
+        float 骨骼颜色[4] = {0.0, 1.0, 0.0, 1.0};     // 掩体前改为绿色
+        float 骨骼掩体颜色[4] = {1.0, 0.0, 0.0, 1.0}; // 掩体后保持红色
         float 血量颜色[4] = {0.0, 1.0, 0.0, 1.0};
         float 阵营颜色[4] = {1.0, 1.0, 0.0, 1.0};
         float 距离颜色[4] = {1.0, 1.0, 1.0, 1.0};
@@ -875,6 +869,10 @@ public:
         {104004, "DBS霰弹枪"},
         {104100, "SPAS-12霰弹枪"},
     };
+
+    std::string DebugAimedClassName;   // 当前准星对准的类名/地址字符串
+    bool bDebugAimedValid = false;     // 是否有效对准
+
     static std::vector<ConfigItem> configItems;
     static std::vector<ConfigItem> boolConfigItems;
 
@@ -901,70 +899,79 @@ public:
     float 垂直压枪力度 = 0.2f;
     float 直角压枪力度 = 0.2f;
     int 世界数量;
-    
+
     float 运行负载 = 0.0f;
     int 网络延迟 = 0;
-    std::chrono::steady_clock::time_point 启动时间;    
+    std::chrono::steady_clock::time_point 启动时间;
     // 如果使用方案3，添加这个方法
-    
+
     // 新增圆角配置变量
-    float UI圆角 = 5.0f;      // UI窗口圆角
-    float 按键圆角 = 3.0f;    // 按钮圆角
-        
-    std::string updateshow;      // 更新内容
-    long 卡密到期时间戳 = 0;     // 卡密到期时间戳
-    bool 已登录 = false;         // 登录状态标志
-    
+    float UI圆角 = 5.0f;   // UI窗口圆角
+    float 按键圆角 = 3.0f; // 按钮圆角
+
+    std::string updateshow;  // 更新内容
+    long 卡密到期时间戳 = 0; // 卡密到期时间戳
+    bool 已登录 = false;     // 登录状态标志
+
     // 添加获取剩余时间的函数
-    long 获取剩余天数() {
-        if (!已登录 || 卡密到期时间戳 == 0) return 0;
-        
+    long 获取剩余天数()
+    {
+        if (!已登录 || 卡密到期时间戳 == 0)
+            return 0;
+
         auto current_time = std::chrono::system_clock::now();
         auto current_timestamp = std::chrono::duration_cast<std::chrono::seconds>(current_time.time_since_epoch()).count();
         long 剩余秒数 = 卡密到期时间戳 - current_timestamp;
-        
-        if (剩余秒数 <= 0) {
+
+        if (剩余秒数 <= 0)
+        {
             已登录 = false; // 标记为过期
             return 0;
         }
-        
+
         return 剩余秒数 / (24 * 60 * 60);
     }
-    
-    long 获取剩余小时数() {
-        if (!已登录 || 卡密到期时间戳 == 0) return 0;
-        
+
+    long 获取剩余小时数()
+    {
+        if (!已登录 || 卡密到期时间戳 == 0)
+            return 0;
+
         auto current_time = std::chrono::system_clock::now();
         auto current_timestamp = std::chrono::duration_cast<std::chrono::seconds>(current_time.time_since_epoch()).count();
         long 剩余秒数 = 卡密到期时间戳 - current_timestamp;
-        
-        if (剩余秒数 <= 0) {
+
+        if (剩余秒数 <= 0)
+        {
             已登录 = false; // 标记为过期
             return 0;
         }
-        
+
         return (剩余秒数 % (24 * 60 * 60)) / 3600;
     }
-    
-    long 获取剩余分钟数() {
-        if (!已登录 || 卡密到期时间戳 == 0) return 0;
-        
+
+    long 获取剩余分钟数()
+    {
+        if (!已登录 || 卡密到期时间戳 == 0)
+            return 0;
+
         auto current_time = std::chrono::system_clock::now();
         auto current_timestamp = std::chrono::duration_cast<std::chrono::seconds>(current_time.time_since_epoch()).count();
         long 剩余秒数 = 卡密到期时间戳 - current_timestamp;
-        
-        if (剩余秒数 <= 0) {
+
+        if (剩余秒数 <= 0)
+        {
             已登录 = false; // 标记为过期
             return 0;
         }
-        
+
         return (剩余秒数 % 3600) / 60;
     }
-    
+
     float 骨骼距离限制 = 300;
-    int 自瞄模式=999;
-    int 防录屏=999;
-    int 无后台开关=999;
+    int 自瞄模式 = 999;
+    int 防录屏 = 999;
+    int 无后台开关 = 999;
     char 卡密[250];
     bool 漏打开关;
     bool Winorlose = false;
@@ -976,7 +983,7 @@ public:
     压枪 预判度;
     float 握把[100];
     bool isView = true;
-//    uintptr_t 解密数组;
+    //    uintptr_t 解密数组;
     long int 解密模式 = 0x4000;
     int 被瞄准对象数量 = 0;
     int 头甲包文本高度 = 0;
@@ -1001,8 +1008,8 @@ public:
     bool Shelter[14];
     ImFont *font_24 = nullptr; // 24像素字体
     Kernel 读写;
-    地址 地址;    
-    int 掩体刷新时间=10;
+    地址 地址;
+    int 掩体刷新时间 = 10;
     uintptr_t 真人数量;
     开关 按钮;
     计算 计算;
@@ -1031,7 +1038,7 @@ public:
     void hide_process();
     string getBoxName(int id);
     string getBoxName1(int id);
-    void OffScreen(ImDrawList *ImDraw, D4DVector Obj, float camear, ImU32 color, float Radius, float 距离);     
+    void OffScreen(ImDrawList *ImDraw, D4DVector Obj, float camear, ImU32 color, float Radius, float 距离);
     void 保存配置();
     void 读取配置();
     void 重置配置();
@@ -1042,7 +1049,7 @@ public:
     bool 已启用解密;
     uintptr_t 特征地址;
     std::vector<uintptr_t> 解密地址列表;
-    
+
     // 解密函数声明
     void 查找解密地址();
     void 设置解密功能(bool 启用);
@@ -1050,14 +1057,13 @@ public:
     void 重新扫描解密地址();
     void 显示解密数组选择窗口();
     void 选择解密数组(uintptr_t 数组地址);
-    bool 解密数组选择窗口开启;   
+    bool 解密数组选择窗口开启;
     const char *getMaterialName(char *name);
     int Cloudcheck();
     const char *Level(char *name);
     void InitShoot();
-    FVector2D WorldToScreen(const FVector_class & WorldLocation);
-    D2DVector WorldToScreen2(const FVector_class & WorldLocation);
-   
+    FVector2D WorldToScreen(const FVector_class &WorldLocation);
+    D2DVector WorldToScreen2(const FVector_class &WorldLocation);
 };
 
 class 布局

@@ -501,6 +501,7 @@ void 绘制::保存配置()
         {"盒子物资", 按钮.盒子物资},
         {"隐藏已开启", 按钮.隐藏已开启},
         {"超级物资箱", 按钮.超级物资箱},
+        {"隐藏超级物资箱", 按钮.隐藏超级物资箱},
         {"绘制空投", 按钮.绘制空投},
         {"人数", 按钮.人数},
         {"方框", 按钮.方框},
@@ -652,6 +653,7 @@ void 绘制::读取配置()
             按钮.盒子物资 = button.value("盒子物资", 按钮.盒子物资);
             按钮.隐藏已开启 = button.value("隐藏已开启", 按钮.隐藏已开启);
             按钮.超级物资箱 = button.value("超级物资箱", 按钮.超级物资箱);
+            按钮.隐藏超级物资箱 = button.value("隐藏超级物资箱", 按钮.隐藏超级物资箱);
             按钮.绘制空投 = button.value("绘制空投", 按钮.绘制空投);
             按钮.人数 = button.value("人数", 按钮.人数);
             按钮.方框 = button.value("方框", 按钮.方框);
@@ -949,6 +951,9 @@ void 绘制::初始化绘制(string 包名, int 真实X, int 真实Y)
     // 初始化其他状态变量
     运行负载 = 0.0f;
     网络延迟 = 0;
+
+    DebugAimedClassName.clear();
+    bDebugAimedValid = false;
 }
 
 FVector2D 绘制::WorldToScreen(const FVector_class &WorldLocation)
@@ -1107,7 +1112,14 @@ void 绘制::更新对象数据()
     int 绘制人机 = 0, 绘制真人 = 0;
     被瞄准对象数量 = 0;
     自瞄.瞄准对象数量 = 0;
+    // 开发者模式：记录距离准星最近的物体
+    static float minDistDebug = 9999.0f;
+    static uintptr_t closestDebugAddr = 0;
+    static std::string closestClassName;
 
+    minDistDebug = 9999.0f;
+    closestDebugAddr = 0;
+    closestClassName.clear();
     for (int a = 0; a < 世界数量; a++)
     {
         // 主循环
@@ -1240,8 +1252,20 @@ void 绘制::更新对象数据()
 
             ImColor outlineColor = ImColor(0, 0, 0, 255);
 
-            if (按钮.Debug)
+            if (按钮.Debug && t_屏幕坐标.W > 0)
             {
+                // 计算屏幕坐标到准星(屏幕中心)的距离
+                float distToCenter = calculateDistance(PX, PY, r_x, r_y);
+                if (distToCenter < minDistDebug)
+                {
+                    minDistDebug = distToCenter;
+                    closestDebugAddr = 对象地址.敌人地址;
+                    // 根据 Debug 模式选择类名或地址字符串
+                    closestClassName = (按钮.Debug模式 == 0) ? std::string(ClassName) : std::string(计算地址);
+                }
+
+                // 以下是原有的绘制类名/地址代码，保持不变
+                ImColor outlineColor = ImColor(0, 0, 0, 255);
                 if (按钮.Debug模式 == 0)
                 {
                     auto textSize = ImGui::CalcTextSize(ClassName, 0, 物资字体大小);
@@ -1437,30 +1461,12 @@ void 绘制::更新对象数据()
                     textColor,
                     ClassName);
             }
-            if (按钮.超级物资箱 && (strstr(ClassName, "EscapeBox_SpeEffect_C") != 0 or strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Classic_C") != 0 or strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme_C") != 0 or strstr(ClassName, "EscopeBox_SpeEffect_C") != 0))
-            {
-                std::string name = "超级物资箱[";
-                name += std::to_string((int)对象信息.敌人信息.距离);
-                name += "米]";
-                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
-                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-
-                for (int x = -1; x <= 1; x++)
-                {
-                    for (int y = -1; y <= 1; y++)
-                    {
-                        if (x != 0 || y != 0)
-                        {
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
-                        }
-                    }
-                }
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
-            }
-
             if (按钮.绘制空投)
             {
-                if (strstr(ClassName, "BP_AirDropBox_Helicopter_C") != 0 ||
+                if (
+                    strstr(ClassName, "BP_AirDropBox_Helicopter_C") != 0 ||
+                    strstr(ClassName, "BP_CG036_AirDropBox_C") != 0 ||
+                    strstr(ClassName, "BP_CGO36_AirDropBox_C") != 0 ||
                     strstr(ClassName, "BP_AirDropBox_C") != 0)
                 {
                     std::string name = "空投[";
@@ -2096,6 +2102,47 @@ void 绘制::更新对象数据()
                     }
                 }
             }
+            if (按钮.超级物资箱 && (strstr(ClassName, "EscapeBox_SpeEffect_C") != 0 ||
+                                    strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Classic_C") != 0 ||
+                                    strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme_C") != 0 ||
+                                    strstr(ClassName, "EscopeBox_SpeEffect_C") != 0))
+            {
+                // 根据类名直接判断是否已开启
+                bool 已开启 = (strstr(ClassName, "BP_MilitaryInnerWrapperList_C") != 0);
+
+                // 若开启“隐藏已开启”且箱子已开，跳过绘制
+                if (按钮.隐藏超级物资箱 && 已开启)
+                    continue;
+
+                std::string name = "超级物资箱[";
+                name += (已开启 ? "已开]" : "未开");
+
+                // 未开启才显示距离
+                if (!已开启)
+                    name += " " + std::to_string((int)对象信息.敌人信息.距离) + "米]";
+                else
+                    name += "]";
+
+                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
+                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                // 未开启 → 高亮紫色； 已开启 → 灰色
+                ImColor textColor = 已开启 ? ImColor(128, 128, 128, 255) : ImColor(255, 0, 255, 255);
+                ImColor outlineColor = ImColor(0, 0, 0, 255);
+
+                // 描边
+                for (int x = -1; x <= 1; x++)
+                    for (int y = -1; y <= 1; y++)
+                        if (x != 0 || y != 0)
+                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小,
+                                                                    {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+
+                // 主文字
+                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, textColor, name.c_str());
+
+                continue; // 物资箱不是玩家，跳过后续所有角色逻辑
+            }
+
         }
 
         if (strstr(ClassName, "BPPawn_Escape_Raven") != 0 or strstr(ClassName, "BPPawn_Escape_UAV_C") != 0)
@@ -2510,6 +2557,17 @@ void 绘制::更新对象数据()
                     绘图.绘制手持(对象信息.敌人信息.手持, 对象信息.敌人信息.状态, 对象信息.敌人信息.子弹数量, 对象信息.敌人信息.子弹最大数量);
             }
         }
+    }
+    // 阈值：屏幕距离小于 50 像素认为准星对准
+    if (minDistDebug < 50.0f && 按钮.Debug)
+    {
+        DebugAimedClassName = closestClassName;
+        bDebugAimedValid = true;
+    }
+    else
+    {
+        DebugAimedClassName.clear();
+        bDebugAimedValid = false;
     }
     if (自瞄.初始化 && 自瞄.准星射线 && 自瞄.瞄准目标 != -1 && 自瞄函数[自瞄.瞄准目标].准心距离 <= 自瞄.自瞄范围)
     {

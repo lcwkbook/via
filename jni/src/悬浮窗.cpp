@@ -1287,7 +1287,8 @@ void DrawItemsPage()
                 {"空投箱", &绘制.按钮.绘制空投},
                 {"金插", &绘制.按钮.绘制金插},
                 {"宝箱", &绘制.按钮.绘制宝箱},
-                {"超级箱", &绘制.按钮.超级物资箱},
+                {"超级物资箱", &绘制.按钮.超级物资箱},
+                {"隐藏开启超级箱", &绘制.按钮.隐藏超级物资箱},
                 {"武器箱", &绘制.按钮.绘制武器箱},
                 {"盒子", &绘制.按钮.盒子},
                 {"精英勋章", &绘制.按钮.精英勋章},
@@ -1346,6 +1347,42 @@ void DrawItemsPage()
                     dataLoaded = false;
                     AddNotification("自定义物资数据加载失败，请检查文件", false);
                 }
+            }
+
+            // ---------- 开发者：写入准星类名 ----------
+            if (绘制.按钮.Debug)
+            {
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::Spacing();
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "开发者模式");
+                ImGui::Text("准星对准: %s", 绘制.bDebugAimedValid ? 绘制.DebugAimedClassName.c_str() : "无");
+                if (ImGui::Button("将此类名添加到自定义物资文件"))
+                {
+                    if (!绘制.bDebugAimedValid || 绘制.DebugAimedClassName.empty())
+                    {
+                        AddNotification("没有对准任何物体", false);
+                    }
+                    else
+                    {
+                        // 确保目录存在
+                        std::filesystem::create_directories("/sdcard/AuraKernel");
+                        std::ofstream file("/sdcard/AuraKernel/自定义物资.txt", std::ios::app);
+                        if (file.is_open())
+                        {
+                            // 写入注释行，格式：//类名
+                            file << "//" << 绘制.DebugAimedClassName << "\n";
+                            file.close();
+                            AddNotification("已写入: //" + 绘制.DebugAimedClassName, true);
+                            // 如果已加载 DataReader，提示用户重新加载
+                        }
+                        else
+                        {
+                            AddNotification("文件写入失败", false);
+                        }
+                    }
+                }
+                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "写入后请点击“重新加载数据文件”生效");
             }
 
             ImGui::Spacing();
@@ -1522,9 +1559,8 @@ void DrawColorPage()
         绘制.Colorset[colorSetIndex].骨骼颜色,
         绘制.Colorset[colorSetIndex].距离颜色,
         绘制.Colorset[colorSetIndex].名称颜色,
-        绘制.物资颜色, 
-        绘制.车辆颜色 
-    };
+        绘制.物资颜色,
+        绘制.车辆颜色};
 
     // ====================== 表格布局 ======================
     if (ImGui::BeginTable("ColorTable", 3, ImGuiTableFlags_SizingStretchSame))
