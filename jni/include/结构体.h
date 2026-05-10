@@ -215,7 +215,6 @@ struct 开关
 
     bool 解密;
 
-    bool 精英勋章;
     bool 显示医疗箱 = false;
     bool 显示急救包 = false;
     bool 显示绷带 = false;
@@ -258,7 +257,6 @@ struct 开关
     bool 隐藏已开启 = false;
 
     bool 显示对局信息 = false;
-    //   float 速度值 = 1.15;
     float 雷达X = 300;
     float 雷达Y = 400;
     float rotationAngle = 0.0f;

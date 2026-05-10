@@ -543,7 +543,6 @@ void 绘制::保存配置()
         {"肾上腺素", 按钮.显示肾上腺素},
         {"爆炸猎弓", 按钮.爆炸猎弓},
         {"超体职业", 按钮.超体职业},
-        {"精英勋章", 按钮.精英勋章},
         {"自救器", 按钮.显示自救器},
         {"飞索", 按钮.显示飞索},
         {"黑色物资箱", 按钮.显示黑色物资箱},
@@ -694,7 +693,6 @@ void 绘制::读取配置()
             按钮.投掷物品 = button.value("投掷物", 按钮.投掷物品);
             按钮.显示肾上腺素 = button.value("肾上腺素", 按钮.显示肾上腺素);
             按钮.爆炸猎弓 = button.value("爆炸猎弓", 按钮.爆炸猎弓);
-            按钮.精英勋章 = button.value("精英勋章", 按钮.精英勋章);
             按钮.超体职业 = button.value("超体职业", 按钮.超体职业);
             按钮.显示自救器 = button.value("自救器", false);
             按钮.显示飞索 = button.value("飞索", false);
@@ -1410,7 +1408,7 @@ void 绘制::更新对象数据()
 
             if (按钮.物资总开关)
             {
-                int MaterialID = 读写.getDword(对象地址.敌人地址 + 0x6f4);
+                int MaterialID = 读写.getDword(对象地址.敌人地址 + Offsets::Box_Open);
                 std::string name = getBoxName(MaterialID);
                 if (name != "Error")
                 {
@@ -1696,32 +1694,7 @@ void 绘制::更新对象数据()
                 对象地址.敌人地址 = 读写.getPtr64(地址.数组地址 + a * 8);
             }
 
-            if (按钮.精英勋章 && (strstr(ClassName, "BP_CommercialWrapper_LV1_C") != 0 ||
-                                  strstr(ClassName, "BP_CommercialWrapper_LV2_C") != 0 ||
-                                  strstr(ClassName, "BP_CommercialWrapper_LV3_C") != 0 ||
-                                  strstr(ClassName, "BP_CommercialWrapper_LV4_C") != 0 ||
-                                  strstr(ClassName, "BP_CommercialWrapper_LV5_C") != 0))
-            {
-                std::string name = "精英勋章[";
-                name += std::to_string((int)对象信息.敌人信息.距离);
-                name += "米]";
-                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
-                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-
-                for (int x = -1; x <= 1; x++)
-                {
-                    for (int y = -1; y <= 1; y++)
-                    {
-                        if (x != 0 || y != 0)
-                        {
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
-                        }
-                    }
-                }
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(0, 0, 255, 255), name.c_str());
-            }
-
-            if (按钮.显示黑色物资箱 && (strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme") != 0 || strstr(ClassName, "BP_WAlnnerWrapperList_C") != 0))
+            if (按钮.显示黑色物资箱 && (strstr(ClassName, "BP_WAlnnerWrapperList_C") != 0))
             {
                 std::string name = "黑色物资箱[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -1763,26 +1736,67 @@ void 绘制::更新对象数据()
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
-            if (strstr(ClassName, "BP_WAlnnerWrapperList_C") != 0)
+            if (按钮.超级物资箱 && (strstr(ClassName, "EscapeBox_SpeEffect_C") != 0 ||
+                                    strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Classic_C") != 0 ||
+                                    strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme_C") != 0 ||
+                                    strstr(ClassName, "EscopeBox_SpeEffect_C") != 0))
             {
-                std::string name = "黑色物资箱[";
-                name += std::to_string((int)对象信息.敌人信息.距离);
-                name += "米]";
+                // 根据类名直接判断是否已开启
+                bool 已开启 = (strstr(ClassName, "BP_MilitaryInnerWrapperList_C") != 0);
+
+                // 若开启“隐藏已开启”且箱子已开，跳过绘制
+                if (按钮.隐藏超级物资箱 && 已开启)
+                    continue;
+
+                std::string name = "超级物资箱[";
+                name += (已开启 ? "已开]" : "未开");
+
+                // 未开启才显示距离
+                if (!已开启)
+                    name += " " + std::to_string((int)对象信息.敌人信息.距离) + "米]";
+                else
+                    name += "]";
+
                 auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
                 ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
 
+                // 未开启 → 高亮紫色； 已开启 → 灰色
+                ImColor textColor = 已开启 ? ImColor(128, 128, 128, 255) : ImColor(255, 0, 255, 255);
+                ImColor outlineColor = ImColor(0, 0, 0, 255);
+
+                // 描边
                 for (int x = -1; x <= 1; x++)
-                {
                     for (int y = -1; y <= 1; y++)
-                    {
                         if (x != 0 || y != 0)
-                        {
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
-                        }
-                    }
-                }
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
+                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小,
+                                                                    {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+
+                // 主文字
+                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, textColor, name.c_str());
+
+                continue; // 物资箱不是玩家，跳过后续所有角色逻辑
             }
+
+            // if (strstr(ClassName, "BP_WAlnnerWrapperList_C") != 0)
+            // {
+            //     std::string name = "黑色物资箱[";
+            //     name += std::to_string((int)对象信息.敌人信息.距离);
+            //     name += "米]";
+            //     auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
+            //     ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+            //     for (int x = -1; x <= 1; x++)
+            //     {
+            //         for (int y = -1; y <= 1; y++)
+            //         {
+            //             if (x != 0 || y != 0)
+            //             {
+            //                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+            //             }
+            //         }
+            //     }
+            //     ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
+            // }
 
             if (按钮.显示防具 && (strstr(ClassName, "ckUp_BP_Helmet_Lv3_C") != 0 || strstr(ClassName, "PickUp_BP_Helmet_Lv3_C") != 0))
             {
@@ -2101,46 +2115,6 @@ void 绘制::更新对象数据()
                         }
                     }
                 }
-            }
-            if (按钮.超级物资箱 && (strstr(ClassName, "EscapeBox_SpeEffect_C") != 0 ||
-                                    strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Classic_C") != 0 ||
-                                    strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme_C") != 0 ||
-                                    strstr(ClassName, "EscopeBox_SpeEffect_C") != 0))
-            {
-                // 根据类名直接判断是否已开启
-                bool 已开启 = (strstr(ClassName, "BP_MilitaryInnerWrapperList_C") != 0);
-
-                // 若开启“隐藏已开启”且箱子已开，跳过绘制
-                if (按钮.隐藏超级物资箱 && 已开启)
-                    continue;
-
-                std::string name = "超级物资箱[";
-                name += (已开启 ? "已开]" : "未开");
-
-                // 未开启才显示距离
-                if (!已开启)
-                    name += " " + std::to_string((int)对象信息.敌人信息.距离) + "米]";
-                else
-                    name += "]";
-
-                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
-                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-
-                // 未开启 → 高亮紫色； 已开启 → 灰色
-                ImColor textColor = 已开启 ? ImColor(128, 128, 128, 255) : ImColor(255, 0, 255, 255);
-                ImColor outlineColor = ImColor(0, 0, 0, 255);
-
-                // 描边
-                for (int x = -1; x <= 1; x++)
-                    for (int y = -1; y <= 1; y++)
-                        if (x != 0 || y != 0)
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小,
-                                                                    {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
-
-                // 主文字
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, textColor, name.c_str());
-
-                continue; // 物资箱不是玩家，跳过后续所有角色逻辑
             }
         }
 

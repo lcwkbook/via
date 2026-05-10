@@ -996,6 +996,99 @@ bool ModernSwitchRight(const char* label, bool* v, float switch_width = 44.0f, f
     return pressed;
 }
 
+// 现代滑块（浮点数），带圆角轨道与动态把手，右侧显示数值
+bool ModernSliderFloat(const char* label, float* v, float v_min, float v_max, const char* format = "%.1f", float width = 250.0f)
+{
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if (window->SkipItems) return false;
+
+    ImGuiContext& g = *GImGui;
+    const ImGuiStyle& style = g.Style;
+    const ImGuiID id = window->GetID(label);
+    const float label_width = ImGui::CalcTextSize(label).x;
+    const float slider_width = width;
+    const float total_height = 28.0f;
+    const float total_width = label_width + 10.0f + slider_width + 60.0f; // 标签 + 间距 + 滑块 + 数值
+
+    const ImVec2 pos = window->DC.CursorPos;
+    const ImRect total_bb(pos, ImVec2(pos.x + total_width, pos.y + total_height));
+    ImGui::ItemSize(total_bb, style.FramePadding.y);
+    if (!ImGui::ItemAdd(total_bb, id))
+        return false;
+
+    // 标签文字
+    ImGui::RenderText(ImVec2(pos.x, pos.y + (total_height - ImGui::GetFontSize()) * 0.5f), label);
+
+    // 滑块区域
+    const float slider_x = pos.x + label_width + 10.0f;
+    const float slider_y = pos.y + (total_height - 8.0f) * 0.5f; // 轨道高度8px
+    const float slider_h = 8.0f;
+    const ImVec2 slider_min(slider_x, slider_y);
+    const ImVec2 slider_max(slider_x + slider_width, slider_y + slider_h);
+    const ImVec2 grab_min(slider_x, pos.y);
+    const ImVec2 grab_max(slider_x + slider_width, pos.y + total_height);
+
+    // 交互区域（覆盖整个把手可拖动范围）
+    bool value_changed = false;
+    bool hovered, held;
+    bool pressed = ImGui::ButtonBehavior(ImRect(grab_min, grab_max), id, &hovered, &held);
+
+    // 计算把手位置
+    float t = (*v - v_min) / (v_max - v_min);
+    if (t < 0.0f) t = 0.0f;
+    if (t > 1.0f) t = 1.0f;
+    const float knob_radius = 8.0f;
+    float knob_x = slider_min.x + t * slider_width;
+    if (held || pressed) {
+        // 拖动时更新值
+        float mouse_x = ImGui::GetIO().MousePos.x;
+        if (mouse_x < slider_min.x) mouse_x = slider_min.x;
+        if (mouse_x > slider_max.x) mouse_x = slider_max.x;
+        t = (mouse_x - slider_min.x) / slider_width;
+        *v = v_min + t * (v_max - v_min);
+        if (*v < v_min) *v = v_min;
+        if (*v > v_max) *v = v_max;
+        value_changed = true;
+        knob_x = mouse_x;
+    }
+
+    ImDrawList* dl = window->DrawList;
+
+    // 绘制轨道背景
+    dl->AddRectFilled(slider_min, slider_max, IM_COL32(60, 60, 60, 255), 4.0f);
+    // 绘制轨道激活部分（渐变蓝）
+    ImU32 active_track = IM_COL32(0, 200, 255, 200);
+    dl->AddRectFilled(slider_min, ImVec2(knob_x, slider_min.y + slider_h), active_track, 4.0f);
+
+    // 光晕效果
+    if (hovered || held) {
+        dl->AddCircleFilled(ImVec2(knob_x, slider_min.y + slider_h * 0.5f), knob_radius + 2.0f,
+                            IM_COL32(0, 200, 255, 80));
+    }
+
+    // 把手
+    dl->AddCircleFilled(ImVec2(knob_x, slider_min.y + slider_h * 0.5f), knob_radius, IM_COL32(255, 255, 255, 255));
+    dl->AddCircle(ImVec2(knob_x, slider_min.y + slider_h * 0.5f), knob_radius, IM_COL32(0, 200, 255, 100), 0, 1.5f);
+
+    // 数值显示（右侧）
+    char value_buf[32];
+    snprintf(value_buf, sizeof(value_buf), format, *v);
+    ImGui::RenderText(ImVec2(slider_max.x + 10.0f, pos.y + (total_height - ImGui::GetFontSize()) * 0.5f), value_buf);
+
+    return value_changed;
+}
+
+// 现代滑块（整数），与浮点类似
+bool ModernSliderInt(const char* label, int* v, int v_min, int v_max, const char* format = "%.0f", float width = 250.0f)
+{
+    float f_val = (float)*v;
+    if (ModernSliderFloat(label, &f_val, (float)v_min, (float)v_max, format, width)) {
+        *v = (int)(f_val + 0.5f);
+        return true;
+    }
+    return false;
+}
+
 // ---------- 绘制顶部状态栏 ----------
 void DrawTopStatusBar()
 {
@@ -1456,7 +1549,6 @@ void DrawItemsPage()
             {"隐藏开启超级箱", &绘制.按钮.隐藏超级物资箱},
             {"武器箱", &绘制.按钮.绘制武器箱},
             {"盒子", &绘制.按钮.盒子},
-            {"精英勋章", &绘制.按钮.精英勋章},
             {"自救器", &绘制.按钮.显示自救器},
             {"飞索", &绘制.按钮.显示飞索},
             {"黑色物资箱", &绘制.按钮.显示黑色物资箱}};
@@ -1578,62 +1670,74 @@ void DrawItemsPage()
 void DrawVisualPage()
 {
     ImGui::BeginChild("##VisualContent", ImVec2(-1, -1), true);
+    
+    // 增大滚动条宽度（仅影响当前子窗口）
+    ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 16.0f);
+    
     ImGui::SetCursorPos(ImVec2(20, 20));
-    static const char *手雷样式选项[] = {"3D", "曲线"};
+
+    // 手雷样式
     ImGui::Text("手雷样式");
     ImGui::SameLine(150);
+    static const char* 手雷样式选项[] = {"3D", "曲线"};
     ImGui::SetNextItemWidth(200);
     ImGui::SliderInt("##手雷样式", &绘制.按钮.手雷样式, 0, 1, 手雷样式选项[绘制.按钮.手雷样式]);
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::Columns(2, "##视觉列", false);
-    ImGui::Text("绘制距离");
-    ImGui::SameLine(120);
-    ImGui::SetNextItemWidth(150);
-    ImGui::SliderInt("##绘制距离", &绘制.按钮.绘制最大距离, 100, 300, "%d 米");
-    ImGui::Text("骨骼距离");
-    ImGui::SameLine(120);
-    ImGui::SetNextItemWidth(150);
-    ImGui::SliderFloat("##骨骼距离", &绘制.骨骼距离限制, 0.0f, 300.0f, "%.0f 米");
-    ImGui::Text("方框粗细");
-    ImGui::SameLine(120);
-    ImGui::SetNextItemWidth(150);
-    ImGui::SliderFloat("##方框粗细", &绘制.按钮.方框粗细, 0.1f, 5.0f, "%.1f");
-    ImGui::Text("射线粗细");
-    ImGui::SameLine(120);
-    ImGui::SetNextItemWidth(150);
-    ImGui::SliderFloat("##射线粗细", &绘制.按钮.射线粗细, 0.1f, 5.0f, "%.1f");
-    ImGui::NextColumn();
-    ImGui::Text("骨骼粗细");
-    ImGui::SameLine(120);
-    ImGui::SetNextItemWidth(150);
-    ImGui::SliderFloat("##骨骼粗细", &绘制.按钮.骨骼粗细, 0.1f, 5.0f, "%.1f");
-    ImGui::Text("雷达X");
-    ImGui::SameLine(120);
-    ImGui::SetNextItemWidth(150);
-    ImGui::SliderFloat("##雷达X", &绘制.按钮.雷达X, 0.0f, 2400.0f, "%.0f");
-    ImGui::Text("雷达Y");
-    ImGui::SameLine(120);
-    ImGui::SetNextItemWidth(150);
-    ImGui::SliderFloat("##雷达Y", &绘制.按钮.雷达Y, 0.0f, 1080.0f, "%.0f");
-    ImGui::Text("动作字体");
-    ImGui::SameLine(120);
-    ImGui::SetNextItemWidth(150);
-    ImGui::SliderInt("##动作字体", &绘制.动作字体大小, 6, 40);
-    ImGui::Text("距离字体");
-    ImGui::SameLine(120);
-    ImGui::SetNextItemWidth(150);
-    ImGui::SliderInt("##距离字体", &绘制.距离字体大小, 6, 40);
-    ImGui::Text("手持字体");
-    ImGui::SameLine(120);
-    ImGui::SetNextItemWidth(150);
-    ImGui::SliderInt("##手持字体", &绘制.手持字体大小, 6, 40);
-    ImGui::Text("物资字体");
-    ImGui::SameLine(120);
-    ImGui::SetNextItemWidth(150);
-    ImGui::SliderInt("##物资字体", &绘制.物资字体大小, 6, 40);
-    ImGui::Columns(1);
+
+    const float slider_width = 280.0f;
+
+    // 简化后的行间距：仅增加 2px 的虚拟占位
+    auto ItemSpacing = [&]() {
+        ImGui::Dummy(ImVec2(0, 1.0f));
+    };
+
+    // 1. 绘制距离
+    ModernSliderInt("绘制距离", &绘制.按钮.绘制最大距离, 100, 500, "%.0f 米", slider_width);
+    ItemSpacing();
+
+    // 2. 骨骼距离
+    ModernSliderFloat("骨骼距离", &绘制.骨骼距离限制, 100.0f, 500.0f, "%.0f 米", slider_width);
+    ItemSpacing();
+
+    // 3. 方框粗细
+    ModernSliderFloat("方框粗细", &绘制.按钮.方框粗细, 0.1f, 5.0f, "%.1f", slider_width);
+    ItemSpacing();
+
+    // 4. 射线粗细
+    ModernSliderFloat("射线粗细", &绘制.按钮.射线粗细, 0.1f, 5.0f, "%.1f", slider_width);
+    ItemSpacing();
+
+    // 5. 骨骼粗细
+    ModernSliderFloat("骨骼粗细", &绘制.按钮.骨骼粗细, 0.1f, 5.0f, "%.1f", slider_width);
+    ItemSpacing();
+
+    // 6. 雷达X
+    ModernSliderFloat("雷达X", &绘制.按钮.雷达X, 0.0f, 2400.0f, "%.0f", slider_width);
+    ItemSpacing();
+
+    // 7. 雷达Y
+    ModernSliderFloat("雷达Y", &绘制.按钮.雷达Y, 0.0f, 1080.0f, "%.0f", slider_width);
+    ItemSpacing();
+
+    // 8. 动作字体
+    ModernSliderInt("动作字体", &绘制.动作字体大小, 6, 40, "%.0f", slider_width);
+    ItemSpacing();
+
+    // 9. 距离字体
+    ModernSliderInt("距离字体", &绘制.距离字体大小, 6, 40, "%.0f", slider_width);
+    ItemSpacing();
+
+    // 10. 手持字体
+    ModernSliderInt("手持字体", &绘制.手持字体大小, 6, 40, "%.0f", slider_width);
+    ItemSpacing();
+
+    // 11. 物资字体
+    ModernSliderInt("物资字体", &绘制.物资字体大小, 6, 40, "%.0f", slider_width);
+    ItemSpacing();
+
+    ImGui::PopStyleVar(); // 恢复滚动条大小
     ImGui::EndChild();
 }
 

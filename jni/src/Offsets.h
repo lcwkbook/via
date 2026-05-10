@@ -62,6 +62,7 @@ namespace Offsets {
     // ==================== 盒子/物资偏移 ====================
     constexpr uintptr_t PickUpDataList          = 0xD88;
     constexpr uintptr_t Box_OpenState           = 0x270;
+    constexpr uintptr_t Box_Open           = 0x6f4;
     // ==================== Mesh/骨骼偏移 ====================
     constexpr uintptr_t Mesh_ComponentToWorld   = 0x1F0;
     constexpr uintptr_t Mesh_BoneArray          = 0x828;
