@@ -1,8 +1,8 @@
 #pragma once
+#include <atomic>
 #include <unordered_map>
 #include <string>
 #include <fstream>
-#include <sstream>
 #include <cstdio>
 
 struct CustomItemInfo {
@@ -21,18 +21,36 @@ private:
         if (std::sscanf(colorStr.c_str(), "%d,%d,%d,%d", &r, &g, &b, &a) >= 3) {
             return ImColor(r, g, b, a);
         }
-        printf("[DataReader] 颜色解析失败: %s\n", colorStr.c_str());
-        return ImColor(255, 215, 0, 255); // 容错默认色
+        return ImColor(255, 215, 0, 255);
+    }
+
+    // 使用 find 快速分割
+    static std::vector<std::string> split(const std::string& s, char delim) {
+        std::vector<std::string> parts;
+        size_t start = 0, end;
+        while ((end = s.find(delim, start)) != std::string::npos) {
+            parts.push_back(s.substr(start, end - start));
+            start = end + 1;
+        }
+        parts.push_back(s.substr(start));
+        return parts;
+    }
+
+    // 去除首尾空白
+    static std::string trim(const std::string& s) {
+        const char* whitespace = " \t\r\n";
+        auto start = s.find_first_not_of(whitespace);
+        if (start == std::string::npos) return "";
+        auto end = s.find_last_not_of(whitespace);
+        return s.substr(start, end - start + 1);
     }
 
 public:
     bool loadDataFromFile(const std::string& filePath) {
         dataMap.clear();
 
-        printf("[DataReader] 正在尝试打开文件: %s\n", filePath.c_str());
         std::ifstream file(filePath);
         if (!file.is_open()) {
-            printf("[DataReader] ❌ 文件打开失败！请检查路径和权限\n");
             return false;
         }
 
@@ -40,52 +58,40 @@ public:
         int lineCount = 0;
         bool hasValidData = false;
 
+        // 可选预留空间（如果文件通常有几百条）
+        dataMap.reserve(200);
+
         while (std::getline(file, line)) {
             lineCount++;
             if (line.empty()) continue;
 
-            // 使用 '@' 分割，同时去除首尾空白
-            std::vector<std::string> parts;
-            std::string segment;
-            std::istringstream ss(line);
-            while (std::getline(ss, segment, '@')) {
-                // 去除首尾空格
-                const auto start = segment.find_first_not_of(" \t");
-                const auto end   = segment.find_last_not_of(" \t");
-                if (start != std::string::npos)
-                    parts.push_back(segment.substr(start, end - start + 1));
-                else
-                    parts.push_back("");
-            }
+            auto parts = split(line, '@');
+            if (parts.size() < 2) continue;
 
-            if (parts.size() < 2) {
-                printf("[DataReader] 第 %d 行格式错误 (至少需要 类名@显示名称) : %s\n", lineCount, line.c_str());
-                continue;
-            }
+            std::string className = trim(parts[0]);
+            if (className.empty()) continue;
 
-            std::string className = parts[0];
             CustomItemInfo info;
-            info.displayName = parts[1];
+            info.displayName = trim(parts[1]);
 
-            if (parts.size() >= 3 && !parts[2].empty()) {
-                info.color = parseColor(parts[2]);
+            if (parts.size() >= 3) {
+                std::string colorPart = trim(parts[2]);
+                if (!colorPart.empty()) {
+                    info.color = parseColor(colorPart);
+                }
             }
-            if (parts.size() >= 4 && !parts[3].empty()) {
-                info.fontSize = std::stof(parts[3]);
+            if (parts.size() >= 4) {
+                std::string fontSizePart = trim(parts[3]);
+                if (!fontSizePart.empty()) {
+                    info.fontSize = std::stof(fontSizePart);
+                }
             }
 
             dataMap[className] = info;
             hasValidData = true;
-            printf("[DataReader] 加载成功: %s -> %s\n", className.c_str(), info.displayName.c_str());
         }
 
-        if (hasValidData) {
-            printf("[DataReader] ✅ 共加载 %zu 条自定义物资\n", dataMap.size());
-            return true;
-        } else {
-            printf("[DataReader] ⚠️ 文件中没有有效数据，请检查格式\n");
-            return false;
-        }
+        return hasValidData;
     }
 
     const CustomItemInfo* getItemInfo(const std::string& className) const {
@@ -100,3 +106,7 @@ public:
 
     void clear() { dataMap.clear(); }
 };
+
+// 2. 添加 extern 声明
+extern DataReader* g_CustomReader;
+extern std::atomic<bool> g_CustomDataLoaded;

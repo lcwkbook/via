@@ -26,8 +26,8 @@
 #include "json.hpp"
 
 // ========== 自定义物资全局变量 ==========
-DataReader *g_CustomReader = nullptr;
-bool g_CustomDataLoaded = false;
+DataReader* g_CustomReader = nullptr; 
+std::atomic<bool> g_CustomDataLoaded{false}; // 定义并初始化
 
 using json = nlohmann::json;
 extern float statusBarAlpha;

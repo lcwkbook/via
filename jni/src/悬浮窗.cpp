@@ -31,9 +31,6 @@
 #include <poll.h> // poll 结构体
 #include <atomic> // std::atomic
 
-extern DataReader* g_CustomReader;
-extern bool g_CustomDataLoaded;
-
 static std::atomic<bool> g_volumeKeyPressed(false);
 static std::thread g_volumeThread;
 static std::atomic<bool> g_volumeThreadRunning(true);
@@ -1331,42 +1328,53 @@ void DrawItemsPage()
             ImGui::Separator();
             ImGui::Spacing();
 
-            // 首次自动加载（只执行一次）
+            // ---------- 异步加载管理 ----------
+            static std::future<bool> loadFuture;
+            static bool loadPending = false;
+
+            // 首次自动加载（只触发一次）
             static bool firstRun = true;
             if (firstRun)
             {
                 firstRun = false;
-                if (!g_CustomReader)
-                    g_CustomReader = new DataReader();
-                if (g_CustomReader->loadDataFromFile("/sdcard/AuraKernel/自定义物资.txt"))
-                {
-                    g_CustomDataLoaded = true;
-                    // printf("[UI] 首次自动加载成功\n");
-                }
-                else
-                {
-                    g_CustomDataLoaded = false;
-                    // printf("[UI] 首次自动加载失败，请检查文件是否存在或格式是否正确\n");
-                }
+                // 启动异步加载
+                loadFuture = std::async(std::launch::async, []() -> bool
+                                        {
+            if (!g_CustomReader) g_CustomReader = new DataReader();
+            return g_CustomReader->loadDataFromFile("/sdcard/AuraKernel/自定义物资.txt"); });
+                loadPending = true;
             }
 
             // 重新加载按钮
             if (ImGui::Button("重新加载数据文件"))
             {
-                if (!g_CustomReader)
-                    g_CustomReader = new DataReader();
+                // 确保没有正在进行的加载任务
+                if (loadPending && loadFuture.valid())
+                    loadFuture.wait(); // 等待上一次完成，避免冲突
+                loadFuture = std::async(std::launch::async, []() -> bool
+                                        {
+            if (!g_CustomReader) g_CustomReader = new DataReader();
+            return g_CustomReader->loadDataFromFile("/sdcard/AuraKernel/自定义物资.txt"); });
+                loadPending = true;
+            }
 
-                if (g_CustomReader->loadDataFromFile("/sdcard/AuraKernel/自定义物资.txt"))
+            // 检查加载是否完成
+            if (loadPending && loadFuture.valid())
+            {
+                auto status = loadFuture.wait_for(std::chrono::seconds(0));
+                if (status == std::future_status::ready)
                 {
-                    g_CustomDataLoaded = true;
-                    AddNotification("自定义物资数据加载成功", true);
-                    // printf("[UI] 重新加载成功\n");
+                    bool result = loadFuture.get();
+                    g_CustomDataLoaded = result;
+                    loadPending = false;
+                    if (result)
+                        AddNotification("自定义物资加载成功", true);
+                    else
+                        AddNotification("加载失败：文件不存在或格式错误", false);
                 }
                 else
                 {
-                    g_CustomDataLoaded = false;
-                    AddNotification("加载失败：请检查文件是否存在或格式错误", false);
-                    // printf("[UI] 重新加载失败\n");
+                    ImGui::TextColored(ImVec4(1, 1, 0, 1), "文件加载中...");
                 }
             }
 
@@ -1390,7 +1398,8 @@ void DrawItemsPage()
                         std::ofstream file("/sdcard/AuraKernel/自定义物资.txt", std::ios::app);
                         if (file.is_open())
                         {
-                            file << "//" << 绘制.DebugAimedClassName << "\n";
+                            file << "\n"
+                                 << "//" << 绘制.DebugAimedClassName << "@未命名@255,0,0,255@20\n";
                             file.close();
                             AddNotification("已写入: //" + 绘制.DebugAimedClassName, true);
                         }
@@ -1403,6 +1412,7 @@ void DrawItemsPage()
                 ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "写入后请点击“重新加载数据文件”生效");
             }
 
+            // 显示当前状态（使用原子读取）
             ImGui::Spacing();
             if (g_CustomDataLoaded)
                 ImGui::TextColored(ImVec4(0.3f, 0.9f, 0.3f, 1.0f), "状态: 已加载");
