@@ -924,6 +924,78 @@ void DrawThreeColorBalls()
 extern bool g_login_success;
 extern bool g_announcement_passed;
 
+// 现代右滑块开关：文字在左，滑块在右，带动画
+bool ModernSwitchRight(const char* label, bool* v, float switch_width = 44.0f, float switch_height = 24.0f)
+{
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if (window->SkipItems) return false;
+
+    ImGuiContext& g = *GImGui;
+    const ImGuiStyle& style = g.Style;
+    const ImGuiID id = window->GetID(label);
+
+    const ImVec2 label_size = ImGui::CalcTextSize(label);
+    const float spacing = 10.0f;
+    const float total_width = label_size.x + spacing + switch_width;
+
+    const ImVec2 switch_size(switch_width, switch_height);
+    const float frame_height = ImMax(label_size.y, switch_size.y);
+    const ImVec2 total_size(total_width, frame_height + style.FramePadding.y * 2.0f);
+
+    const ImVec2 pos = window->DC.CursorPos;
+    const ImVec2 pos_max = ImVec2(pos.x + total_size.x, pos.y + total_size.y);
+    const ImRect total_bb(pos, pos_max);
+
+    ImGui::ItemSize(total_bb, style.FramePadding.y);
+    if (!ImGui::ItemAdd(total_bb, id))
+        return false;
+
+    bool hovered, held;
+    bool pressed = ImGui::ButtonBehavior(total_bb, id, &hovered, &held);
+    if (pressed)
+        *v = !*v;
+
+    // 动画状态
+    static std::unordered_map<ImGuiID, float> anim_state;
+    if (anim_state.find(id) == anim_state.end())
+        anim_state[id] = *v ? 1.0f : 0.0f;
+    float& anim = anim_state[id];
+    float target = *v ? 1.0f : 0.0f;
+    anim = ImLerp(anim, target, ImGui::GetIO().DeltaTime * 8.0f);
+    if (anim < 0.01f) anim = 0.0f;
+    if (anim > 0.99f) anim = 1.0f;
+
+    ImDrawList* dl = window->DrawList;
+
+    // ★ 文字颜色跟随主题
+    ImU32 text_color = ImGui::GetColorU32(hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Text);
+    float text_x = pos.x;
+    float text_y = pos.y + (frame_height - label_size.y) * 0.5f;
+    dl->AddText(ImVec2(text_x, text_y), text_color, label);
+
+    // 滑块部分保持不变
+    float switch_x = pos.x + label_size.x + spacing;
+    float switch_y = pos.y + (frame_height - switch_height) * 0.5f;
+    ImVec2 switch_min(switch_x, switch_y);
+    ImVec2 switch_max(switch_x + switch_width, switch_y + switch_height);
+
+    ImU32 bg_off = IM_COL32(60, 60, 60, 255);
+    ImU32 bg_on = IM_COL32(0, 200, 100, 255);
+    ImU32 bg_current = ImGui::GetColorU32(ImLerp(ImGui::ColorConvertU32ToFloat4(bg_off),
+                                                 ImGui::ColorConvertU32ToFloat4(bg_on), anim));
+    dl->AddRectFilled(switch_min, switch_max, bg_current, switch_height * 0.5f);
+
+    float knob_radius = switch_height * 0.5f - 2.0f;
+    float knob_x_off = switch_min.x + knob_radius + 2.0f;
+    float knob_x_on = switch_max.x - knob_radius - 2.0f;
+    float knob_x = ImLerp(knob_x_off, knob_x_on, anim);
+    ImVec2 knob_center(knob_x, switch_min.y + switch_height * 0.5f);
+    dl->AddCircleFilled(knob_center, knob_radius, IM_COL32(255, 255, 255, 255));
+    dl->AddCircle(knob_center, knob_radius - 1.0f, IM_COL32(200, 200, 200, 80), 12, 1.0f);
+
+    return pressed;
+}
+
 // ---------- 绘制顶部状态栏 ----------
 void DrawTopStatusBar()
 {
@@ -1072,11 +1144,11 @@ void DrawLeftNavigation(int &selectedMenu)
         ImVec2 cursor = ImGui::GetCursorScreenPos();
         ImDrawList *dl = ImGui::GetWindowDrawList();
 
-        // === 新增：为所有项绘制统一的普通边框 ===
+        // 普通边框
         dl->AddRect(cursor, ImVec2(cursor.x + btnSize.x, cursor.y + btnSize.y),
-                    IM_COL32(80, 80, 90, 60), 8.0f, 0, 1.0f); // 半透明灰边框，圆角8px
+                    IM_COL32(80, 80, 90, 60), 8.0f, 0, 1.0f);
 
-        // 选中项才绘制填充背景和高亮边框（会覆盖在普通边框之上）
+        // 选中背景
         if (selected)
         {
             dl->AddRectFilled(cursor, ImVec2(cursor.x + btnSize.x, cursor.y + btnSize.y),
@@ -1098,14 +1170,12 @@ void DrawLeftNavigation(int &selectedMenu)
             dl->AddImage(it->second.DS, iconPos, ImVec2(iconPos.x + iconSize, iconPos.y + iconSize));
         }
 
-        // 绘制文字
+        // ★ 文字颜色跟随主题（选中高亮，未选中弱化）
+        ImU32 textColor = ImGui::GetColorU32(selected ? ImGuiCol_Text : ImGuiCol_TextDisabled);
         float textX = contentStartX + iconSize + iconTextSpacing;
         float textY = cursor.y + (btnSize.y - textSize.y) * 0.5f;
-        dl->AddText(ImVec2(textX, textY),
-                    selected ? IM_COL32(255, 255, 255, 255) : IM_COL32(180, 180, 180, 255),
-                    menuItems[i]);
+        dl->AddText(ImVec2(textX, textY), textColor, menuItems[i]);
 
-        // 点击
         ImGui::SetCursorScreenPos(cursor);
         if (ImGui::InvisibleButton(menuItems[i], btnSize))
             selectedMenu = i;
@@ -1199,7 +1269,8 @@ void DrawCharacterPage()
 {
     ImGui::BeginChild("##CharacterContent", ImVec2(-1, -1), true);
     ImGui::SetCursorPos(ImVec2(20, 20));
-    static const char *血条样式选项[] = {"简约", "赛事", "分格", "无ui"};
+
+    static const char* 血条样式选项[] = {"简约", "赛事", "分格", "无ui"};
     ImGui::Text("血条样式");
     ImGui::SameLine(150);
     ImGui::SetNextItemWidth(200);
@@ -1207,11 +1278,13 @@ void DrawCharacterPage()
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::Columns(2, "##人物列", false);
-    struct
-    {
-        const char *name;
-        bool *variable;
+
+    // 三列布局
+    ImGui::Columns(3, "##人物列", false);
+
+    struct {
+        const char* name;
+        bool* variable;
     } options[] = {
         {"人物方框", &绘制.按钮.方框},
         {"人物射线", &绘制.按钮.射线},
@@ -1231,15 +1304,22 @@ void DrawCharacterPage()
         {"敌人动作", &绘制.按钮.动作},
         {"盒内物资", &绘制.按钮.盒子物资},
     };
-    for (int i = 0; i < IM_ARRAYSIZE(options); i++)
+
+    const int total = IM_ARRAYSIZE(options);
+    const int col1_end = (total + 2) / 3;   // 6
+    const int col2_end = col1_end * 2;       // 12
+
+    for (int i = 0; i < total; i++)
     {
-        if (ImGui::Checkbox(options[i].name, options[i].variable))
+        if (ModernSwitchRight(options[i].name, options[i].variable))
         {
             绘制.保存配置();
             AddNotification(options[i].name, *options[i].variable);
         }
         ImGui::Spacing();
-        if (i == IM_ARRAYSIZE(options) / 2 - 1)
+
+        // 换列
+        if (i == col1_end - 1 || i == col2_end - 1)
             ImGui::NextColumn();
     }
     ImGui::Columns(1);
@@ -1252,188 +1332,243 @@ void DrawItemsPage()
     ImGui::BeginChild("##ItemsContent", ImVec2(-1, -1), true);
     ImGui::SetCursorPos(ImVec2(20, 20));
 
-    // 使用 ImGui 原生 TabBar 实现选项卡切换
-    if (ImGui::BeginTabBar("##ItemTabs"))
+    // ---------- 自定义丝滑标签栏 ----------
+    static int activeTab = 0;            // 0=通用物资, 1=自定义物资
+    static int prevTab = 0;              // 用于动画
+    static float tabAnimProgress = 1.0f; // 指示器动画进度 (0~1)
+    static float animSpeed = 6.0f;       // 动画速度
+    const char *tabs[] = {"通用物资", "自定义物资"};
+    const int tabCount = IM_ARRAYSIZE(tabs);
+
+    // 如果标签切换了，重置动画状态
+    if (activeTab != prevTab)
     {
-        // ========== 通用物资选项卡 ==========
-        if (ImGui::BeginTabItem("通用物资"))
+        prevTab = activeTab;
+        tabAnimProgress = 0.0f;
+    }
+    // 更新动画进度
+    if (tabAnimProgress < 1.0f)
+        tabAnimProgress += ImGui::GetIO().DeltaTime * animSpeed;
+    if (tabAnimProgress > 1.0f)
+        tabAnimProgress = 1.0f;
+
+    ImDrawList *dl = ImGui::GetWindowDrawList();
+    ImVec2 tabStart = ImGui::GetCursorScreenPos();
+    float tabWidth = 140.0f; // 每个标签的宽度
+    float tabHeight = 38.0f;
+    float indicatorHeight = 3.0f; // 指示器高度
+    float tabSpacing = 8.0f;      // 标签之间的间距
+    float totalTabsWidth = tabCount * tabWidth + (tabCount - 1) * tabSpacing;
+
+    // 绘制标签按钮
+    for (int i = 0; i < tabCount; i++)
+    {
+        ImVec2 tabMin = ImVec2(tabStart.x + i * (tabWidth + tabSpacing), tabStart.y);
+        ImVec2 tabMax = ImVec2(tabMin.x + tabWidth, tabMin.y + tabHeight);
+
+        // 鼠标悬停检测
+        ImVec2 mouse = ImGui::GetMousePos();
+        bool hovered = (mouse.x >= tabMin.x && mouse.x <= tabMax.x && mouse.y >= tabMin.y && mouse.y <= tabMax.y);
+
+        // 颜色计算 (激活/悬停/普通)
+        ImU32 bgColor, textColor;
+        if (activeTab == i)
         {
-            ImGui::Spacing();
-
-            // 获取可用宽度，用于动态列数计算
-            float availWidth = ImGui::GetContentRegionAvail().x - 20.0f;
-
-            // 辅助宏：在给定区域内绘制带复选框的选项列表（自动多列）
-
-            // 使用一个辅助函数绘制分组
-            auto DrawCompactCheckboxGroup = [](const char *title, const std::vector<std::pair<const char *, bool *>> &items)
-            {
-                if (ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_DefaultOpen))
-                {
-                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 10));
-                    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 6));
-                    // 使用简单的列布局，3列
-                    ImGui::Columns(3, title, false);
-                    for (size_t i = 0; i < items.size(); ++i)
-                    {
-                        const auto &[name, var] = items[i];
-                        if (ImGui::Checkbox(name, var))
-                        {
-                            绘制.保存配置();
-                            AddNotification(name, *var);
-                        }
-                        if ((i + 1) % ((items.size() + 2) / 3) == 0 && i != items.size() - 1)
-                            ImGui::NextColumn();
-                    }
-                    ImGui::Columns(1);
-                    ImGui::PopStyleVar(2);
-                    ImGui::Spacing();
-                }
-            };
-
-            // 特殊物品（保留必要项）
-            std::vector<std::pair<const char *, bool *>> specials = {
-                {"头甲", &绘制.按钮.显示防具},
-                {"信号枪", &绘制.按钮.绘制信号枪},
-                {"空投箱", &绘制.按钮.绘制空投},
-                {"金插", &绘制.按钮.绘制金插},
-                {"宝箱", &绘制.按钮.绘制宝箱},
-                {"超级物资箱", &绘制.按钮.超级物资箱},
-                {"隐藏开启超级箱", &绘制.按钮.隐藏超级物资箱},
-                {"武器箱", &绘制.按钮.绘制武器箱},
-                {"盒子", &绘制.按钮.盒子},
-                {"精英勋章", &绘制.按钮.精英勋章},
-                {"自救器", &绘制.按钮.显示自救器},
-                {"飞索", &绘制.按钮.显示飞索},
-                {"黑色物资箱", &绘制.按钮.显示黑色物资箱}};
-            DrawCompactCheckboxGroup("特殊物品", specials);
-
-            // 古墓专属
-            std::vector<std::pair<const char *, bool *>> tomb = {
-                {"隐藏古墓箱子", &绘制.按钮.隐藏古墓已开启},
-                {"古墓树木", &绘制.按钮.显示古墓篮子},
-                {"古墓华贵宝箱", &绘制.按钮.显示古墓首饰盒},
-                {"古墓精致宝箱", &绘制.按钮.显示古墓宝箱},
-                {"古墓宝箱", &绘制.按钮.显示古墓精致宝箱},
-                {"古墓首饰盒", &绘制.按钮.显示古墓华贵宝箱},
-                {"古墓篮子", &绘制.按钮.显示古墓树木}};
-            DrawCompactCheckboxGroup("古墓专属", tomb);
-
-            ImGui::EndTabItem();
+            bgColor = IM_COL32(30, 120, 200, 40);    // 选中背景 (半透明)
+            textColor = IM_COL32(90, 180, 255, 255); // 亮蓝色文字
+        }
+        else if (hovered)
+        {
+            bgColor = IM_COL32(60, 60, 70, 40);
+            textColor = IM_COL32(200, 200, 200, 255);
+        }
+        else
+        {
+            bgColor = IM_COL32(40, 40, 50, 0);
+            textColor = IM_COL32(150, 150, 150, 255);
         }
 
-        if (ImGui::BeginTabItem("自定义物资"))
+        // 绘制标签背景 (圆角)
+        dl->AddRectFilled(tabMin, tabMax, bgColor, 8.0f);
+        dl->AddRect(tabMin, tabMax, IM_COL32(80, 80, 90, 40), 8.0f);
+
+        // 居中绘制文字
+        ImVec2 textSize = ImGui::CalcTextSize(tabs[i]);
+        ImVec2 textPos(tabMin.x + (tabWidth - textSize.x) * 0.5f,
+                       tabMin.y + (tabHeight - textSize.y) * 0.5f);
+        dl->AddText(textPos, textColor, tabs[i]);
+
+        // 点击处理
+        ImGui::SetCursorScreenPos(tabMin);
+        if (ImGui::InvisibleButton(tabs[i], ImVec2(tabWidth, tabHeight)))
+            activeTab = i;
+    }
+
+    // 绘制滑动指示器 (底部蓝条)
+    // 计算起始位置 (从旧标签平滑移动到新标签)
+    float indicatorStartX = tabStart.x + prevTab * (tabWidth + tabSpacing);
+    float indicatorEndX = tabStart.x + activeTab * (tabWidth + tabSpacing);
+    float currentIndicatorX = indicatorStartX + (indicatorEndX - indicatorStartX) * tabAnimProgress;
+    ImVec2 indicatorMin(currentIndicatorX, tabStart.y + tabHeight - indicatorHeight);
+    ImVec2 indicatorMax(currentIndicatorX + tabWidth, tabStart.y + tabHeight);
+    dl->AddRectFilled(indicatorMin, indicatorMax, IM_COL32(90, 180, 255, 200), 2.0f);
+
+    ImGui::SetCursorScreenPos(ImVec2(tabStart.x, tabStart.y + tabHeight + 15.0f)); // 留出间距
+
+    // ---------- 页面内容切换 ----------
+    if (activeTab == 0)
+    {
+        // ========== 通用物资 (原内容) ==========
+        ImGui::Spacing();
+        float availWidth = ImGui::GetContentRegionAvail().x - 20.0f;
+
+        auto DrawCompactCheckboxGroup = [](const char *title, const std::vector<std::pair<const char *, bool *>> &items)
         {
-            ImGui::Spacing();
+            if (ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 10));
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 6));
+                ImGui::Columns(3, title, false);
+                for (size_t i = 0; i < items.size(); ++i)
+                {
+                    const auto &[name, var] = items[i];
+                    if (ModernSwitchRight(name, var))
+                    {
+                        绘制.保存配置();
+                        AddNotification(name, *var);
+                    }
+                    if ((i + 1) % ((items.size() + 2) / 3) == 0 && i != items.size() - 1)
+                        ImGui::NextColumn();
+                }
+                ImGui::Columns(1);
+                ImGui::PopStyleVar(2);
+                ImGui::Spacing();
+            }
+        };
 
-            // 总开关
-            if (ImGui::Checkbox("启用自定义物资绘制", &绘制.按钮.自定义物资开关))
-                绘制.保存配置();
+        std::vector<std::pair<const char *, bool *>> specials = {
+            {"头甲", &绘制.按钮.显示防具},
+            {"信号枪", &绘制.按钮.绘制信号枪},
+            {"空投箱", &绘制.按钮.绘制空投},
+            {"金插", &绘制.按钮.绘制金插},
+            {"宝箱", &绘制.按钮.绘制宝箱},
+            {"超级物资箱", &绘制.按钮.超级物资箱},
+            {"隐藏开启超级箱", &绘制.按钮.隐藏超级物资箱},
+            {"武器箱", &绘制.按钮.绘制武器箱},
+            {"盒子", &绘制.按钮.盒子},
+            {"精英勋章", &绘制.按钮.精英勋章},
+            {"自救器", &绘制.按钮.显示自救器},
+            {"飞索", &绘制.按钮.显示飞索},
+            {"黑色物资箱", &绘制.按钮.显示黑色物资箱}};
+        DrawCompactCheckboxGroup("特殊物品", specials);
 
-            ImGui::Checkbox("开发者:", &绘制.按钮.Debug);
-            ImGui::SameLine();
-            ImGui::RadioButton("类名", &绘制.按钮.Debug模式, 0);
-            ImGui::SameLine();
-            ImGui::RadioButton("地址", &绘制.按钮.Debug模式, 1);
+        std::vector<std::pair<const char *, bool *>> tomb = {
+            {"隐藏古墓箱子", &绘制.按钮.隐藏古墓已开启},
+            {"古墓树木", &绘制.按钮.显示古墓篮子},
+            {"古墓华贵宝箱", &绘制.按钮.显示古墓首饰盒},
+            {"古墓精致宝箱", &绘制.按钮.显示古墓宝箱},
+            {"古墓宝箱", &绘制.按钮.显示古墓精致宝箱},
+            {"古墓首饰盒", &绘制.按钮.显示古墓华贵宝箱},
+            {"古墓篮子", &绘制.按钮.显示古墓树木}};
+        DrawCompactCheckboxGroup("古墓专属", tomb);
+    }
+    else if (activeTab == 1)
+    {
+        // ========== 自定义物资 (原内容) ==========
+        ImGui::Spacing();
+
+        if (ImGui::Checkbox("启用自定义物资绘制", &绘制.按钮.自定义物资开关))
+            绘制.保存配置();
+
+        ImGui::Checkbox("开发者:", &绘制.按钮.Debug);
+        ImGui::SameLine();
+        ImGui::RadioButton("类名", &绘制.按钮.Debug模式, 0);
+        ImGui::SameLine();
+        ImGui::RadioButton("地址", &绘制.按钮.Debug模式, 1);
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        static std::future<bool> loadFuture;
+        static bool loadPending = false;
+        static bool firstRun = true;
+        if (firstRun)
+        {
+            firstRun = false;
+            loadFuture = std::async(std::launch::async, []() -> bool
+                                    {
+                if (!g_CustomReader) g_CustomReader = new DataReader();
+                return g_CustomReader->loadDataFromFile("/sdcard/AuraKernel/自定义物资.txt"); });
+            loadPending = true;
+        }
+
+        if (ImGui::Button("重新加载数据文件"))
+        {
+            if (loadPending && loadFuture.valid())
+                loadFuture.wait();
+            loadFuture = std::async(std::launch::async, []() -> bool
+                                    {
+                if (!g_CustomReader) g_CustomReader = new DataReader();
+                return g_CustomReader->loadDataFromFile("/sdcard/AuraKernel/自定义物资.txt"); });
+            loadPending = true;
+        }
+
+        if (loadPending && loadFuture.valid())
+        {
+            auto status = loadFuture.wait_for(std::chrono::seconds(0));
+            if (status == std::future_status::ready)
+            {
+                bool result = loadFuture.get();
+                g_CustomDataLoaded = result;
+                loadPending = false;
+                if (result)
+                    AddNotification("自定义物资加载成功", true);
+                else
+                    AddNotification("加载失败：文件不存在或格式错误", false);
+            }
+            else
+            {
+                ImGui::TextColored(ImVec4(1, 1, 0, 1), "文件加载中...");
+            }
+        }
+
+        if (绘制.按钮.Debug)
+        {
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
-
-            // ---------- 异步加载管理 ----------
-            static std::future<bool> loadFuture;
-            static bool loadPending = false;
-
-            // 首次自动加载（只触发一次）
-            static bool firstRun = true;
-            if (firstRun)
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "开发者模式");
+            ImGui::Text("准星对准: %s", 绘制.bDebugAimedValid ? 绘制.DebugAimedClassName.c_str() : "无");
+            if (ImGui::Button("将此类名添加到自定义物资文件"))
             {
-                firstRun = false;
-                // 启动异步加载
-                loadFuture = std::async(std::launch::async, []() -> bool
-                                        {
-            if (!g_CustomReader) g_CustomReader = new DataReader();
-            return g_CustomReader->loadDataFromFile("/sdcard/AuraKernel/自定义物资.txt"); });
-                loadPending = true;
-            }
-
-            // 重新加载按钮
-            if (ImGui::Button("重新加载数据文件"))
-            {
-                // 确保没有正在进行的加载任务
-                if (loadPending && loadFuture.valid())
-                    loadFuture.wait(); // 等待上一次完成，避免冲突
-                loadFuture = std::async(std::launch::async, []() -> bool
-                                        {
-            if (!g_CustomReader) g_CustomReader = new DataReader();
-            return g_CustomReader->loadDataFromFile("/sdcard/AuraKernel/自定义物资.txt"); });
-                loadPending = true;
-            }
-
-            // 检查加载是否完成
-            if (loadPending && loadFuture.valid())
-            {
-                auto status = loadFuture.wait_for(std::chrono::seconds(0));
-                if (status == std::future_status::ready)
+                if (!绘制.bDebugAimedValid || 绘制.DebugAimedClassName.empty())
                 {
-                    bool result = loadFuture.get();
-                    g_CustomDataLoaded = result;
-                    loadPending = false;
-                    if (result)
-                        AddNotification("自定义物资加载成功", true);
-                    else
-                        AddNotification("加载失败：文件不存在或格式错误", false);
+                    AddNotification("没有对准任何物体", false);
                 }
                 else
                 {
-                    ImGui::TextColored(ImVec4(1, 1, 0, 1), "文件加载中...");
-                }
-            }
-
-            // ---------- 开发者：写入准星类名 ----------
-            if (绘制.按钮.Debug)
-            {
-                ImGui::Spacing();
-                ImGui::Separator();
-                ImGui::Spacing();
-                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "开发者模式");
-                ImGui::Text("准星对准: %s", 绘制.bDebugAimedValid ? 绘制.DebugAimedClassName.c_str() : "无");
-                if (ImGui::Button("将此类名添加到自定义物资文件"))
-                {
-                    if (!绘制.bDebugAimedValid || 绘制.DebugAimedClassName.empty())
+                    std::filesystem::create_directories("/sdcard/AuraKernel");
+                    std::ofstream file("/sdcard/AuraKernel/自定义物资.txt", std::ios::app);
+                    if (file.is_open())
                     {
-                        AddNotification("没有对准任何物体", false);
+                        file << "\n//" << 绘制.DebugAimedClassName << "@未命名@255,0,0,255@20\n";
+                        file.close();
+                        AddNotification("已写入: //" + 绘制.DebugAimedClassName, true);
                     }
                     else
                     {
-                        std::filesystem::create_directories("/sdcard/AuraKernel");
-                        std::ofstream file("/sdcard/AuraKernel/自定义物资.txt", std::ios::app);
-                        if (file.is_open())
-                        {
-                            file << "\n"
-                                 << "//" << 绘制.DebugAimedClassName << "@未命名@255,0,0,255@20\n";
-                            file.close();
-                            AddNotification("已写入: //" + 绘制.DebugAimedClassName, true);
-                        }
-                        else
-                        {
-                            AddNotification("文件写入失败", false);
-                        }
+                        AddNotification("文件写入失败", false);
                     }
                 }
-                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "写入后请点击“重新加载数据文件”生效");
             }
-
-            // 显示当前状态（使用原子读取）
-            ImGui::Spacing();
-            if (g_CustomDataLoaded)
-                ImGui::TextColored(ImVec4(0.3f, 0.9f, 0.3f, 1.0f), "状态: 已加载");
-            else
-                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "状态: 未加载");
-
-            ImGui::EndTabItem();
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "写入后请点击“重新加载数据文件”生效");
         }
 
-        ImGui::EndTabBar();
+        ImGui::Spacing();
+        if (g_CustomDataLoaded)
+            ImGui::TextColored(ImVec4(0.3f, 0.9f, 0.3f, 1.0f), "状态: 已加载");
+        else
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "状态: 未加载");
     }
 
     ImGui::EndChild();
@@ -1518,7 +1653,7 @@ void DrawColorPage()
     ImGui::PushStyleColor(ImGuiCol_Button, ColorSettings == 0 ? ImVec4(0.2f, 0.6f, 1.0f, 0.8f) : ImVec4(0.25f, 0.25f, 0.28f, 0.7f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ColorSettings == 0 ? ImVec4(0.3f, 0.7f, 1.0f, 0.9f) : ImVec4(0.35f, 0.35f, 0.38f, 0.8f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.15f, 0.5f, 0.9f, 1.0f));
-    if (ImGui::Button("真人", ImVec2(90, 28)))
+    if (ImGui::Button("真人", ImVec2(90, 40)))
     {
         ColorSettings = 0;
         绘制.保存配置();
@@ -1530,7 +1665,7 @@ void DrawColorPage()
     ImGui::PushStyleColor(ImGuiCol_Button, ColorSettings == 1 ? ImVec4(0.2f, 0.6f, 1.0f, 0.8f) : ImVec4(0.25f, 0.25f, 0.28f, 0.7f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ColorSettings == 1 ? ImVec4(0.3f, 0.7f, 1.0f, 0.9f) : ImVec4(0.35f, 0.35f, 0.38f, 0.8f));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.15f, 0.5f, 0.9f, 1.0f));
-    if (ImGui::Button("人机", ImVec2(90, 28)))
+    if (ImGui::Button("人机", ImVec2(90, 40)))
     {
         ColorSettings = 1;
         绘制.保存配置();
@@ -1845,7 +1980,7 @@ void 布局::绘制悬浮窗()
     if (悬浮窗)
     {
         ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(1200, 800), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(1150, 800), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSizeConstraints(ImVec2(1100, 700), ImVec2(FLT_MAX, FLT_MAX));
         if (窗口状态)
         {
