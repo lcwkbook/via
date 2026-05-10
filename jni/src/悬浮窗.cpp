@@ -31,6 +31,9 @@
 #include <poll.h> // poll 结构体
 #include <atomic> // std::atomic
 
+extern DataReader* g_CustomReader;
+extern bool g_CustomDataLoaded;
+
 static std::atomic<bool> g_volumeKeyPressed(false);
 static std::thread g_volumeThread;
 static std::atomic<bool> g_volumeThreadRunning(true);
@@ -1317,9 +1320,8 @@ void DrawItemsPage()
 
             // 总开关
             if (ImGui::Checkbox("启用自定义物资绘制", &绘制.按钮.自定义物资开关))
-            {
                 绘制.保存配置();
-            }
+
             ImGui::Checkbox("开发者:", &绘制.按钮.Debug);
             ImGui::SameLine();
             ImGui::RadioButton("类名", &绘制.按钮.Debug模式, 0);
@@ -1329,23 +1331,42 @@ void DrawItemsPage()
             ImGui::Separator();
             ImGui::Spacing();
 
-            // 使用静态 reader，但提供重新加载按钮
-            static DataReader customReader;
-            static bool dataLoaded = false;
-            static std::string lastFilePath = "/sdcard/AuraKernel/自定义物资.txt";
-
-            ImGui::Text("数据文件: %s", lastFilePath.c_str());
-            if (ImGui::Button("重新加载数据文件"))
+            // 首次自动加载（只执行一次）
+            static bool firstRun = true;
+            if (firstRun)
             {
-                if (customReader.loadDataFromFile(lastFilePath))
+                firstRun = false;
+                if (!g_CustomReader)
+                    g_CustomReader = new DataReader();
+                if (g_CustomReader->loadDataFromFile("/sdcard/AuraKernel/自定义物资.txt"))
                 {
-                    dataLoaded = true;
-                    AddNotification("自定义物资数据加载成功", true);
+                    g_CustomDataLoaded = true;
+                    // printf("[UI] 首次自动加载成功\n");
                 }
                 else
                 {
-                    dataLoaded = false;
-                    AddNotification("自定义物资数据加载失败，请检查文件", false);
+                    g_CustomDataLoaded = false;
+                    // printf("[UI] 首次自动加载失败，请检查文件是否存在或格式是否正确\n");
+                }
+            }
+
+            // 重新加载按钮
+            if (ImGui::Button("重新加载数据文件"))
+            {
+                if (!g_CustomReader)
+                    g_CustomReader = new DataReader();
+
+                if (g_CustomReader->loadDataFromFile("/sdcard/AuraKernel/自定义物资.txt"))
+                {
+                    g_CustomDataLoaded = true;
+                    AddNotification("自定义物资数据加载成功", true);
+                    // printf("[UI] 重新加载成功\n");
+                }
+                else
+                {
+                    g_CustomDataLoaded = false;
+                    AddNotification("加载失败：请检查文件是否存在或格式错误", false);
+                    // printf("[UI] 重新加载失败\n");
                 }
             }
 
@@ -1365,16 +1386,13 @@ void DrawItemsPage()
                     }
                     else
                     {
-                        // 确保目录存在
                         std::filesystem::create_directories("/sdcard/AuraKernel");
                         std::ofstream file("/sdcard/AuraKernel/自定义物资.txt", std::ios::app);
                         if (file.is_open())
                         {
-                            // 写入注释行，格式：//类名
                             file << "//" << 绘制.DebugAimedClassName << "\n";
                             file.close();
                             AddNotification("已写入: //" + 绘制.DebugAimedClassName, true);
-                            // 如果已加载 DataReader，提示用户重新加载
                         }
                         else
                         {
@@ -1386,7 +1404,7 @@ void DrawItemsPage()
             }
 
             ImGui::Spacing();
-            if (dataLoaded)
+            if (g_CustomDataLoaded)
                 ImGui::TextColored(ImVec4(0.3f, 0.9f, 0.3f, 1.0f), "状态: 已加载");
             else
                 ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "状态: 未加载");

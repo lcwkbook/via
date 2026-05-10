@@ -24,6 +24,11 @@
 // 添加ptrace过检测功能
 #include <sys/ptrace.h>
 #include "json.hpp"
+
+// ========== 自定义物资全局变量 ==========
+DataReader *g_CustomReader = nullptr;
+bool g_CustomDataLoaded = false;
+
 using json = nlohmann::json;
 extern float statusBarAlpha;
 int decrypt_zero_x()
@@ -2056,24 +2061,19 @@ void 绘制::更新对象数据()
                 }
             }
 
-            if (按钮.自定义物资开关)
+            if (按钮.自定义物资开关 && g_CustomReader && g_CustomDataLoaded)
             {
-                static DataReader customReader;
-                static bool customDataLoaded = false;
-                static bool firstAttempt = true;
-
-                if (!customDataLoaded)
+                // 确保数据已加载，若未加载则尝试一次
+                if (!g_CustomDataLoaded)
                 {
-                    if (customReader.loadDataFromFile("/sdcard/AuraKernel/自定义物资.txt"))
-                        customDataLoaded = true;
-                    firstAttempt = false;
+                    if (g_CustomReader->loadDataFromFile("/sdcard/AuraKernel/自定义物资.txt"))
+                        g_CustomDataLoaded = true;
                 }
-
-                if (customDataLoaded && t_屏幕坐标.W > 0)
+                if (g_CustomDataLoaded && t_屏幕坐标.W > 0)
                 {
                     if (对象信息.敌人信息.距离 < 2000.0f)
                     {
-                        const CustomItemInfo *info = customReader.getItemInfo(ClassName);
+                        const CustomItemInfo *info = g_CustomReader->getItemInfo(ClassName);
                         if (info)
                         {
                             char buffer[128];
@@ -2142,7 +2142,6 @@ void 绘制::更新对象数据()
 
                 continue; // 物资箱不是玩家，跳过后续所有角色逻辑
             }
-
         }
 
         if (strstr(ClassName, "BPPawn_Escape_Raven") != 0 or strstr(ClassName, "BPPawn_Escape_UAV_C") != 0)
