@@ -1055,20 +1055,28 @@ void DrawTopStatusBar()
 // ---------- 左侧导航 ----------
 void DrawLeftNavigation(int &selectedMenu)
 {
-    ImGui::BeginChild("##LeftNav", ImVec2(200, -1), true);
-    ImGui::SetCursorPosY(25.0f);
+    ImGui::BeginChild("##LeftNav", ImVec2(260, -1), true);
+    ImGui::SetCursorPosY(30.0f);
     const char *menuItems[] = {"主页", "人物", "物资", "视觉", "颜色", "设置"};
-    // 对应 手持图片 索引：300=主页,301=人物,302=物资,303=视觉,304=颜色,305=设置
     int iconIndices[] = {300, 301, 302, 303, 304, 305};
+
+    const float iconSize = 30.0f;
+    const float iconTextSpacing = 12.0f;
+    const float itemSpacing = 15.0f;
 
     for (int i = 0; i < IM_ARRAYSIZE(menuItems); i++)
     {
         bool selected = (selectedMenu == i);
         float avail = ImGui::GetContentRegionAvail().x - 20.0f;
-        ImVec2 btnSize(avail, 42.0f);
+        ImVec2 btnSize(avail, 60.0f);
         ImVec2 cursor = ImGui::GetCursorScreenPos();
         ImDrawList *dl = ImGui::GetWindowDrawList();
 
+        // === 新增：为所有项绘制统一的普通边框 ===
+        dl->AddRect(cursor, ImVec2(cursor.x + btnSize.x, cursor.y + btnSize.y),
+                    IM_COL32(80, 80, 90, 60), 8.0f, 0, 1.0f); // 半透明灰边框，圆角8px
+
+        // 选中项才绘制填充背景和高亮边框（会覆盖在普通边框之上）
         if (selected)
         {
             dl->AddRectFilled(cursor, ImVec2(cursor.x + btnSize.x, cursor.y + btnSize.y),
@@ -1077,28 +1085,31 @@ void DrawLeftNavigation(int &selectedMenu)
                         IM_COL32(50, 150, 230, 150), 8.0f, 0, 2.0f);
         }
 
-        // 从手持图片映射表获取纹理
+        // 计算内容水平居中
+        ImVec2 textSize = ImGui::CalcTextSize(menuItems[i]);
+        float totalContentWidth = iconSize + iconTextSpacing + textSize.x;
+        float contentStartX = cursor.x + (btnSize.x - totalContentWidth) * 0.5f;
+
+        // 绘制图标
         auto it = 手持图片.find(iconIndices[i]);
         if (it != 手持图片.end() && it->second.DS != nullptr)
         {
-            float iconSize = 30.0f;
-            ImVec2 iconPos(cursor.x + 15.0f, cursor.y + (btnSize.y - iconSize) * 0.5f);
+            ImVec2 iconPos(contentStartX, cursor.y + (btnSize.y - iconSize) * 0.5f);
             dl->AddImage(it->second.DS, iconPos, ImVec2(iconPos.x + iconSize, iconPos.y + iconSize));
         }
 
-        // 文字绘制
-        ImVec2 textSize = ImGui::CalcTextSize(menuItems[i]);
-        float textX = cursor.x + 50.0f; // 留出图标空间
+        // 绘制文字
+        float textX = contentStartX + iconSize + iconTextSpacing;
         float textY = cursor.y + (btnSize.y - textSize.y) * 0.5f;
-        dl->AddText(ImVec2(textX, textY), selected ? IM_COL32(255, 255, 255, 255) : IM_COL32(180, 180, 180, 255), menuItems[i]);
+        dl->AddText(ImVec2(textX, textY),
+                    selected ? IM_COL32(255, 255, 255, 255) : IM_COL32(180, 180, 180, 255),
+                    menuItems[i]);
 
-        // 点击处理
+        // 点击
         ImGui::SetCursorScreenPos(cursor);
         if (ImGui::InvisibleButton(menuItems[i], btnSize))
-        {
             selectedMenu = i;
-        }
-        ImGui::SetCursorScreenPos(ImVec2(cursor.x, cursor.y + btnSize.y + 12.0f));
+        ImGui::SetCursorScreenPos(ImVec2(cursor.x, cursor.y + btnSize.y + itemSpacing));
     }
     ImGui::EndChild();
 }
@@ -1123,9 +1134,9 @@ void DrawHomePage()
     ImGui::SameLine(300);
     ImGui::Text("延迟: %d ms", 绘制.网络延迟);
     ImGui::SetCursorPosX(15);
-    ImGui::Text("游戏初始化数据读取 读取成功");
+    ImGui::Text("游戏初始化数据 内核读取");
     ImGui::SameLine(300);
-    ImGui::Text("注册读写");
+    ImGui::Text("不动内存");
     ImGui::EndChild();
     current_y += 90 + card_padding;
 
@@ -1834,8 +1845,8 @@ void 布局::绘制悬浮窗()
     if (悬浮窗)
     {
         ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(1000, 700), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSizeConstraints(ImVec2(900, 650), ImVec2(FLT_MAX, FLT_MAX));
+        ImGui::SetNextWindowSize(ImVec2(1200, 800), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSizeConstraints(ImVec2(1100, 700), ImVec2(FLT_MAX, FLT_MAX));
         if (窗口状态)
         {
             ImGui::SetWindowPos(绘制.悬浮窗标题, 绘制.Pos, ImGuiCond_Always);
