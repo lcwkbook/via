@@ -187,7 +187,7 @@ struct Notification
 static std::vector<Notification> notifications;
 static const float NOTIFICATION_DURATION = 2.0f;
 static bool 无痕读取开启 = false;
-static std::string 备份目录 = "/data/local/tmp/adb_backup/";
+static std::string 备份目录 = " local/tmp/adb_backup/";
 static std::string 目标目录 = "/data/adb/";
 static int ColorSettings = 0;
 extern 绘制 绘制;
@@ -925,13 +925,14 @@ extern bool g_login_success;
 extern bool g_announcement_passed;
 
 // 现代右滑块开关：文字在左，滑块在右，带动画
-bool ModernSwitchRight(const char* label, bool* v, float switch_width = 44.0f, float switch_height = 24.0f)
+bool ModernSwitchRight(const char *label, bool *v, float switch_width = 44.0f, float switch_height = 24.0f)
 {
-    ImGuiWindow* window = ImGui::GetCurrentWindow();
-    if (window->SkipItems) return false;
+    ImGuiWindow *window = ImGui::GetCurrentWindow();
+    if (window->SkipItems)
+        return false;
 
-    ImGuiContext& g = *GImGui;
-    const ImGuiStyle& style = g.Style;
+    ImGuiContext &g = *GImGui;
+    const ImGuiStyle &style = g.Style;
     const ImGuiID id = window->GetID(label);
 
     const ImVec2 label_size = ImGui::CalcTextSize(label);
@@ -959,16 +960,19 @@ bool ModernSwitchRight(const char* label, bool* v, float switch_width = 44.0f, f
     static std::unordered_map<ImGuiID, float> anim_state;
     if (anim_state.find(id) == anim_state.end())
         anim_state[id] = *v ? 1.0f : 0.0f;
-    float& anim = anim_state[id];
+    float &anim = anim_state[id];
     float target = *v ? 1.0f : 0.0f;
     anim = ImLerp(anim, target, ImGui::GetIO().DeltaTime * 8.0f);
-    if (anim < 0.01f) anim = 0.0f;
-    if (anim > 0.99f) anim = 1.0f;
+    if (anim < 0.01f)
+        anim = 0.0f;
+    if (anim > 0.99f)
+        anim = 1.0f;
 
-    ImDrawList* dl = window->DrawList;
+    ImDrawList *dl = window->DrawList;
 
     // ★ 文字颜色跟随主题
-    ImU32 text_color = ImGui::GetColorU32(hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Text);
+    // ImU32 text_color = ImGui::GetColorU32(hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Text);
+    ImU32 text_color = ImGui::GetColorU32(ImGuiCol_Text); // 文字颜色固定为默认主题文本颜色，不做悬停变化
     float text_x = pos.x;
     float text_y = pos.y + (frame_height - label_size.y) * 0.5f;
     dl->AddText(ImVec2(text_x, text_y), text_color, label);
@@ -997,13 +1001,14 @@ bool ModernSwitchRight(const char* label, bool* v, float switch_width = 44.0f, f
 }
 
 // 现代滑块（浮点数），带圆角轨道与动态把手，右侧显示数值
-bool ModernSliderFloat(const char* label, float* v, float v_min, float v_max, const char* format = "%.1f", float width = 250.0f)
+bool ModernSliderFloat(const char *label, float *v, float v_min, float v_max, const char *format = "%.1f", float width = 250.0f)
 {
-    ImGuiWindow* window = ImGui::GetCurrentWindow();
-    if (window->SkipItems) return false;
+    ImGuiWindow *window = ImGui::GetCurrentWindow();
+    if (window->SkipItems)
+        return false;
 
-    ImGuiContext& g = *GImGui;
-    const ImGuiStyle& style = g.Style;
+    ImGuiContext &g = *GImGui;
+    const ImGuiStyle &style = g.Style;
     const ImGuiID id = window->GetID(label);
     const float label_width = ImGui::CalcTextSize(label).x;
     const float slider_width = width;
@@ -1035,24 +1040,31 @@ bool ModernSliderFloat(const char* label, float* v, float v_min, float v_max, co
 
     // 计算把手位置
     float t = (*v - v_min) / (v_max - v_min);
-    if (t < 0.0f) t = 0.0f;
-    if (t > 1.0f) t = 1.0f;
+    if (t < 0.0f)
+        t = 0.0f;
+    if (t > 1.0f)
+        t = 1.0f;
     const float knob_radius = 8.0f;
     float knob_x = slider_min.x + t * slider_width;
-    if (held || pressed) {
+    if (held || pressed)
+    {
         // 拖动时更新值
         float mouse_x = ImGui::GetIO().MousePos.x;
-        if (mouse_x < slider_min.x) mouse_x = slider_min.x;
-        if (mouse_x > slider_max.x) mouse_x = slider_max.x;
+        if (mouse_x < slider_min.x)
+            mouse_x = slider_min.x;
+        if (mouse_x > slider_max.x)
+            mouse_x = slider_max.x;
         t = (mouse_x - slider_min.x) / slider_width;
         *v = v_min + t * (v_max - v_min);
-        if (*v < v_min) *v = v_min;
-        if (*v > v_max) *v = v_max;
+        if (*v < v_min)
+            *v = v_min;
+        if (*v > v_max)
+            *v = v_max;
         value_changed = true;
         knob_x = mouse_x;
     }
 
-    ImDrawList* dl = window->DrawList;
+    ImDrawList *dl = window->DrawList;
 
     // 绘制轨道背景
     dl->AddRectFilled(slider_min, slider_max, IM_COL32(60, 60, 60, 255), 4.0f);
@@ -1061,7 +1073,8 @@ bool ModernSliderFloat(const char* label, float* v, float v_min, float v_max, co
     dl->AddRectFilled(slider_min, ImVec2(knob_x, slider_min.y + slider_h), active_track, 4.0f);
 
     // 光晕效果
-    if (hovered || held) {
+    if (hovered || held)
+    {
         dl->AddCircleFilled(ImVec2(knob_x, slider_min.y + slider_h * 0.5f), knob_radius + 2.0f,
                             IM_COL32(0, 200, 255, 80));
     }
@@ -1079,10 +1092,11 @@ bool ModernSliderFloat(const char* label, float* v, float v_min, float v_max, co
 }
 
 // 现代滑块（整数），与浮点类似
-bool ModernSliderInt(const char* label, int* v, int v_min, int v_max, const char* format = "%.0f", float width = 250.0f)
+bool ModernSliderInt(const char *label, int *v, int v_min, int v_max, const char *format = "%.0f", float width = 250.0f)
 {
     float f_val = (float)*v;
-    if (ModernSliderFloat(label, &f_val, (float)v_min, (float)v_max, format, width)) {
+    if (ModernSliderFloat(label, &f_val, (float)v_min, (float)v_max, format, width))
+    {
         *v = (int)(f_val + 0.5f);
         return true;
     }
@@ -1363,7 +1377,7 @@ void DrawCharacterPage()
     ImGui::BeginChild("##CharacterContent", ImVec2(-1, -1), true);
     ImGui::SetCursorPos(ImVec2(20, 20));
 
-    static const char* 血条样式选项[] = {"简约", "赛事", "分格", "无ui"};
+    static const char *血条样式选项[] = {"简约", "赛事", "分格", "无ui"};
     ImGui::Text("血条样式");
     ImGui::SameLine(150);
     ImGui::SetNextItemWidth(200);
@@ -1375,9 +1389,10 @@ void DrawCharacterPage()
     // 三列布局
     ImGui::Columns(3, "##人物列", false);
 
-    struct {
-        const char* name;
-        bool* variable;
+    struct
+    {
+        const char *name;
+        bool *variable;
     } options[] = {
         {"人物方框", &绘制.按钮.方框},
         {"人物射线", &绘制.按钮.射线},
@@ -1399,8 +1414,8 @@ void DrawCharacterPage()
     };
 
     const int total = IM_ARRAYSIZE(options);
-    const int col1_end = (total + 2) / 3;   // 6
-    const int col2_end = col1_end * 2;       // 12
+    const int col1_end = (total + 2) / 3; // 6
+    const int col2_end = col1_end * 2;    // 12
 
     for (int i = 0; i < total; i++)
     {
@@ -1670,16 +1685,16 @@ void DrawItemsPage()
 void DrawVisualPage()
 {
     ImGui::BeginChild("##VisualContent", ImVec2(-1, -1), true);
-    
+
     // 增大滚动条宽度（仅影响当前子窗口）
     ImGui::PushStyleVar(ImGuiStyleVar_ScrollbarSize, 16.0f);
-    
+
     ImGui::SetCursorPos(ImVec2(20, 20));
 
     // 手雷样式
     ImGui::Text("手雷样式");
     ImGui::SameLine(150);
-    static const char* 手雷样式选项[] = {"3D", "曲线"};
+    static const char *手雷样式选项[] = {"3D", "曲线"};
     ImGui::SetNextItemWidth(200);
     ImGui::SliderInt("##手雷样式", &绘制.按钮.手雷样式, 0, 1, 手雷样式选项[绘制.按钮.手雷样式]);
     ImGui::Spacing();
@@ -1689,7 +1704,8 @@ void DrawVisualPage()
     const float slider_width = 280.0f;
 
     // 简化后的行间距：仅增加 2px 的虚拟占位
-    auto ItemSpacing = [&]() {
+    auto ItemSpacing = [&]()
+    {
         ImGui::Dummy(ImVec2(0, 1.0f));
     };
 
@@ -1787,9 +1803,21 @@ void DrawColorPage()
         {0.0f, 0.0f, 1.0f, 1.0f}, // 蓝色
         {1.0f, 0.0f, 1.0f, 1.0f}, // 紫色
         {1.0f, 1.0f, 1.0f, 1.0f}, // 白色
-        {1.0f, 0.0f, 0.0f, 1.0f}  // 红色
+        {1.0f, 0.0f, 0.0f, 1.0f}, // 红色
+        {1.0f, 0.6f, 0.0f, 1.0f}, // 橙色
+        {1.0f, 0.4f, 0.7f, 1.0f}, // 粉色
+        {0.2f, 0.7f, 1.0f, 1.0f}, // 天蓝色
+        {0.4f, 0.8f, 0.4f, 1.0f}, // 嫩绿色
+        {0.8f, 0.5f, 1.0f, 1.0f}, // 浅紫 / 薰衣草
+        {1.0f, 0.8f, 0.4f, 1.0f}, // 香槟金
+        {1.0f, 0.5f, 0.5f, 1.0f}, // 珊瑚红
+        {0.4f, 0.4f, 0.4f, 1.0f}, // 深灰色
+        {0.5f, 0.8f, 1.0f, 1.0f}, // 淡蓝
+        {1.0f, 0.9f, 0.6f, 1.0f}, // 奶油色
+        {0.7f, 0.3f, 0.3f, 1.0f}, // 暗红 / 砖红
+        {0.0f, 0.5f, 0.5f, 1.0f}  // 蓝绿 (Teal)
     };
-    static const char *presetNames[] = {"绿色", "蓝色", "紫色", "白色", "红色"};
+    static const char *presetNames[] = {"绿色", "蓝色", "紫色", "白色", "红色", "橙色", "粉色", "天蓝色", "嫩绿色", "浅紫", "香槟金", "珊瑚红", "深灰色", "淡蓝", "奶油色", "暗红", "蓝绿"};
     const int presetCount = IM_ARRAYSIZE(presetColors);
 
     // 获取颜色名称
@@ -1830,14 +1858,14 @@ void DrawColorPage()
 
     // ====================== 颜色项数据 ======================
     int colorSetIndex = ColorSettings;
-    const char *colorLabels[] = {"方框颜色", "射线颜色", "骨骼颜色", "距离颜色", "名称颜色", "物资颜色", "车辆颜色"};
+    const char *colorLabels[] = {"方框颜色", "射线颜色", "骨骼颜色", "距离颜色", "名称颜色", /*"物资颜色", */ "车辆颜色"};
     float *colorPointers[] = {
         绘制.Colorset[colorSetIndex].方框颜色,
         绘制.Colorset[colorSetIndex].射线颜色,
         绘制.Colorset[colorSetIndex].骨骼颜色,
         绘制.Colorset[colorSetIndex].距离颜色,
         绘制.Colorset[colorSetIndex].名称颜色,
-        绘制.物资颜色,
+        // 绘制.物资颜色,
         绘制.车辆颜色};
 
     // ====================== 表格布局 ======================
