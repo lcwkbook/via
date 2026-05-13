@@ -26,7 +26,7 @@
 #include "json.hpp"
 
 // ========== 自定义物资全局变量 ==========
-DataReader* g_CustomReader = nullptr; 
+DataReader *g_CustomReader = nullptr;
 std::atomic<bool> g_CustomDataLoaded{false}; // 定义并初始化
 
 using json = nlohmann::json;
@@ -506,7 +506,6 @@ void 绘制::保存配置()
         {"盒子物资", 按钮.盒子物资},
         {"隐藏已开启", 按钮.隐藏已开启},
         {"超级物资箱", 按钮.超级物资箱},
-        {"隐藏超级物资箱", 按钮.隐藏超级物资箱},
         {"绘制空投", 按钮.绘制空投},
         {"人数", 按钮.人数},
         {"方框", 按钮.方框},
@@ -657,7 +656,6 @@ void 绘制::读取配置()
             按钮.盒子物资 = button.value("盒子物资", 按钮.盒子物资);
             按钮.隐藏已开启 = button.value("隐藏已开启", 按钮.隐藏已开启);
             按钮.超级物资箱 = button.value("超级物资箱", 按钮.超级物资箱);
-            按钮.隐藏超级物资箱 = button.value("隐藏超级物资箱", 按钮.隐藏超级物资箱);
             按钮.绘制空投 = button.value("绘制空投", 按钮.绘制空投);
             按钮.人数 = button.value("人数", 按钮.人数);
             按钮.方框 = button.value("方框", 按钮.方框);
@@ -1123,6 +1121,7 @@ void 绘制::更新对象数据()
     minDistDebug = 9999.0f;
     closestDebugAddr = 0;
     closestClassName.clear();
+    bool 存在已开启的超级物资箱 = false;  // 必须在 for 循环前声明
     for (int a = 0; a < 世界数量; a++)
     {
         // 主循环
@@ -1736,45 +1735,57 @@ void 绘制::更新对象数据()
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
-            if (按钮.超级物资箱 && (strstr(ClassName, "EscapeBox_SpeEffect_C") != 0 ||
-                                    strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Classic_C") != 0 ||
-                                    strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme_C") != 0 ||
-                                    strstr(ClassName, "EscopeBox_SpeEffect_C") != 0))
+            // 🔴 第一阶段：先扫描所有对象，标记是否存在已开启的箱子
+            if (按钮.超级物资箱 && strstr(ClassName, "BP_MilitaryInnerWrapperList_C") != 0)
             {
-                // 根据类名直接判断是否已开启
-                bool 已开启 = (strstr(ClassName, "BP_MilitaryInnerWrapperList_C") != 0);
+                // 标记：场景里有已开的箱子
+                存在已开启的超级物资箱 = true;
+            }
 
-                // 若开启“隐藏已开启”且箱子已开，跳过绘制
-                if (按钮.隐藏超级物资箱 && 已开启)
+            // 🟢 第二阶段：绘制逻辑（严格互斥，只显示一个）
+            if (按钮.超级物资箱)
+            {
+                // ====================== 1. 绘制【已开启】箱子（最高优先级）
+                if (strstr(ClassName, "BP_MilitaryInnerWrapperList_C") != 0)
+                {
+                    std::string name = "超级物资箱[已开]";
+                    auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
+                    ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+                    ImColor textColor = ImColor(128, 128, 128, 255);
+                    ImColor outlineColor = ImColor(0, 0, 0, 255);
+
+                    // 描边
+                    for (int x = -1; x <= 1; x++)
+                        for (int y = -1; y <= 1; y++)
+                            if (x != 0 || y != 0)
+                                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                    // 主文字
+                    ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, textColor, name.c_str());
                     continue;
+                }
 
-                std::string name = "超级物资箱[";
-                name += (已开启 ? "已开]" : "未开");
+                // ====================== 2. 绘制【未开启】箱子（只有【没有已开箱子】时才显示）
+                if (!存在已开启的超级物资箱 &&
+                    (strstr(ClassName, "EscapeBox_SpeEffect_C") != 0 ||
+                     strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Classic_C") != 0 ||
+                     strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme_C") != 0 ||
+                     strstr(ClassName, "EscopeBox_SpeEffect_C") != 0))
+                {
+                    std::string name = "超级物资箱[未开 " + std::to_string((int)对象信息.敌人信息.距离) + "米]";
+                    auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
+                    ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+                    ImColor textColor = ImColor(255, 0, 255, 255);
+                    ImColor outlineColor = ImColor(0, 0, 0, 255);
 
-                // 未开启才显示距离
-                if (!已开启)
-                    name += " " + std::to_string((int)对象信息.敌人信息.距离) + "米]";
-                else
-                    name += "]";
-
-                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
-                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-
-                // 未开启 → 高亮紫色； 已开启 → 灰色
-                ImColor textColor = 已开启 ? ImColor(128, 128, 128, 255) : ImColor(255, 0, 255, 255);
-                ImColor outlineColor = ImColor(0, 0, 0, 255);
-
-                // 描边
-                for (int x = -1; x <= 1; x++)
-                    for (int y = -1; y <= 1; y++)
-                        if (x != 0 || y != 0)
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小,
-                                                                    {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
-
-                // 主文字
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, textColor, name.c_str());
-
-                continue; // 物资箱不是玩家，跳过后续所有角色逻辑
+                    // 描边
+                    for (int x = -1; x <= 1; x++)
+                        for (int y = -1; y <= 1; y++)
+                            if (x != 0 || y != 0)
+                                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                    // 主文字
+                    ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, textColor, name.c_str());
+                    continue;
+                }
             }
 
             // if (strstr(ClassName, "BP_WAlnnerWrapperList_C") != 0)

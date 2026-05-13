@@ -227,7 +227,6 @@ struct 开关
     bool 显示三级包 = false;
     bool 投掷物品 = false;
     bool 超级物资箱 = false;
-    bool 隐藏超级物资箱 = false;
     bool 爆炸猎弓 = false;
     bool 绘制信号枪 = false;
     // 新添加
