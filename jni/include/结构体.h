@@ -240,6 +240,7 @@ struct 开关
     bool 显示古墓树木 = false;
     bool 显示自救器 = false;
     bool 显示飞索 = false;
+    bool 密室钥匙 = false;
     bool 显示黑色物资箱 = false;
     bool 自定义物资开关 = false;
     float 物资字体大小 = 14.0f; // 默认值可以根据你的需求调整

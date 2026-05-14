@@ -544,6 +544,7 @@ void 绘制::保存配置()
         {"超体职业", 按钮.超体职业},
         {"自救器", 按钮.显示自救器},
         {"飞索", 按钮.显示飞索},
+        {"密室钥匙", 按钮.密室钥匙},
         {"黑色物资箱", 按钮.显示黑色物资箱},
         {"绘制最大距离", 按钮.绘制最大距离},
     };
@@ -694,6 +695,7 @@ void 绘制::读取配置()
             按钮.超体职业 = button.value("超体职业", 按钮.超体职业);
             按钮.显示自救器 = button.value("自救器", false);
             按钮.显示飞索 = button.value("飞索", false);
+            按钮.密室钥匙 = button.value("密室钥匙", false);
             按钮.显示黑色物资箱 = button.value("黑色物资箱", false);
             按钮.绘制最大距离 = button.value("绘制最大距离", 按钮.绘制最大距离);
         }
@@ -1555,6 +1557,27 @@ void 绘制::更新对象数据()
             if (按钮.显示飞索 && strstr(ClassName, "BP_Pickup_Finger_C") != 0)
             {
                 std::string name = "飞索[";
+                name += std::to_string((int)对象信息.敌人信息.距离);
+                name += "米]";
+                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
+                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                for (int x = -1; x <= 1; x++)
+                {
+                    for (int y = -1; y <= 1; y++)
+                    {
+                        if (x != 0 || y != 0)
+                        {
+                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                        }
+                    }
+                }
+                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
+            }
+
+            if (按钮.密室钥匙 && strstr(ClassName, "BP_PickupWrapper_Key_C") != 0)
+            {
+                std::string name = "密室钥匙[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
                 name += "米]";
                 auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
