@@ -1121,7 +1121,7 @@ void 绘制::更新对象数据()
     minDistDebug = 9999.0f;
     closestDebugAddr = 0;
     closestClassName.clear();
-    bool 存在已开启的超级物资箱 = false;  // 必须在 for 循环前声明
+    bool 存在已开启的超级物资箱 = false; // 必须在 for 循环前声明
     for (int a = 0; a < 世界数量; a++)
     {
         // 主循环
@@ -1229,11 +1229,15 @@ void 绘制::更新对象数据()
                             ImGui::GetForegroundDrawList()->AddText(NULL, 32, {r_x - (textSize.x / 2), r_y + 20}, ImColor(0, 255, 0, 255), 距离.c_str());
                             if (按钮.手雷样式 == 0)
                             {
-                                // 绘图.ExplosionRange(对象信息.敌人信息.坐标, ImColor(255, 0, 0, 255), 350, 1.5f, 自身数据.矩阵);
+                                绘图.ExplosionRange(
+                                    D3DVector(对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z),
+                                    ImColor(255, 0, 0, 255), 350, 1.5f, 自身数据.矩阵);
                             }
                             else
                             {
-                                // 绘图.ExplosionRange1(对象信息.敌人信息.坐标, ImColor(255, 0, 0, 255), 350, 1.5f, 自身数据.矩阵);
+                                绘图.ExplosionRange1(
+                                    D3DVector(对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z),
+                                    ImColor(255, 0, 0, 255), 350, 1.5f, 自身数据.矩阵);
                             }
                         }
                     }
