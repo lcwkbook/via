@@ -44,6 +44,7 @@ int decrypt_zero_y()
 extern 绘制 绘制;
 std::map<std::string, std::chrono::steady_clock::time_point> 自救Timers;
 bool 线程开启状态 = false;
+extern bool showTopStatusBar;
 // 掩体函数
 
 void 更新自救倒计时()
@@ -559,6 +560,7 @@ void 绘制::保存配置()
         {"手持字体大小", 手持字体大小},
         {"物资字体大小", 物资字体大小},
         {"名称字体大小", 名称字体大小},
+        {"showTopStatusBar", showTopStatusBar},
     };
     // 在基础配置中添加圆角配置
     base_config["其他"]["UI圆角"] = UI圆角;
@@ -714,6 +716,7 @@ void 绘制::读取配置()
             手持字体大小 = other.value("手持字体大小", 手持字体大小);
             物资字体大小 = other.value("物资字体大小", 物资字体大小);
             名称字体大小 = other.value("名称字体大小", 名称字体大小);
+            showTopStatusBar = other.value("showTopStatusBar", true);
         }
 
         // 读取颜色配置
@@ -1596,9 +1599,15 @@ void 绘制::更新对象数据()
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
-            if (按钮.绘制信号枪 && (strstr(ClassName, "Pistol_Flaregun_") != 0 or strstr(ClassName, "Pistol_RevivalFlaregun_Wrapper") != 0) or strstr(ClassName, "BP_Pistol_RevivalFlaregun_C") != 0)
+            if (按钮.绘制信号枪 &&
+                (strstr(ClassName, "Pistol_Flaregun_") != 0 ||
+                 strstr(ClassName, "Pistol_RevivalFlaregun_Wrapper") != 0 ||
+                 strstr(ClassName, "BP_Pistol_RevivalFlaregun_C") != 0 ||
+                 strstr(ClassName, "BP_Ammo_RevivalFlare_Pickup_C") != 0))
             {
-                std::string name = "信号枪[";
+                std::string name = (strstr(ClassName, "BP_Ammo_RevivalFlare_Pickup_C") != 0)
+                                       ? "信号弹["
+                                       : "信号枪[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
                 name += "米]";
                 auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
@@ -1610,11 +1619,13 @@ void 绘制::更新对象数据()
                     {
                         if (x != 0 || y != 0)
                         {
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小,
+                                                                    {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
                         }
                     }
                 }
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 0, 255), name.c_str());
+                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos,
+                                                        ImColor(255, 0, 0, 255), name.c_str());
             }
 
             if (按钮.显示古墓树木 && (strstr(ClassName, "BP_LostTomb_TreeHole_C") != 0))

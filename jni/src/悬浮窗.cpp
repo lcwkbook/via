@@ -61,7 +61,7 @@ static int currentTheme = THEME_NOODLE;
 static const char *themeNames[] = {"默认", "樱花粉", "NoodleUI"};
 
 // 状态栏显示控制
-static bool showTopStatusBar = true;
+bool showTopStatusBar = false;
 
 // ---------- 极简主题（默认） ----------
 void ApplyMinimalTheme()
