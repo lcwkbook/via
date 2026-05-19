@@ -1478,6 +1478,9 @@ void 绘制::更新对象数据()
                     strstr(ClassName, "BP_AirDropBox_Helicopter_C") != 0 ||
                     strstr(ClassName, "BP_CG036_AirDropBox_C") != 0 ||
                     strstr(ClassName, "BP_CGO36_AirDropBox_C") != 0 ||
+                    strstr(ClassName, "PickUpListWrapperActor") != 0 ||
+                    strstr(ClassName, "PlayerDeadInventoryBox_C") != 0 ||
+                    strstr(ClassName, "TreasureBox_Main_C") != 0 ||
                     strstr(ClassName, "BP_AirDropBox_C") != 0)
                 {
                     std::string name = "空投[";
@@ -1599,20 +1602,63 @@ void 绘制::更新对象数据()
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
+            // if (按钮.绘制信号枪 &&
+            //     (strstr(ClassName, "Pistol_Flaregun_") != 0 ||
+            //      strstr(ClassName, "Pistol_RevivalFlaregun_Wrapper") != 0 ||
+            //      strstr(ClassName, "BP_Pistol_RevivalFlaregun_C") != 0 ||
+            //      strstr(ClassName, "BP_Ammo_RevivalFlare_Pickup_C") != 0))
+            // {
+            //     std::string name = (strstr(ClassName, "BP_Ammo_RevivalFlare_Pickup_C") != 0)
+            //                            ? "信号弹["
+            //                            : "信号枪[";
+            //     name += std::to_string((int)对象信息.敌人信息.距离);
+            //     name += "米]";
+            //     auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
+            //     ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+            //     for (int x = -1; x <= 1; x++)
+            //     {
+            //         for (int y = -1; y <= 1; y++)
+            //         {
+            //             if (x != 0 || y != 0)
+            //             {
+            //                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小,
+            //                                                         {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+            //             }
+            //         }
+            //     }
+            //     ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos,
+            //                                             ImColor(255, 0, 0, 255), name.c_str());
+            // }
+
             if (按钮.绘制信号枪 &&
                 (strstr(ClassName, "Pistol_Flaregun_") != 0 ||
                  strstr(ClassName, "Pistol_RevivalFlaregun_Wrapper") != 0 ||
+                 strstr(ClassName, "BP_Pistol_RevivalFlaregun_Wrappe") != 0 ||
+                 strstr(ClassName, "BP_Pistol_RevivalFlaregun_Wrapper_C") != 0 ||
+                 strstr(ClassName, "BP_Pistol_Flargun_Wrapper_C") != 0 ||
+                 strstr(ClassName, "BP_Pistol_Flaregun_10000_C") != 0 ||
+                 strstr(ClassName, "BP_Pistol_Flaregun_C") != 0 ||
                  strstr(ClassName, "BP_Pistol_RevivalFlaregun_C") != 0 ||
                  strstr(ClassName, "BP_Ammo_RevivalFlare_Pickup_C") != 0))
             {
-                std::string name = (strstr(ClassName, "BP_Ammo_RevivalFlare_Pickup_C") != 0)
-                                       ? "信号弹["
-                                       : "信号枪[";
+                // 判断类型：召回类名包含 "Revival"
+                bool isRevival = (strstr(ClassName, "Revival") != nullptr);
+                // 判断是信号弹（Ammo_）还是信号枪
+                bool isAmmo = (strstr(ClassName, "Ammo_") != nullptr);
+
+                std::string name = isRevival ? "召回信号" : "物资信号";
+                name += isAmmo ? "弹[" : "枪[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
                 name += "米]";
+
                 auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
                 ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
 
+                // 召回绿色，物资红色
+                ImColor textColor = isRevival ? ImColor(0, 255, 0, 255) : ImColor(255, 0, 0, 255);
+
+                // 黑色描边
                 for (int x = -1; x <= 1; x++)
                 {
                     for (int y = -1; y <= 1; y++)
@@ -1624,8 +1670,7 @@ void 绘制::更新对象数据()
                         }
                     }
                 }
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos,
-                                                        ImColor(255, 0, 0, 255), name.c_str());
+                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, textColor, name.c_str());
             }
 
             if (按钮.显示古墓树木 && (strstr(ClassName, "BP_LostTomb_TreeHole_C") != 0))
@@ -1955,7 +2000,7 @@ void 绘制::更新对象数据()
             {
                 std::string classNameStr(ClassName);
                 if (classNameStr.find("CharacterDeadInventoryBox_C") != std::string::npos ||
-                    classNameStr.find("PickUpListWrapperActor") != std::string::npos ||
+                    /*classNameStr.find("PickUpListWrapperActor") != std::string::npos || */
                     classNameStr.find("RollTombBox_") != std::string::npos ||
                     classNameStr.find("EscapePlayerTombBox") != std::string::npos ||
                     classNameStr.find("DeadInventoryBox") != std::string::npos ||
@@ -2700,6 +2745,7 @@ const char *绘制::getMaterialName(char *name)
         {"VH_Excavator_C", {"挖掘机", 0}},
         {"VH_DumpTruck_C", {"渣土车", 0}},
         {"BP_VH_EV3F4_C", {"履带车", 0}},
+        {"VH_SeaPlane_C", {"四人滑向机", 0}},
         {"VH_Picobus_C", {"电动小巴", 0}}};
 
     for (const auto &载具 : 载具列表)
