@@ -507,6 +507,7 @@ void 绘制::保存配置()
         {"盒子物资", 按钮.盒子物资},
         {"隐藏已开启", 按钮.隐藏已开启},
         {"超级物资箱", 按钮.超级物资箱},
+        {"密钥", 按钮.显示密钥},
         {"绘制空投", 按钮.绘制空投},
         {"人数", 按钮.人数},
         {"方框", 按钮.方框},
@@ -659,6 +660,7 @@ void 绘制::读取配置()
             按钮.盒子物资 = button.value("盒子物资", 按钮.盒子物资);
             按钮.隐藏已开启 = button.value("隐藏已开启", 按钮.隐藏已开启);
             按钮.超级物资箱 = button.value("超级物资箱", 按钮.超级物资箱);
+            按钮.显示密钥 = button.value("密钥", 按钮.显示密钥);
             按钮.绘制空投 = button.value("绘制空投", 按钮.绘制空投);
             按钮.人数 = button.value("人数", 按钮.人数);
             按钮.方框 = button.value("方框", 按钮.方框);
@@ -1601,6 +1603,129 @@ void 绘制::更新对象数据()
                 }
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
+
+            if (按钮.显示密钥)
+            {
+                std::string keyName;
+                ImColor keyColor;
+                ImColor keyOutlineColor = ImColor(0, 0, 0, 255); // 默认描边，可被覆盖
+
+                if (strstr(ClassName, "BP_CommercialWrapper_Lv1_C") != 0)
+                {
+                    keyName = "L1侦察兵密钥";
+                    keyColor = ImColor(208, 138, 71, 255);     // 铜色
+                    keyOutlineColor = ImColor(0, 255, 0, 255); // 绿色描边
+                }
+                else if (strstr(ClassName, "BP_CommercialWrapper_Lv2_C") != 0)
+                {
+                    keyName = "突击兵密钥";
+                    keyColor = ImColor(192, 192, 192, 255);      // 银色
+                    keyOutlineColor = ImColor(0, 150, 255, 255); // 蓝色描边
+                }
+                else if (strstr(ClassName, "BP_CommercialWrapper_Lv3_C") != 0)
+                {
+                    keyName = "特种兵密钥";
+                    keyColor = ImColor(197, 179, 88, 255);       // 黄铜金（不是很金）
+                    keyOutlineColor = ImColor(255, 0, 255, 255); // 紫色描边
+                }
+                else if (strstr(ClassName, "BP_CommercialWrapper_Lv4_C") != 0)
+                {
+                    keyName = "指挥官密钥";
+                    keyColor = ImColor(220, 220, 255, 255);      // 高亮银 + 钻石亮（白偏蓝）
+                    keyOutlineColor = ImColor(255, 215, 0, 255); // 金色描边（突出重要性）
+                }
+                // ★ 隐藏款密钥（请将类名替换为实际值）
+                else if (strstr(ClassName, "BP_CommercialWrapper_Lv5_C") != 0) // ← 替换为你的隐藏款类名
+                {
+                    keyName = "隐藏款密钥";
+                    keyColor = ImColor(255, 215, 0, 255);          // 亮金
+                    keyOutlineColor = ImColor(185, 242, 255, 255); // 钻石亮色（蓝白）
+                }
+
+                if (!keyName.empty())
+                {
+                    std::string name = keyName + "[" + std::to_string((int)对象信息.敌人信息.距离) + "米]";
+                    float fontSize = 25.0f; // 固定字号25
+                    ImVec2 textSize = ImGui::CalcTextSize(name.c_str(), 0, fontSize);
+                    ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                    // 先绘制描边（使用对应描边颜色）
+                    for (int x = -1; x <= 1; x++)
+                        for (int y = -1; y <= 1; y++)
+                            if (x != 0 || y != 0)
+                                ImGui::GetForegroundDrawList()->AddText(NULL, fontSize,
+                                                                        {textPos.x + x, textPos.y + y}, keyOutlineColor, name.c_str());
+
+                    // 绘制主文字
+                    ImGui::GetForegroundDrawList()->AddText(NULL, fontSize, textPos, keyColor, name.c_str());
+                }
+            }
+
+            // // ========== 显示密钥（实物底色+叠加配色 区分质感，隐藏款预留接口） ==========
+            // if (按钮.显示密钥)
+            // {
+            //     std::string keyName;
+            //     ImColor keyColor;
+            //     bool isKey = false;
+
+            //     // 1.侦察兵密钥：铜色本体 + 叠加绿色调
+            //     if (strstr(ClassName, "BP_CommercialWrapper_Lv1_C") != 0)
+            //     {
+            //         keyName = "侦察兵密钥";
+            //         keyColor = ImColor(205, 127, 50, 255); // 铜色基底 + 融合绿色质感
+            //         isKey = true;
+            //     }
+            //     // 2.突击兵密钥：银色本体 + 清爽浅青叠加色
+            //     else if (strstr(ClassName, "BP_CommercialWrapper_Lv2_C") != 0)
+            //     {
+            //         keyName = "突击兵密钥";
+            //         keyColor = ImColor(210, 225, 240, 255); // 银白基底 + 淡青冷色调
+            //         isKey = true;
+            //     }
+            //     // 3.特种兵密钥：暗铜金本体 + 暗红点缀叠加
+            //     else if (strstr(ClassName, "BP_CommercialWrapper_Lv3_C") != 0)
+            //     {
+            //         keyName = "特种兵密钥";
+            //         keyColor = ImColor(180, 130, 60, 255); // 暗铜金底色 + 沉稳暗调
+            //         isKey = true;
+            //     }
+            //     // 4.指挥官密钥：高亮银+钻石闪光质感 + 幻彩浅紫叠加
+            //     else if (strstr(ClassName, "BP_CommercialWrapper_Lv4_C") != 0)
+            //     {
+            //         keyName = "指挥官密钥";
+            //         keyColor = ImColor(235, 245, 255, 255); // 高亮银钻质感，视觉最醒目
+            //         isKey = true;
+            //     }
+            //     // ===== 隐藏款密钥 预留位置，自行填写真实类名即可生效 =====
+            //     else if (strstr(ClassName, "此处填写隐藏钥匙类名") != 0)
+            //     {
+            //         keyName = "隐藏稀有密钥";
+            //         keyColor = ImColor(255, 220, 80, 255); // 鎏金钻石高光，稀有顶级配色
+            //         isKey = true;
+            //     }
+
+            //     // 统一绘制逻辑：黑色描边+主体文字，兼容原有绘制规则
+            //     if (isKey && t_屏幕坐标.W > 0)
+            //     {
+            //         keyName += "[" + std::to_string((int)对象信息.敌人信息.距离) + "米]";
+            //         auto textSize = ImGui::CalcTextSize(keyName.c_str(), 0, 物资字体大小);
+            //         ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+            //         // 黑色轮廓描边，提升文字辨识度
+            //         for (int x = -1; x <= 1; x++)
+            //         {
+            //             for (int y = -1; y <= 1; y++)
+            //             {
+            //                 if (x != 0 || y != 0)
+            //                 {
+            //                     ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, keyName.c_str());
+            //                 }
+            //             }
+            //         }
+            //         // 绘制彩色主体文字
+            //         ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, keyColor, keyName.c_str());
+            //     }
+            // }
 
             // if (按钮.绘制信号枪 &&
             //     (strstr(ClassName, "Pistol_Flaregun_") != 0 ||

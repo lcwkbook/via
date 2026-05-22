@@ -1555,6 +1555,7 @@ void DrawItemsPage()
         };
 
         std::vector<std::pair<const char *, bool *>> specials = {
+            {"密钥", &绘制.按钮.显示密钥},
             {"头甲", &绘制.按钮.显示防具},
             {"信号枪", &绘制.按钮.绘制信号枪},
             {"空投箱", &绘制.按钮.绘制空投},
