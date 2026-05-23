@@ -1610,32 +1610,32 @@ void 绘制::更新对象数据()
                 ImColor keyColor;
                 ImColor keyOutlineColor = ImColor(0, 0, 0, 255); // 默认描边，可被覆盖
 
-                if (strstr(ClassName, "BP_CommercialWrapper_Lv1_C") != 0)
+                if (strstr(ClassName, "BP_CommercialWrapper_LV1_C") != 0)
                 {
-                    keyName = "L1侦察兵密钥";
+                    keyName = "侦察兵密钥";
                     keyColor = ImColor(208, 138, 71, 255);     // 铜色
                     keyOutlineColor = ImColor(0, 255, 0, 255); // 绿色描边
                 }
-                else if (strstr(ClassName, "BP_CommercialWrapper_Lv2_C") != 0)
+                else if (strstr(ClassName, "BP_CommercialWrapper_LV2_C") != 0)
                 {
                     keyName = "突击兵密钥";
                     keyColor = ImColor(192, 192, 192, 255);      // 银色
                     keyOutlineColor = ImColor(0, 150, 255, 255); // 蓝色描边
                 }
-                else if (strstr(ClassName, "BP_CommercialWrapper_Lv3_C") != 0)
+                else if (strstr(ClassName, "BP_CommercialWrapper_LV3_C") != 0)
                 {
                     keyName = "特种兵密钥";
                     keyColor = ImColor(197, 179, 88, 255);       // 黄铜金（不是很金）
                     keyOutlineColor = ImColor(255, 0, 255, 255); // 紫色描边
                 }
-                else if (strstr(ClassName, "BP_CommercialWrapper_Lv4_C") != 0)
+                else if (strstr(ClassName, "BP_CommercialWrapper_LV4_C") != 0)
                 {
                     keyName = "指挥官密钥";
                     keyColor = ImColor(220, 220, 255, 255);      // 高亮银 + 钻石亮（白偏蓝）
                     keyOutlineColor = ImColor(255, 215, 0, 255); // 金色描边（突出重要性）
                 }
                 // ★ 隐藏款密钥（请将类名替换为实际值）
-                else if (strstr(ClassName, "BP_CommercialWrapper_Lv5_C") != 0) // ← 替换为你的隐藏款类名
+                else if (strstr(ClassName, "BP_CommercialWrapper_LV5_C") != 0) // ← 替换为你的隐藏款类名
                 {
                     keyName = "隐藏款密钥";
                     keyColor = ImColor(255, 215, 0, 255);          // 亮金
