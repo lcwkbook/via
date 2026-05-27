@@ -1336,7 +1336,7 @@ void 绘制::更新对象数据()
                             fontSize = minFontSize;
 
                         // 准星对准远处的载具时，恢复最大字号（Mlline 为屏幕中心到载具屏幕坐标的距离）
-                        const float aimThreshold = 50.0f; // 对准阈值，单位像素
+                        const float aimThreshold = 80.0f; // 对准阈值，单位像素
                         if (Mlline < aimThreshold)
                         {
                             fontSize = baseFontSize;

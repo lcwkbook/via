@@ -92,5 +92,5 @@ namespace Offsets {
     constexpr uintptr_t Decrypt_Step3_Offset2   = 0x5D0;
     // ==================== 其他常用常量 ====================
     constexpr float HumanHeight                 = 205.0f;
-    constexpr float MaxDrawDistance             = 1500.0f; //空投绘制距离
+    constexpr float MaxDrawDistance             = 2500.0f; //空投绘制距离
 }
