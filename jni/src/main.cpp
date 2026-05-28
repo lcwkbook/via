@@ -43,24 +43,74 @@ int ZM;
 
 #include "weiyan/Util.h" //导入微验库(每次注入的库不通用，请使用对应注入的库)
 int g_driver_mode = 0;
+
+// 驱动标记文件路径
+const string DRIVER_INSTALLED_FLAG = "/sdcard/AuraKernel/driver_installed.flag";
+
+// 判断文件是否存在
+bool isFileExists(const string &path) {
+    ifstream f(path.c_str());
+    return f.good();
+}
+
+// 创建驱动已安装标记
+void createDriverFlag() {
+    ofstream flag(DRIVER_INSTALLED_FLAG);
+    if (flag.is_open()) {
+        flag << "ok";
+        flag.close();
+    }
+}
 int main()
 {
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("\n选择驱动:\n");
-    printf("  1 - 自动刷入驱动 (备用)\n");
+    printf("  1 - 自动刷入驱动 (备用驱动)\n");
     printf("  2 - KPM驱动 (推荐)\n");
     printf("  3 - Paradise驱动\n");
     printf("输入: ");
     int choice = 0;
     scanf("%d", &choice);
 
-    if (choice == 1)
+        if (choice == 1)
     {
         g_driver_mode = 0;
-        if (!模块刷入())
+
+        // ===================== 驱动标记 =====================
+        const string flag_path = "/sdcard/AuraKernel/driver_installed.flag";
+        bool has_flag = false;
+
+        // 检查是否已经刷过
+        if (access(flag_path.c_str(), 0) == 0)
         {
-            printf("[-] 驱动刷入失败\n");
-            return 1;
+            has_flag = true;
+            printf("\033[1;32m[+] 检测到驱动已刷入，跳过刷入\n\033[0m");
+        }
+
+        // 没刷过 → 刷入
+        if (!has_flag)
+        {
+            printf("\033[1;33m[+] 首次启动，自动刷入驱动...\n\033[0m");
+            if (!模块刷入())
+            {
+                printf("[-] 驱动刷入失败\n");
+                return 1;
+            }
+
+            // ==============================================
+            // 刷入成功 → 创建标记文件（一定能生成）
+            // ==============================================
+            int fd = open(flag_path.c_str(), O_CREAT | O_RDWR, 0777);
+            if (fd >= 0)
+            {
+                write(fd, "ok", 2);
+                close(fd);
+                printf("\033[1;32m[+] 驱动刷入成功，已创建标记：%s\n\033[0m", flag_path.c_str());
+            }
+            else
+            {
+                printf("\033[1;31m[!] 标记文件创建失败\n\033[0m");
+            }
         }
     }
     else if (choice == 2)
@@ -91,27 +141,53 @@ int main()
     // 显示免责声明（如需）
     // displayAgreement();
 
+    // ===================== 驱动1 自动刷入（修复：不再重复刷）=====================
     if (g_driver_mode == 0)
     {
         printf("\033[1;34m[+] 正在检测Aura独家驱动状态...\033[0m\n");
         绘制.读写.reopen_dev();
+
         bool moduleOk = false;
         if (绘制.读写.fd > 0 && 绘制.读写.get_Module_On())
         {
             moduleOk = true;
         }
+
         if (!moduleOk)
         {
-            printf("\033[1;33m[-] 检测到驱动未激活, 开始自动刷入...\033[0m\n");
-            if (!模块刷入())
+            // 驱动没打开 → 检查是否曾经刷入过
+            if (isFileExists(DRIVER_INSTALLED_FLAG))
             {
-                printf("\033[1;31m[!] Aura驱动刷入失败, 程序退出\n\033[0m");
-                return 0;
+                printf("\033[1;33m[-] 驱动已刷入但未加载，尝试重新打开...\033[0m\n");
+                绘制.读写.reopen_dev();
+                if (绘制.读写.fd > 0 && 绘制.读写.get_Module_On())
+                {
+                    moduleOk = true;
+                    printf("\033[1;32m[+] 驱动打开成功！\033[0m\n");
+                }
             }
-            if (!绘制.读写.reopen_dev() || !绘制.读写.get_Module_On())
+
+            // 还是不行 → 必须重新刷
+            if (!moduleOk)
             {
-                printf("\033[1;31m[!] Aura驱动加载失败, 请重启设备后重试\n\033[0m");
-                return 0;
+                printf("\033[1;33m[-] 驱动未激活，开始自动刷入...\033[0m\n");
+                if (!模块刷入())
+                {
+                    printf("\033[1;31m[!] 驱动刷入失败\n\033[0m");
+                    return 0;
+                }
+
+                // 刷入成功 → 创建标记
+                createDriverFlag();
+                printf("\033[1;32m[+] 驱动刷入成功，已标记无需重复刷入！\033[0m\n");
+
+                // 重新打开
+                绘制.读写.reopen_dev();
+                if (!绘制.读写.get_Module_On())
+                {
+                    printf("\033[1;31m[!] 驱动加载失败\n\033[0m");
+                    return 0;
+                }
             }
         }
         printf("\033[1;32m[+] Aura驱动已就绪, 正在启动功能...\033[0m\n");
@@ -144,7 +220,6 @@ int main()
     }
 
     // ========== 后台模式选择 ==========
-    // ========== 后台模式选择 ==========
     if (choice == 2) // KPM模式：默认有后台，不询问
     {
         printf("[*] KPM模式默认有后台\n");
@@ -171,7 +246,7 @@ int main()
     // 微验接口域名
     const string k490073cb44c9cfd61086662c8a70aa74 = "wy.llua.cn";
     // 当前版本，用于检查更新
-    const string currentVersion = "1.36.4.61";
+    const string currentVersion = "1.36.4.63";
     // 卡密存储路径
     const string kmPath = "/sdcard/AuraKernel/Aura.km";
 
