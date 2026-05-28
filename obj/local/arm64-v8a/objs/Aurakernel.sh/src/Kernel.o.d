@@ -2,6 +2,7 @@ D:/文档/GitHub/via/obj/local/arm64-v8a/objs/Aurakernel.sh/src/Kernel.o: \
   D:/文档/GitHub/via/jni/src/Kernel.cpp \
   D:/文档/GitHub/via/jni/include/辅助类.h \
   D:/文档/GitHub/via/jni/include/driver.h \
+  D:/文档/GitHub/via/jni/include/paradise/paradise_api.h \
   D:/文档/GitHub/via/jni/include/timer.h \
   D:/文档/GitHub/via/jni/include/obfuscate.h \
   D:/文档/GitHub/via/jni/include/ImGui/imgui.h \
@@ -26,6 +27,7 @@ D:/文档/GitHub/via/obj/local/arm64-v8a/objs/Aurakernel.sh/src/Kernel.o: \
   D:/文档/GitHub/via/jni/include/骨骼.hpp
 D:/文档/GitHub/via/jni/include/辅助类.h:
 D:/文档/GitHub/via/jni/include/driver.h:
+D:/文档/GitHub/via/jni/include/paradise/paradise_api.h:
 D:/文档/GitHub/via/jni/include/timer.h:
 D:/文档/GitHub/via/jni/include/obfuscate.h:
 D:/文档/GitHub/via/jni/include/ImGui/imgui.h:

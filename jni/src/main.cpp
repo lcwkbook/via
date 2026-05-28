@@ -19,6 +19,7 @@
 #include <chrono>
 #include <sys/types.h>
 #include <sstream>
+#include "paradise/paradise_api.h"
 using namespace std;
 extern int g_driver_mode;
 // 全局变量
@@ -41,12 +42,14 @@ int ZM;
 绘制 绘制;
 
 #include "weiyan/Util.h" //导入微验库(每次注入的库不通用，请使用对应注入的库)
+int g_driver_mode = 0;
 int main()
 {
-
+    setvbuf(stdout, NULL, _IONBF, 0);
     printf("\n选择驱动:\n");
-    printf("  1 - 原驱动 (自动刷入)\n");
-    printf("  2 - KPM驱动 (直接连接)\n");
+    printf("  1 - 自动刷入驱动 (备用)\n");
+    printf("  2 - KPM驱动 (推荐)\n");
+    printf("  3 - Paradise驱动\n");
     printf("输入: ");
     int choice = 0;
     scanf("%d", &choice);
@@ -64,6 +67,11 @@ int main()
     {
         g_driver_mode = 1;
         printf("[*] KPM模式，跳过刷入\n");
+    }
+    else if (choice == 3)
+    { // 新增
+        g_driver_mode = 2;
+        printf("[*] Paradise模式，跳过刷入\n");
     }
     else
     {
@@ -108,6 +116,11 @@ int main()
         }
         printf("\033[1;32m[+] Aura驱动已就绪, 正在启动功能...\033[0m\n");
     }
+    else if (g_driver_mode == 2)
+    {
+        printf("[*] Paradise驱动已自动连接\n");
+        // 不做任何检测，因为 paradise_driver 构造时已连接
+    }
 
     // ========== 防录屏选择（两种模式都会询问） ==========
     if (绘制.防录屏 == 999)
@@ -131,9 +144,11 @@ int main()
     }
 
     // ========== 后台模式选择 ==========
+    // ========== 后台模式选择 ==========
     if (choice == 2) // KPM模式：默认有后台，不询问
     {
         printf("[*] KPM模式默认有后台\n");
+        无后台 = 1; // 标记有后台
     }
     else // 原驱动模式：询问后台模式
     {
@@ -146,11 +161,6 @@ int main()
         }
         else
         {
-            pid_t pids = fork();
-            if (pids > 0)
-            {
-                exit(0);
-            }
             std::cout << "无后台开启成功\n";
         }
     }
@@ -384,7 +394,16 @@ int main()
         }
         std::cout << std::endl;
     }
-
+    // ========== 卡密验证成功，执行无后台进程分离 ==========
+    if (无后台 == 2) // 只有选择无后台才执行
+    {
+        pid_t pids = fork();
+        if (pids > 0)
+        {
+            exit(0); // 父进程退出，子进程继续运行
+        }
+        std::cout << "无后台启动成功\n";
+    }
     type_print("\n\033[33;1m正在加载悬浮窗...\033[0m\n", 40);
     usleep(100000);
     布局.初始化程序();

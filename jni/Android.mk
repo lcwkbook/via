@@ -6,6 +6,12 @@ LOCAL_MODULE    := driver_prebuilt
 LOCAL_SRC_FILES := include/driver.a
 include $(PREBUILT_STATIC_LIBRARY)
 
+# ========== 预编译 paradise 静态库（新增） ==========
+include $(CLEAR_VARS)
+LOCAL_MODULE    := paradise_prebuilt
+LOCAL_SRC_FILES := include/paradise/libparadise_api.a
+include $(PREBUILT_STATIC_LIBRARY)
+
 # ========== 主模块 ==========
 include $(CLEAR_VARS)
 
@@ -39,6 +45,6 @@ LOCAL_LDFLAGS += -Wl,--gc-sections,--strip-all,-llog
 LOCAL_LDFLAGS += -L$(LOCAL_PATH)/include/lib
 
 # 链接 driver 静态库
-LOCAL_STATIC_LIBRARIES := driver_prebuilt
+LOCAL_STATIC_LIBRARIES := driver_prebuilt paradise_prebuilt
 
 include $(BUILD_EXECUTABLE)

@@ -3,7 +3,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-int g_driver_mode = 0; 
+extern int g_driver_mode;
 bool Kernel::init_key(char *key)
 {
     char buf[0x100];
@@ -17,9 +17,9 @@ bool Kernel::init_key(char *key)
 
 Kernel::Kernel()
 {
-    if (g_driver_mode == 0) {
-        fd = open("/dev/niuto01", O_RDWR);
-    }
+    fd = -1;                    // 标记为未打开
+    kpm_driver = nullptr;
+    paradise = nullptr;
 }
 
 Kernel::~Kernel()
@@ -28,6 +28,8 @@ Kernel::~Kernel()
     {
         close(fd);
     }
+    if (kpm_driver) delete kpm_driver;
+    if (paradise) delete paradise;     // 新增
 }
 
 void Kernel::初始化读写(int pid)
@@ -45,11 +47,27 @@ void Kernel::初始化读写(int pid)
         printf("[+] KPM驱动连接成功, pid=%d\n", pid);
         return;
     }
-    // 原逻辑
-    if (this->pid <= 0)
-        cout << "[-] 选定进程失败\n";
-    else
-        cout << "[-] 读写初始化成功\n";
+     // ========== Paradise 模式 ==========
+    if (g_driver_mode == 2) {
+        if (!paradise) {
+            paradise = new paradise_driver();
+            // 构造函数内部已经尝试连接驱动，如果失败会打印信息
+        }
+        paradise->initialize(pid);
+        printf("[+] Paradise驱动初始化成功, pid=%d\n", pid);
+        return;
+    }
+    // ========== 原驱动模式 ==========
+    if (g_driver_mode == 0) {
+        if (fd < 0) {
+            fd = open("/dev/niuto01", O_RDWR);
+        }
+        if (fd < 0 || this->pid <= 0)
+            cout << "[-] 选定进程失败\n";
+        else
+            cout << "[-] 读写初始化成功\n";
+        return;
+    }
 }
 
 bool Kernel::readv(uintptr_t addr, void *buffer, size_t size)
@@ -57,6 +75,11 @@ bool Kernel::readv(uintptr_t addr, void *buffer, size_t size)
     if (g_driver_mode == 1) {
         if (!kpm_driver) return false;
         return kpm_driver->read(addr, buffer, size);
+    }
+    if (g_driver_mode == 2) {
+        if (!paradise) return false;
+        // 改用快速映射读取
+        return paradise->read_fast(addr, buffer, size);
     }
     if (addr < 0x10000000 || addr > 0xFFFFFFFFFF || addr <= 0xfff || addr == 0 || addr % 4 != 0)
         return false;
@@ -75,6 +98,11 @@ bool Kernel::writev(uintptr_t addr, void *buffer, size_t size)
         if (!kpm_driver) return false;
         return kpm_driver->write(addr, buffer, size);
     }
+    if (g_driver_mode == 2) {
+        if (!paradise) return false;
+        // 改用快速映射写入
+        return paradise->write_fast(addr, buffer, size);
+    }
     if (addr < 0x10000000 || addr > 0xFFFFFFFFFF || addr <= 0xfff || addr == 0 || addr % 4 != 0)
         return false;
     struct { pid_t pid_value; uintptr_t addr_value; void *buffer_value; size_t size_value; } cm;
@@ -90,6 +118,10 @@ uintptr_t Kernel::get_module_base(char *name)
     if (g_driver_mode == 1) {
         if (!kpm_driver) return 0;
         return kpm_driver->get_module_base(this->pid, name);
+    }
+    if (g_driver_mode == 2) {          // 新增 Paradise
+        if (!paradise) return 0;
+        return paradise->get_module_base(name);
     }
     struct { pid_t pid_value; char *name_value; uintptr_t base_value; } mb;
     char buf[0x100];
@@ -173,6 +205,10 @@ uintptr_t Kernel::get_module_base2(char *module_name)
 
 uintptr_t Kernel::get_Module_On()
 {
+    if (g_driver_mode == 2) {
+        // Paradise 驱动无需检测 /dev/niuto01，直接认为已就绪
+        return 10086;   // 与原来成功时的返回值一致
+    }
     struct
     {
         pid_t pid_value;
@@ -259,6 +295,9 @@ char Kernel::getByte(unsigned long addr)
 
 bool Kernel::reopen_dev()
 {
+     if (g_driver_mode == 2) {
+        return (paradise != nullptr);   // 已构造即视为就绪
+    }
     if (fd > 0)
     {
         close(fd);

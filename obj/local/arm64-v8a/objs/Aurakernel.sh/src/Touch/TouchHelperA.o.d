@@ -2,6 +2,7 @@ D:/文档/GitHub/via/obj/local/arm64-v8a/objs/Aurakernel.sh/src/Touch/TouchHelpe
   D:/文档/GitHub/via/jni/src/Touch/TouchHelperA.cpp \
   D:/文档/GitHub/via/jni/include/辅助类.h \
   D:/文档/GitHub/via/jni/include/driver.h \
+  D:/文档/GitHub/via/jni/include/paradise/paradise_api.h \
   D:/文档/GitHub/via/jni/include/timer.h \
   D:/文档/GitHub/via/jni/include/obfuscate.h \
   D:/文档/GitHub/via/jni/include/ImGui/imgui.h \
@@ -27,6 +28,7 @@ D:/文档/GitHub/via/obj/local/arm64-v8a/objs/Aurakernel.sh/src/Touch/TouchHelpe
   D:/文档/GitHub/via/jni/src/Touch/spinlock.h
 D:/文档/GitHub/via/jni/include/辅助类.h:
 D:/文档/GitHub/via/jni/include/driver.h:
+D:/文档/GitHub/via/jni/include/paradise/paradise_api.h:
 D:/文档/GitHub/via/jni/include/timer.h:
 D:/文档/GitHub/via/jni/include/obfuscate.h:
 D:/文档/GitHub/via/jni/include/ImGui/imgui.h:

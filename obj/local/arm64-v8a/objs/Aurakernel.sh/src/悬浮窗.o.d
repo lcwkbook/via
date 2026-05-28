@@ -124,6 +124,7 @@ D:/文档/GitHub/via/obj/local/arm64-v8a/objs/Aurakernel.sh/src/悬浮窗.o: \
   D:/文档/GitHub/via/jni/include/images/设置.h \
   D:/文档/GitHub/via/jni/include/辅助类.h \
   D:/文档/GitHub/via/jni/include/driver.h \
+  D:/文档/GitHub/via/jni/include/paradise/paradise_api.h \
   D:/文档/GitHub/via/jni/include/timer.h \
   D:/文档/GitHub/via/jni/include/obfuscate.h \
   D:/文档/GitHub/via/jni/include/结构体.h \
@@ -273,6 +274,7 @@ D:/文档/GitHub/via/jni/include/images/视觉.h:
 D:/文档/GitHub/via/jni/include/images/设置.h:
 D:/文档/GitHub/via/jni/include/辅助类.h:
 D:/文档/GitHub/via/jni/include/driver.h:
+D:/文档/GitHub/via/jni/include/paradise/paradise_api.h:
 D:/文档/GitHub/via/jni/include/timer.h:
 D:/文档/GitHub/via/jni/include/obfuscate.h:
 D:/文档/GitHub/via/jni/include/结构体.h:

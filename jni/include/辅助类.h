@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <dirent.h>
 #include <driver.h>
+#include "paradise/paradise_api.h"
 #include <regex.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -194,6 +195,7 @@ public:
     选择配置 选择配置;
     int fd;
     Driver *kpm_driver = nullptr; // KPM驱动对象
+    paradise_driver *paradise = nullptr;
     Kernel();
     ~Kernel();
     uintptr_t get_Module_On();
