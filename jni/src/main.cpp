@@ -116,12 +116,12 @@ int main()
     else if (choice == 2)
     {
         g_driver_mode = 1;
-        printf("[*] KPM模式，跳过刷入\n");
+        printf("[*] 已选择KPM模式，跳过刷入\n");
     }
     else if (choice == 3)
     { // 新增
         g_driver_mode = 2;
-        printf("[*] Paradise模式，跳过刷入\n");
+        printf("[*] 已选择Paradise模式，跳过刷入\n");
     }
     else
     {
@@ -194,7 +194,7 @@ int main()
     }
     else if (g_driver_mode == 2)
     {
-        printf("[*] Paradise驱动已自动连接\n");
+        printf("[*] 请确保Paradise驱动已成功刷入\n");
         // 不做任何检测，因为 paradise_driver 构造时已连接
     }
 
@@ -469,6 +469,8 @@ int main()
         }
         std::cout << std::endl;
     }
+    type_print("\n\033[33;1m正在加载悬浮窗...\033[0m\n", 40);
+    usleep(100000);
     // ========== 卡密验证成功，执行无后台进程分离 ==========
     if (无后台 == 2) // 只有选择无后台才执行
     {
@@ -479,8 +481,6 @@ int main()
         }
         std::cout << "无后台启动成功\n";
     }
-    type_print("\n\033[33;1m正在加载悬浮窗...\033[0m\n", 40);
-    usleep(100000);
     布局.初始化程序();
     加载内存图片();
     绘制.读取配置();
