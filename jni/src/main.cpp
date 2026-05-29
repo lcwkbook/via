@@ -19,6 +19,7 @@
 #include <chrono>
 #include <sys/types.h>
 #include <sstream>
+#include "Updater.h"
 #include "paradise/paradise_api.h"
 using namespace std;
 extern int g_driver_mode;
@@ -48,15 +49,18 @@ int g_driver_mode = 0;
 const string DRIVER_INSTALLED_FLAG = "/sdcard/AuraKernel/driver_installed.flag";
 
 // 判断文件是否存在
-bool isFileExists(const string &path) {
+bool isFileExists(const string &path)
+{
     ifstream f(path.c_str());
     return f.good();
 }
 
 // 创建驱动已安装标记
-void createDriverFlag() {
+void createDriverFlag()
+{
     ofstream flag(DRIVER_INSTALLED_FLAG);
-    if (flag.is_open()) {
+    if (flag.is_open())
+    {
         flag << "ok";
         flag.close();
     }
@@ -72,7 +76,7 @@ int main()
     int choice = 0;
     scanf("%d", &choice);
 
-        if (choice == 1)
+    if (choice == 1)
     {
         g_driver_mode = 0;
 
@@ -246,7 +250,7 @@ int main()
     // 微验接口域名
     const string k490073cb44c9cfd61086662c8a70aa74 = "wy.llua.cn";
     // 当前版本，用于检查更新
-    const string currentVersion = "1.36.4.63";
+    const string currentVersion = "1.36.4.68";
     // 卡密存储路径
     const string kmPath = "/sdcard/AuraKernel/Aura.km";
 
@@ -300,16 +304,19 @@ int main()
             std::string updatemust = ini_fe341cf2bb1c43d53833f4589d6a90b20["msg"]["updatemust"];
             if (version != currentVersion)
             {
-                std::cout << "有新版本:" << std::endl
-                          << "当前版本:" << currentVersion << std::endl
-                          << "最新版本:" << version << std::endl
-                          << "更新内容:" << updateshow << std::endl
-                          << "更新地址:" << updateurl << std::endl;
-                if (updatemust == "y")
-                {
-                    std::cout << "强制更新，请更新至最新版本后使用！" << std::endl;
-                    exit(0);
-                }
+                std::cout << "  当前版本: " << currentVersion << std::endl;
+                std::cout << "  最新版本: " << version << std::endl;
+                std::cout << "  更新内容: " << updateshow << std::endl;
+
+                // 调用统一更新入口
+                StartUpdate(version, updateurl, updatemust);
+
+                // 如果 StartUpdate 返回了（非强制更新且用户选择不更新），则继续执行后续逻辑
+                // 如果是强制更新，StartUpdate 内部会 exit(0)，不会执行到这里
+            }
+            else
+            {
+                std::cout << "[+] 已是最新版本" << std::endl;
             }
         }
         else

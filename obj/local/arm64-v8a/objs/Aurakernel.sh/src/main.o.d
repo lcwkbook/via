@@ -161,6 +161,7 @@ D:/文档/GitHub/via/obj/local/arm64-v8a/objs/Aurakernel.sh/src/main.o: \
   D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-5.15.h \
   D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-6.1.h \
   D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-6.6.h \
+  D:/文档/GitHub/via/jni/src/Updater.h \
   D:/文档/GitHub/via/jni/src/weiyan/Util.h \
   D:/文档/GitHub/via/jni/src/weiyan/json.hpp
 D:/文档/GitHub/via/jni/include/Draw.h:
@@ -324,5 +325,6 @@ D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-5.10.h:
 D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-5.15.h:
 D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-6.1.h:
 D:/文档/GitHub/via/jni/src/模块/dev/dev-ioctl-6.6.h:
+D:/文档/GitHub/via/jni/src/Updater.h:
 D:/文档/GitHub/via/jni/src/weiyan/Util.h:
 D:/文档/GitHub/via/jni/src/weiyan/json.hpp:

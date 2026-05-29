@@ -50,7 +50,7 @@ public:
     */
     
     // 更新陀螺仪数据
-    bool gyro_update(float x, float y, uint32_t type_mask = PARADISE_GYRO_MASK_ALL, bool enable = true);
+    // bool gyro_update(float x, float y, uint32_t type_mask = PARADISE_GYRO_MASK_ALL, bool enable = true);
     
     // 检查进程是否存活 (alive_out: 1为存活，0为未存活)
     bool is_process_alive(pid_t check_pid, int *alive_out);
@@ -77,19 +77,19 @@ public:
     bool write_fast(uintptr_t addr, void *buffer, size_t size);
 
     // 初始化触摸注入，传入用户屏幕分辨率用于坐标映射
-    bool touch_init(int screen_width, int screen_height);
+    // bool touch_init(int screen_width, int screen_height);
 
     // 手指按下
-    bool touch_down(int slot, int x, int y);
+    // bool touch_down(int slot, int x, int y);
 
     // 手指移动
-    bool touch_move(int slot, int x, int y);
+    // bool touch_move(int slot, int x, int y);
 
     // 手指抬起
-    bool touch_up(int slot);
+    // bool touch_up(int slot);
 
     // 销毁触摸注入
-    bool touch_destroy();
+    // bool touch_destroy();
 
     // 模板方法，传入地址，返回地址上的值
     template <typename T>
