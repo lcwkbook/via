@@ -34,6 +34,7 @@ static std::string getSelfExe() {
     return "";
 }
 
+// 版本比较（四段数字 a.b.c.d）
 static bool isNewer(const std::string &remote, const std::string &local) {
     int r[4] = {0}, l[4] = {0};
     sscanf(remote.c_str(), "%d.%d.%d.%d", &r[0], &r[1], &r[2], &r[3]);
@@ -45,16 +46,16 @@ static bool isNewer(const std::string &remote, const std::string &local) {
     return false;
 }
 
-// 组装下载命令，优先 curl，带进度条显示（单行刷新，不刷屏）
+// 组装下载命令（-f 使 curl 在 HTTP 错误时失败）
 static std::string getDownloadCmd(const std::string &url, const std::string &outFile) {
     if (commandExists("curl")) {
-        // -# : 显示进度条（# 符号）
+        // -f : fail on HTTP errors (如 404)
+        // -# : 进度条
         // -L : 跟随重定向
-        // -o : 输出到文件
-        return "curl -# -L -o \"" + outFile + "\" \"" + url + "\"";
+        // -o : 输出文件
+        return "curl -f -# -L -o \"" + outFile + "\" \"" + url + "\"";
     } else if (commandExists("wget")) {
-        // --show-progress : 显示进度条
-        // -O : 输出到文件
+        // wget 遇到 404 默认返回非零，无需额外参数
         return "wget --show-progress -O \"" + outFile + "\" \"" + url + "\"";
     } else {
         return "";
@@ -63,11 +64,10 @@ static std::string getDownloadCmd(const std::string &url, const std::string &out
 
 // ---------- 核心更新函数 ----------
 
-void StartUpdate(const std::string &serverVersion,
+void StartUpdate(const std::string &currentVersion,
+                 const std::string &serverVersion,
                  const std::string &downloadUrl,
                  const std::string &mustUpdate) {
-    // ***** 重要：每次发版前修改此版本号为你当前程序的真实版本 *****
-    const std::string currentVersion = "1.36.4.64";
 
     if (!isNewer(serverVersion, currentVersion)) {
         std::cout << "[+] 已是最新版本" << std::endl;
@@ -103,7 +103,7 @@ void StartUpdate(const std::string &serverVersion,
     std::cout << "[*] 正在下载更新包..." << std::endl;
     bool downloadOK = execCmd(downloadCmd);
     if (!downloadOK || !fileValid("/data/local/tmp/aura_update.tmp")) {
-        std::cerr << "\n[!] 下载失败，请检查网络或下载地址。" << std::endl;
+        std::cerr << "\n[!] 下载失败（网络异常或文件不存在），请检查地址。" << std::endl;
         execCmd("rm -f /data/local/tmp/aura_update.tmp");
         if (mustUpdate == "y") exit(1);
         return;

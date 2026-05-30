@@ -250,7 +250,7 @@ int main()
     // 微验接口域名
     const string k490073cb44c9cfd61086662c8a70aa74 = "wy.llua.cn";
     // 当前版本，用于检查更新
-    const string currentVersion = "1.36.4.69";
+    const string currentVersion = "1.36.4.71";
     // 卡密存储路径
     const string kmPath = "/sdcard/AuraKernel/Aura.km";
 
@@ -309,7 +309,7 @@ int main()
                 std::cout << "  更新内容: " << updateshow << std::endl;
 
                 // 调用统一更新入口
-                StartUpdate(version, updateurl, updatemust);
+                StartUpdate(currentVersion, version, updateurl, updatemust);
 
                 // 如果 StartUpdate 返回了（非强制更新且用户选择不更新），则继续执行后续逻辑
                 // 如果是强制更新，StartUpdate 内部会 exit(0)，不会执行到这里

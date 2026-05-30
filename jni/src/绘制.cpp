@@ -1625,23 +1625,15 @@ void 绘制::更新对象数据()
                 else if (strstr(ClassName, "BP_CommercialWrapper_LV3_C") != 0)
                 {
                     keyName = "特种兵密钥";
-                    keyColor = ImColor(197, 179, 88, 255);       // 黄铜金（不是很金）
-                    keyOutlineColor = ImColor(255, 0, 255, 255); // 紫色描边
+                    keyColor = ImColor(220, 220, 255, 255);      // 高亮银 + 钻石亮（白偏蓝）
+                    keyOutlineColor = ImColor(255, 215, 0, 255); // 金色描边（突出重要性）
                 }
                 else if (strstr(ClassName, "BP_CommercialWrapper_LV4_C") != 0)
                 {
                     keyName = "指挥官密钥";
-                    keyColor = ImColor(220, 220, 255, 255);      // 高亮银 + 钻石亮（白偏蓝）
-                    keyOutlineColor = ImColor(255, 215, 0, 255); // 金色描边（突出重要性）
-                }
-                // ★ 隐藏款密钥（请将类名替换为实际值）
-                else if (strstr(ClassName, "BP_CommercialWrapper_LV5_C") != 0) // ← 替换为你的隐藏款类名
-                {
-                    keyName = "隐藏款密钥";
                     keyColor = ImColor(255, 215, 0, 255);          // 亮金
                     keyOutlineColor = ImColor(185, 242, 255, 255); // 钻石亮色（蓝白）
                 }
-
                 if (!keyName.empty())
                 {
                     std::string name = keyName + "[" + std::to_string((int)对象信息.敌人信息.距离) + "米]";
