@@ -1593,6 +1593,8 @@ void DrawItemsPage()
         ImGui::RadioButton("类名", &绘制.按钮.Debug模式, 0);
         ImGui::SameLine();
         ImGui::RadioButton("地址", &绘制.按钮.Debug模式, 1);
+        ImGui::SameLine();
+        ImGui::RadioButton("物资ID", &绘制.按钮.Debug模式, 2);
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Spacing();

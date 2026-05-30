@@ -60,6 +60,7 @@ namespace Offsets {
     constexpr uintptr_t Vehicle_CurrentFuel     = 0x21C;
     constexpr uintptr_t Vehicle_MaxFuel         = 0x218;
     // ==================== 盒子/物资偏移 ====================
+    constexpr uintptr_t BoxPickUpDataList = 0xD98;   // 盒子物资列表基址
     constexpr uintptr_t PickUpDataList          = 0xD88;
     constexpr uintptr_t Box_OpenState           = 0x270;
     constexpr uintptr_t Box_Open           = 0x6f4;
