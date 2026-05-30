@@ -2871,6 +2871,7 @@ const char *绘制::getMaterialName(char *name)
         {"VH_DumpTruck_C", {"渣土车", 0}},
         {"BP_VH_EV3F4_C", {"履带车", 0}},
         {"VH_SeaPlane_C", {"四人滑向机", 0}},
+        {"VH_ATV3_C", {"沙滩车", 0}},
         {"VH_Picobus_C", {"电动小巴", 0}}};
 
     for (const auto &载具 : 载具列表)
