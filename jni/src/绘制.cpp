@@ -1502,6 +1502,7 @@ void 绘制::更新对象数据()
                     strstr(ClassName, "BP_CGO36_AirDropBox_C") != 0 ||
                     strstr(ClassName, "PickUpListWrapperActor") != 0 ||
                     strstr(ClassName, "PlayerDeadInventoryBox_C") != 0 ||
+                    strstr(ClassName, "AirDropListWrapperActor") != 0 ||
                     strstr(ClassName, "TreasureBox_Main_C") != 0 ||
                     strstr(ClassName, "BP_AirDropBox_C") != 0)
                 {
@@ -2137,10 +2138,14 @@ void 绘制::更新对象数据()
                 strstr(ClassName, "BP_PlayerDeadListWrapper_C") ||
                 strstr(ClassName, "DeadInventoryBox") ||
                 // 空投类（包含各种变体）
-                strstr(ClassName, "BP_AirDropBox_") || // 覆盖所有空投箱
+                strstr(ClassName, "BP_AirDropBox_Helicopter_C") ||
                 strstr(ClassName, "BP_CG036_AirDropBox_C") ||
                 strstr(ClassName, "BP_CGO36_AirDropBox_C") ||
-                strstr(ClassName, "CommonTreasureBox_C") ||
+                strstr(ClassName, "PickUpListWrapperActor") ||
+                strstr(ClassName, "PlayerDeadInventoryBox_C") ||
+                strstr(ClassName, "AirDropListWrapperActor") ||
+                strstr(ClassName, "TreasureBox_Main_C") ||
+                strstr(ClassName, "BP_AirDropBox_C") ||
                 strstr(ClassName, "TreasureBox_Main_C") || // 金色宝箱
                 // 密室箱子（如果你希望它们也能显示内部物资）
                 strstr(ClassName, "EscapeBox_SupplyBox_") ||
@@ -2149,9 +2154,15 @@ void 绘制::更新对象数据()
                 strstr(ClassName, "EscapeBoxHight_Weapon_"));
 
             // 判断是否为空投类（用于调距）
-            bool isAirDrop = (strstr(ClassName, "BP_AirDropBox_") ||
+            bool isAirDrop = (strstr(ClassName, "BP_AirDropBox_Helicopter_C") ||
                               strstr(ClassName, "BP_CG036_AirDropBox_C") ||
-                              strstr(ClassName, "BP_CGO36_AirDropBox_C"));
+                              strstr(ClassName, "BP_CGO36_AirDropBox_C") ||
+                              strstr(ClassName, "PickUpListWrapperActor") ||
+                              strstr(ClassName, "PlayerDeadInventoryBox_C") ||
+                              strstr(ClassName, "AirDropListWrapperActor") ||
+                              strstr(ClassName, "TreasureBox_Main_C") ||
+                              strstr(ClassName, "BP_AirDropBox_C") ||
+                              strstr(ClassName, "TreasureBox_Main_C"));
 
             // 动态距离限制：空投 600 米，普通盒子 100 米
             float boxMaxDist = isAirDrop ? 600.0f : 100.0f;
@@ -2816,6 +2827,8 @@ const char *绘制::getMaterialName(char *name)
         {"BP_VH_EV3F4_C", {"履带车", 0}},
         {"VH_SeaPlane_C", {"四人滑向机", 0}},
         {"VH_ATV3_C", {"沙滩车", 0}},
+        {"VH_ATV2_C", {"沙滩车", 0}},
+        {"VH_ATV1_C", {"沙滩车", 0}},
         {"VH_Picobus_C", {"电动小巴", 0}}};
 
     for (const auto &载具 : 载具列表)
