@@ -110,7 +110,7 @@ void StartUpdate(const std::string &currentVersion,
     }
     std::cout << "\n[+] 下载完成。" << std::endl;
 
-    // ---------- 替换自身 ----------
+    // ---------- 替换自身（固定为 Aurakernel.sh + 删除旧文件） ----------
     std::string selfExe = getSelfExe();
     if (selfExe.empty()) {
         std::cerr << "[!] 无法获取自身路径，放弃更新。" << std::endl;
@@ -118,36 +118,54 @@ void StartUpdate(const std::string &currentVersion,
         return;
     }
 
-    // 备份原文件
-    execCmd("cp -f \"" + selfExe + "\" /data/local/tmp/aura_update.bak");
+    // 提取程序目录，生成固定目标文件名 Aurakernel.sh
+    size_t lastSlash = selfExe.find_last_of("/");
+    if (lastSlash == std::string::npos) {
+        std::cerr << "[!] 无法解析程序目录，放弃更新。" << std::endl;
+        if (mustUpdate == "y") exit(1);
+        return;
+    }
+    std::string selfDir = selfExe.substr(0, lastSlash);
+    std::string targetFile = selfDir + "/Aurakernel.sh"; // 固定新文件名
+    std::cout << "[*] 目标更新文件：" << targetFile << std::endl;
 
-    // 若在 system 分区，挂载为可写
-    if (selfExe.find("/system") == 0) {
+    // 备份旧的 Aurakernel.sh
+    execCmd("cp -f \"" + targetFile + "\" /data/local/tmp/aura_update.bak 2>/dev/null");
+
+    // system 分区挂载可写
+    if (selfDir.find("/system") == 0) {
         execCmd("mount -o remount,rw /system");
     }
 
-    std::string replaceCmd = "cp -f /data/local/tmp/aura_update.tmp \"" + selfExe + "\"";
+    // 替换为新版本
+    std::string replaceCmd = "cp -f /data/local/tmp/aura_update.tmp \"" + targetFile + "\"";
     if (!execCmd(replaceCmd)) {
         std::cerr << "[!] 替换文件失败，尝试恢复备份..." << std::endl;
-        execCmd("cp -f /data/local/tmp/aura_update.bak \"" + selfExe + "\"");
+        execCmd("cp -f /data/local/tmp/aura_update.bak \"" + targetFile + "\" 2>/dev/null");
         execCmd("rm -f /data/local/tmp/aura_update.tmp /data/local/tmp/aura_update.bak");
         if (mustUpdate == "y") exit(1);
         return;
     }
 
-    // 设置 777 权限
-    execCmd("chmod 777 \"" + selfExe + "\"");
+    // 设置可执行权限
+    execCmd("chmod 777 \"" + targetFile + "\"");
+
+    // ====================== 核心新增：删除原旧版本文件 ======================
+    std::cout << "[*] 正在清理旧版本文件：" << selfExe << std::endl;
+    execCmd("rm -f \"" + selfExe + "\" 2>/dev/null"); // 安全删除旧文件
+    // ======================================================================
 
     // 清理临时文件
     execCmd("rm -f /data/local/tmp/aura_update.tmp /data/local/tmp/aura_update.bak");
 
-    std::cout << "[+] 更新成功！" << std::endl;
+    std::cout << "[+] 更新成功！新版本：" << targetFile << std::endl;
+    std::cout << "[+] 旧版本文件已自动删除" << std::endl;
 
     if (mustUpdate == "y") {
-        std::cout << "[*] 程序即将退出，请重新启动。" << std::endl;
+        std::cout << "[*] 程序即将退出，请重新启动 Aurakernel.sh。" << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(2));
         exit(0);
     } else {
-        std::cout << "[*] 更新已完成，下次启动生效。\n";
+        std::cout << "[*] 更新已完成，直接运行 Aurakernel.sh 即可使用新版本。\n";
     }
 }
