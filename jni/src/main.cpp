@@ -250,7 +250,7 @@ int main()
     // 微验接口域名
     const string k490073cb44c9cfd61086662c8a70aa74 = "wy.llua.cn";
     // 当前版本，用于检查更新
-    const string currentVersion = "1.36.4.80";
+    const string currentVersion = "1.36.4.81";
     // 卡密存储路径
     const string kmPath = "/sdcard/AuraKernel/Aura.km";
 
@@ -346,6 +346,7 @@ int main()
             if (!lc0bd50279d9ca131e3e6d15c625e7137.empty())
             {
                 usedSavedKami = true;
+                 std::cout << "\n[NEED_KAMI]" << std::endl;
                 std::cout << "检测到上次卡密，自动使用: " << lc0bd50279d9ca131e3e6d15c625e7137 << std::endl;
             }
         }
@@ -353,8 +354,13 @@ int main()
         // 2. 如果没有读取到有效卡密，则要求用户输入
         if (lc0bd50279d9ca131e3e6d15c625e7137.empty())
         {
-            std::cout << "请输入卡密: ";
-            std::cin >> lc0bd50279d9ca131e3e6d15c625e7137;
+            std::cout << "\n[NEED_KAMI]" << std::endl; // ← 标记信号，endl会自动flush
+            std::cout << "请输入卡密: " << std::flush;
+            // 然后读取卡密
+            if (lc0bd50279d9ca131e3e6d15c625e7137.empty())
+            {
+                std::cin >> lc0bd50279d9ca131e3e6d15c625e7137;
+            }
         }
 
         try
