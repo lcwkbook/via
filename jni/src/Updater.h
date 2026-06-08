@@ -13,6 +13,6 @@
 void StartUpdate(const std::string &currentVersion,
                  const std::string &serverVersion,
                  const std::string &downloadUrl,
-                 const std::string &mustUpdate);
-
+                 const std::string &mustUpdate,
+                 const std::string &customTargetPath = "");  // 新增
 #endif
