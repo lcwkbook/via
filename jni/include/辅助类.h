@@ -51,11 +51,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h> // for access
 #include <sys/types.h>
-#include <unistd.h>
 
 // --- 结构体和 IOCTL 定义 ---
 struct paradise_read_physical_memory_cmd
@@ -175,6 +173,215 @@ struct paradise_addr_translate_cmd
 #define WMT_DEVICE_GRE 6
 #define WMT_NORMAL_iNC_oWB 7
 
+
+// ===================== 新增：ditpro_kpm驱动 =====================
+#include <optional>
+#include <memory>
+#include <cstring>
+
+#define __NR_syscall_  18
+#define __FLAGS        1UL << 0
+#define __CHECKSUCCESS (1UL << 30)
+
+enum class DitproDriverType : int {
+    ERR = -1,
+    DITPRO_KPM = 0,
+    DITS_KO = 1,
+    QX_KO = 2,
+    RT_KO = 3
+};
+
+enum class DitproMemoryOp : uint64_t {
+    INIT = 1UL << 1,
+    READ = 1UL << 2,
+    WRITE = 1UL << 3,
+    CPU = 1UL << 4,
+    PROT_NC = 1UL << 5,
+    READLIST = 1UL << 6,
+    READARRAY = 1UL << 7,
+    UNINSTALL = 1UL << 9
+};
+
+enum class DitproOtherOp : uint64_t {
+    PROCESS_PID = 1UL << 10,
+    MODULE_BASE = 1UL << 11,
+    HIDE_PID = 1UL << 12,
+    UNHIDE_PID = 1UL << 13,
+    HIDE_EVENT = 1UL << 14,
+    UNHIDE_EVENT = 1UL << 15,
+    GETUSERMAPS = 1UL << 22,
+    LINGYE = 1UL << 25,//零页
+};
+
+constexpr uint64_t operator|(DitproMemoryOp lhs, DitproMemoryOp rhs) {
+    return static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs);
+}
+
+constexpr uint64_t operator|(uint64_t lhs, DitproMemoryOp rhs) {
+    return lhs | static_cast<uint64_t>(rhs);
+}
+
+constexpr uint64_t operator|(DitproMemoryOp lhs, uint64_t rhs) {
+    return static_cast<uint64_t>(lhs) | rhs;
+}
+
+constexpr uint64_t operator|(DitproOtherOp lhs, DitproOtherOp rhs) {
+    return static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs);
+}
+
+constexpr uint64_t operator|(uint64_t lhs, DitproOtherOp rhs) {
+    return static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs);
+}
+
+struct Dit_uct_base {
+    int pid;
+    const char *name;
+    unsigned long start;
+    unsigned long end;
+};
+
+struct Dit_uct {
+    uint64_t addr;
+    void *buffer;
+    uint64_t size;
+} __attribute__((aligned(8)));
+
+struct Dit_uct_kpm_list {
+    uint64_t addr[10];
+    void *buffer;
+    uint64_t size;
+} __attribute__((aligned(8)));
+
+struct Dit_uct_array {
+    uint64_t count;     //数量
+    uint64_t array_addr;//地址
+    void *buffer;       //缓冲区
+    uint64_t size;      //列表页大小
+};
+
+struct user_maps {
+    unsigned int pid;
+    unsigned long count;
+    char *lists;
+};
+
+class ditpro_driver {
+private:
+    int fd{ -1 };
+    DitproDriverType type{ DitproDriverType::ERR };
+
+    DitproDriverType find_dis() {
+        if (auto check = __CHECKSUCCESS; syscall(__NR_syscall_, &check) == 616) {
+            int flags = 616;
+            fd = syscall(__NR_syscall_, &flags);
+            return (fd > 0) ? DitproDriverType::DITS_KO : DitproDriverType::ERR;
+        } else if (syscall(__NR_syscall_, (__FLAGS | __CHECKSUCCESS)) == 616) {
+            return DitproDriverType::DITPRO_KPM;
+        }
+        return DitproDriverType::ERR;
+    }
+
+    template<typename... Args>
+    long call(Args &&...args) {
+        switch (type) {
+            case DitproDriverType::DITPRO_KPM:
+                return syscall(__NR_syscall_, std::forward<decltype(args)>(args)...);
+            case DitproDriverType::DITS_KO:
+                return ioctl(fd, std::forward<decltype(args)>(args)...);
+            default:
+                return -1;
+        }
+    }
+
+public:
+    bool connected = false;
+    pid_t pid = -1;
+
+    ditpro_driver() {
+        type = find_dis();
+        if (type == DitproDriverType::DITS_KO) {
+            printf("[+] 检测到DITS驱动\n");
+            connected = true;
+        } else if (type == DitproDriverType::DITPRO_KPM) {
+            printf("[+] 检测到DITPRO_KPM驱动\n");
+            connected = true;
+        } else {
+            printf("[-] 未找到ditpro系列驱动\n");
+            connected = false;
+        }
+    }
+
+    ~ditpro_driver() {
+        if (connected) {
+            UnMem();
+            unProc();
+        }
+    }
+
+    // 初始化读取 返回true成功
+    bool init_pid(int pid) {
+        this->pid = pid;
+        return call((__FLAGS | DitproMemoryOp::INIT), pid) > 0;
+    }
+
+    // 读取内存
+    long read(uint64_t addr, void *buffer, uint64_t size) {
+        struct Dit_uct cm = { addr, buffer, size };
+        uint64_t flags = (__FLAGS | DitproMemoryOp::READ);
+        return call(flags, &cm);
+    }
+
+    // 链式指针读取（最多10层）
+    long read_chain(std::initializer_list<uint64_t> nums, void *buffer, uint64_t size) {
+        struct Dit_uct_kpm_list cm;
+        memset(cm.addr, -1, sizeof cm.addr);
+        size_t i = 0;
+        for (uint64_t val: nums) {
+            if (i >= 10) return -1;
+            cm.addr[i++] = val;
+        }
+        cm.buffer = buffer;
+        cm.size = size;
+
+        uint64_t flags = static_cast<uint64_t>(DitproMemoryOp::READ) | __FLAGS | static_cast<uint64_t>(DitproMemoryOp::READLIST);
+        return call(flags, &cm);
+    }
+
+    // 写入内存
+    long write(uint64_t addr, void *buffer, uint64_t size) {
+        struct Dit_uct cm = { addr, buffer, size };
+        uint64_t flags = (__FLAGS | DitproMemoryOp::WRITE);
+        return call(flags, &cm);
+    }
+
+    // 获取进程PID
+    std::optional<int> get_pid(std::string_view name) {
+        if (auto pid = call((__FLAGS | DitproOtherOp::PROCESS_PID), name.data()); pid > 2) {
+            return pid;
+        }
+        return std::nullopt;
+    }
+
+    // 获取模块基址 (bss=true获取bss段)
+    std::optional<uint64_t> get_module_base(int pid, std::string_view name, bool bss = false) {
+        struct Dit_uct_base cm = { pid, name.data(), bss, bss };
+        if (call((__FLAGS | DitproOtherOp::MODULE_BASE), &cm) == 0) {
+            return cm.start;
+        }
+        return std::nullopt;
+    }
+
+    // 隐藏进程
+    int hideProc() { return call((__FLAGS | DitproOtherOp::HIDE_PID), gettid()); }
+    
+    // 恢复进程（隐藏后必须调用，否则重启）
+    int unProc() { return call((__FLAGS | DitproOtherOp::UNHIDE_PID), gettid()); }
+    
+    // 卸载驱动
+    void UnMem() { call((__FLAGS | DitproMemoryOp::UNINSTALL)); }
+};
+// ===================== ditpro_kpm驱动结束 =====================
+
 // --- 单例 c_driver 类 ---
 
 class Kernel
@@ -196,6 +403,7 @@ public:
     int fd;
     Driver *kpm_driver = nullptr; // KPM驱动对象
     paradise_driver *paradise = nullptr;
+    ditpro_driver *ditpro = nullptr; // 新增：ditpro驱动对象
     Kernel();
     ~Kernel();
     uintptr_t get_Module_On();

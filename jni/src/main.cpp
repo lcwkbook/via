@@ -70,14 +70,30 @@ int main()
 {
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("\n选择驱动:\n");
-    printf("  1 - 自动刷入驱动 (备用驱动)\n");
-    printf("  2 - KPM驱动 (推荐)\n");
-    printf("  3 - Paradise驱动\n");
+    printf("  1 - KPM驱动 (暂不推荐首选-作者关服务器了)\n");
+    printf("  2 - ditpro_kpm驱动 (最新推荐)\n");
+    printf("  3 - Paradise驱动(次选推荐)\n");
+    printf("  4 - 备用驱动(自动刷入)\n");
     printf("输入: ");
     int choice = 0;
     scanf("%d", &choice);
 
-    if (choice == 1)
+    if (choice == 1) // KPM驱动
+    {
+        g_driver_mode = 1;
+        printf("[*] 已选择KPM模式，跳过刷入\n");
+    }
+    else if (choice == 2) // ditpro_kpm驱动
+    {
+        g_driver_mode = 3;
+        printf("[*] 已选择ditpro_kpm模式，跳过刷入\n");
+    }
+    else if (choice == 3) // Paradise驱动
+    {
+        g_driver_mode = 2;
+        printf("[*] 已选择Paradise模式，跳过刷入\n");
+    }
+    else if (choice == 4) // 备用驱动(自动刷入)
     {
         g_driver_mode = 0;
 
@@ -117,16 +133,6 @@ int main()
                 printf("\033[1;31m[!] 标记文件创建失败\n\033[0m");
             }
         }
-    }
-    else if (choice == 2)
-    {
-        g_driver_mode = 1;
-        printf("[*] 已选择KPM模式，跳过刷入\n");
-    }
-    else if (choice == 3)
-    { // 新增
-        g_driver_mode = 2;
-        printf("[*] 已选择Paradise模式，跳过刷入\n");
     }
     else
     {
@@ -224,13 +230,18 @@ int main()
         绘制.读写.选择配置.防录屏 = 绘制.防录屏;
     }
 
-    // ========== 后台模式选择 ==========
-    if (choice == 2) // KPM模式：默认有后台，不询问
+        // ========== 后台模式选择 ==========
+    if (choice == 1) // KPM模式：默认有后台，不询问（原choice==2 → 改为choice==1）
     {
         printf("[*] KPM模式默认有后台\n");
         无后台 = 1; // 标记有后台
     }
-    else // 原驱动模式：询问后台模式
+    else if (choice == 2) // ditpro_kpm模式：默认有后台，不询问（新增）
+    {
+        printf("[*] ditpro_kpm模式默认有后台\n");
+        无后台 = 1; // 标记有后台
+    }
+    else // Paradise和备用驱动模式：询问后台模式
     {
         printf("1.有后台\n2.无后台\n\n");
         std::cin >> 无后台;
@@ -251,7 +262,7 @@ int main()
     // 微验接口域名
     const string k490073cb44c9cfd61086662c8a70aa74 = "wy.llua.cn";
     // 当前版本，用于检查更新
-    const string currentVersion = "1.36.4.86";
+    const string currentVersion = "1.36.4.89";
     // 卡密存储路径
     const string kmPath = "/sdcard/AuraKernel/Aura.km";
 
