@@ -43,6 +43,7 @@ LOCAL_SRC_FILES := $(FILE_LIST:$(LOCAL_PATH)/%=%)
 LOCAL_LDLIBS := -llog -landroid -lEGL -lGLESv1_CM -lGLESv2 -lGLESv3
 LOCAL_LDFLAGS += -Wl,--gc-sections,--strip-all,-llog
 LOCAL_LDFLAGS += -L$(LOCAL_PATH)/include/lib
+LOCAL_LDLIBS += -lz
 
 # 链接 driver 静态库
 LOCAL_STATIC_LIBRARIES := driver_prebuilt paradise_prebuilt
