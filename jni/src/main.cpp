@@ -22,7 +22,6 @@
 #include "Updater.h"
 #include <cstdlib>
 #include "paradise/paradise_api.h"
-#include <zlib.h>
 using namespace std;
 extern int g_driver_mode;
 // 全局变量
@@ -67,51 +66,10 @@ void createDriverFlag()
         flag.close();
     }
 }
-unsigned long calculateCRC32(const unsigned char* buffer, size_t size)
-{
-    return crc32(0U, buffer, size);
-}
-// ========== 🛡️ 身份验证标记（禁止删除或修改！） ==========
-// 这个标记会被 Android APP 在运行前检查
-// 如果文件被替换，标记不存在，APP 将拒绝执行
-const char* getAuraKernelSignature() {
-    // 返回一个唯一且固定的签名哈希
-    // 用你的 APK 签名哈希 + 随机盐值计算
-    return "AURAKERNEL_V1_ VlryMOwxJbfP9KYssSuiM+dc0b/OP76mq7JqbJiVHIM=";
-}
 
-// 再加一个验证函数，确保别人不能轻易模拟
-bool isGenuineAuraKernel() {
-    // 检查自身文件完整性
-    FILE* self = fopen("/proc/self/exe", "rb");
-    if (!self) return false;
-    
-    // 检查文件中是否包含身份标记
-    // 这个标记字符串的 CRC32 校验值
-    const unsigned long EXPECTED_CRC = 0xA1B2C3D4;  // ← 你自己的 CRC 值
-    
-    // 读取自身文件计算 CRC
-    fseek(self, 0, SEEK_END);
-    long size = ftell(self);
-    fseek(self, 0, SEEK_SET);
-    
-    unsigned char* buffer = (unsigned char*)malloc(size);
-    fread(buffer, 1, size, self);
-    fclose(self);
-    
-    unsigned long crc = calculateCRC32(buffer, size);
-    free(buffer);
-    
-    return crc == EXPECTED_CRC;
-}
 
 int main()
 {
-    // 启动时自我校验（可选，防止别人直接运行你的二进制）
-    if (!isGenuineAuraKernel()) {
-        printf("❌ 文件已被篡改\n");
-        exit(1);
-    }
 
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("\n选择驱动:\n");
@@ -307,7 +265,7 @@ int main()
     // 微验接口域名
     const string k490073cb44c9cfd61086662c8a70aa74 = "wy.llua.cn";
     // 当前版本，用于检查更新
-    const string currentVersion = "1.36.4.90";
+    const string currentVersion = "1.36.4.91";
     // 卡密存储路径
     const string kmPath = "/sdcard/AuraKernel/Aura.km";
 
