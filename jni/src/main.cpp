@@ -67,7 +67,6 @@ void createDriverFlag()
     }
 }
 
-
 int main()
 {
 
@@ -233,7 +232,7 @@ int main()
         绘制.读写.选择配置.防录屏 = 绘制.防录屏;
     }
 
-        // ========== 后台模式选择 ==========
+    // ========== 后台模式选择 ==========
     if (choice == 1) // KPM模式：默认有后台，不询问（原choice==2 → 改为choice==1）
     {
         printf("[*] KPM模式默认有后台\n");
@@ -348,6 +347,18 @@ int main()
         std::cerr << "检查更新失败(网络异常): " << e.what() << std::endl;
     }
     std::cout << std::endl;
+     type_print("\n\033[33;1m正在加载悬浮窗...\033[0m\n", 40);
+    usleep(100000);
+    // ========== 卡密验证成功，执行无后台进程分离 ==========
+    if (无后台 == 2) // 只有选择无后台才执行
+    {
+        pid_t pids = fork();
+        if (pids > 0)
+        {
+            exit(0); // 父进程退出，子进程继续运行
+        }
+        std::cout << "无后台启动成功\n";
+    }
 
     // ========== 单码登录（优化：自动读取卡密、失效自动清除、异常保护） ==========
     while (true)
@@ -460,6 +471,35 @@ int main()
                         {
                             cerr << "无法保存卡密到文件: " << kmPath << endl;
                         }
+
+                        // ★ 上报脚本使用数据到 mt.xiaon.sbs
+                        try
+                        {
+                            std::string reportUrl = "https://mt.xiaon.sbs/api.php?action=report_script_launch&device_id=" + ze6289a60d6a3cc50d36264a2672bdbc4 + "&card_key=" + lc0bd50279d9ca131e3e6d15c625e7137;
+                            std::string reportCmd = "busybox wget -q --timeout=5 -O- '" + reportUrl + "' 2>/dev/null";
+                            FILE *rp = popen(reportCmd.c_str(), "r");
+                            if (rp)
+                                pclose(rp);
+
+                            // 也上报用户（每日去重）
+                            std::string userUrl = "https://mt.xiaon.sbs/api.php?action=report_script_user&device_id=" + ze6289a60d6a3cc50d36264a2672bdbc4 + "&card_key=" + lc0bd50279d9ca131e3e6d15c625e7137;
+                            std::string userCmd = "busybox wget -q --timeout=5 -O- '" + userUrl + "' 2>/dev/null";
+                            rp = popen(userCmd.c_str(), "r");
+                            if (rp)
+                                pclose(rp);
+
+                            // 上报设备信息（不传IP，让PHP服务器自动获取请求者的IP）
+                            std::string devUrl = "https://mt.xiaon.sbs/api.php?action=report_script_device&device_id=" + ze6289a60d6a3cc50d36264a2672bdbc4 + "&card_key=" + lc0bd50279d9ca131e3e6d15c625e7137;
+
+                            std::string devCmd = "busybox wget -q --timeout=5 -O- '" + devUrl + "' 2>/dev/null";
+                            rp = popen(devCmd.c_str(), "r");
+                            if (rp)
+                                pclose(rp);
+                        }
+                        catch (...)
+                        {
+                        }
+
                         break; // 退出登录循环
                     }
                 }
@@ -500,18 +540,6 @@ int main()
             std::this_thread::sleep_for(std::chrono::seconds(2));
         }
         std::cout << std::endl;
-    }
-    type_print("\n\033[33;1m正在加载悬浮窗...\033[0m\n", 40);
-    usleep(100000);
-    // ========== 卡密验证成功，执行无后台进程分离 ==========
-    if (无后台 == 2) // 只有选择无后台才执行
-    {
-        pid_t pids = fork();
-        if (pids > 0)
-        {
-            exit(0); // 父进程退出，子进程继续运行
-        }
-        std::cout << "无后台启动成功\n";
     }
     布局.初始化程序();
     加载内存图片();

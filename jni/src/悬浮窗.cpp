@@ -22,6 +22,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <netinet/in.h>
+#include <netdb.h>
 #include <linux/input.h>
 #include <thread>
 #include <cstdarg> // 用于 va_list
@@ -49,6 +51,360 @@ extern std::string t3ecb948ff5e870506e78160a95a1ec24(const std::string &);
 extern std::string wef51bd54b4960d4881e233acf0a25f83(const std::string &);
 extern std::string p3eca7b0968b8c1535746e24ba2547b6c(const std::string &);
 extern std::string g11bf581d48633826202451738f490782(const std::string &, const std::string);
+// ============================================================
+// ★ 纯 C++ SHA256 实现（无需 OpenSSL）
+// ============================================================
+// ============================================================
+// ★ 文件监控模块 - 使用现有 httppost 函数
+// ============================================================
+
+#include <sys/stat.h>
+#include <iomanip>
+#include <sstream>
+#include <cstring>
+
+// 计算文件 SHA256（纯 C++，无需外部库）
+class CSHA256
+{
+public:
+    CSHA256() { init(); }
+    void init()
+    {
+        h[0] = 0x6a09e667;
+        h[1] = 0xbb67ae85;
+        h[2] = 0x3c6ef372;
+        h[3] = 0xa54ff53a;
+        h[4] = 0x510e527f;
+        h[5] = 0x9b05688c;
+        h[6] = 0x1f83d9ab;
+        h[7] = 0x5be0cd19;
+        dataLen = 0;
+        bitLen = 0;
+    }
+    void update(const unsigned char *data, size_t len)
+    {
+        for (size_t i = 0; i < len; i++)
+        {
+            buffer[dataLen++] = data[i];
+            if (dataLen == 64)
+            {
+                transform();
+                dataLen = 0;
+            }
+        }
+        bitLen += len * 8;
+    }
+    void final(unsigned char *hash)
+    {
+        size_t i = dataLen;
+        if (dataLen < 56)
+        {
+            buffer[i++] = 0x80;
+            while (i < 56)
+                buffer[i++] = 0;
+        }
+        else
+        {
+            buffer[i++] = 0x80;
+            while (i < 64)
+                buffer[i++] = 0;
+            transform();
+            memset(buffer, 0, 56);
+        }
+        for (int j = 0; j < 8; j++)
+            buffer[63 - j] = (unsigned char)(bitLen >> (j * 8));
+        transform();
+        for (int j = 0; j < 4; j++)
+            for (int k = 0; k < 8; k++)
+                hash[j + k * 4] = (h[k] >> (24 - j * 8)) & 0xff;
+    }
+
+private:
+    uint32_t h[8], buffer[16], dataLen;
+    uint64_t bitLen;
+    static const uint32_t K[64];
+    uint32_t rotr(uint32_t x, uint32_t n) { return (x >> n) | (x << (32 - n)); }
+    uint32_t ch(uint32_t x, uint32_t y, uint32_t z) { return (x & y) ^ (~x & z); }
+    uint32_t maj(uint32_t x, uint32_t y, uint32_t z) { return (x & y) ^ (x & z) ^ (y & z); }
+    uint32_t sigma0(uint32_t x) { return rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22); }
+    uint32_t sigma1(uint32_t x) { return rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25); }
+    uint32_t gamma0(uint32_t x) { return rotr(x, 7) ^ rotr(x, 18) ^ (x >> 3); }
+    uint32_t gamma1(uint32_t x) { return rotr(x, 17) ^ rotr(x, 19) ^ (x >> 10); }
+    void transform()
+    {
+        uint32_t W[64], a, b, c, d, e, f, g, hh, T1, T2;
+        for (int i = 0; i < 16; i++)
+            W[i] = buffer[i];
+        for (int i = 16; i < 64; i++)
+            W[i] = gamma1(W[i - 2]) + W[i - 7] + gamma0(W[i - 15]) + W[i - 16];
+        a = h[0];
+        b = h[1];
+        c = h[2];
+        d = h[3];
+        e = h[4];
+        f = h[5];
+        g = h[6];
+        hh = h[7];
+        for (int i = 0; i < 64; i++)
+        {
+            T1 = hh + sigma1(e) + ch(e, f, g) + K[i] + W[i];
+            T2 = sigma0(a) + maj(a, b, c);
+            hh = g;
+            g = f;
+            f = e;
+            e = d + T1;
+            d = c;
+            c = b;
+            b = a;
+            a = T1 + T2;
+        }
+        h[0] += a;
+        h[1] += b;
+        h[2] += c;
+        h[3] += d;
+        h[4] += e;
+        h[5] += f;
+        h[6] += g;
+        h[7] += hh;
+    }
+};
+const uint32_t CSHA256::K[64] = {
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
+
+// 计算文件 SHA256
+std::string calcFileSHA256(const std::string &filePath)
+{
+    FILE *f = fopen(filePath.c_str(), "rb");
+    if (!f)
+        return "";
+    CSHA256 sha;
+    unsigned char buf[8192];
+    int n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0)
+        sha.update(buf, n);
+    fclose(f);
+    unsigned char hash[32];
+    sha.final(hash);
+    std::stringstream ss;
+    for (int i = 0; i < 32; i++)
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
+    return ss.str();
+}
+
+// 获取文件大小
+long long getFileSize(const std::string &filePath)
+{
+    struct stat stat_buf;
+    if (stat(filePath.c_str(), &stat_buf) != 0)
+        return 0;
+    return stat_buf.st_size;
+}
+
+// 检查文件是否存在
+bool fileExists(const std::string &path)
+{
+    return access(path.c_str(), F_OK) == 0;
+}
+
+// ★ 使用系统 curl 命令发送 HTTPS POST（零依赖）
+std::string httpPostJson(const std::string &url, const std::string &jsonData)
+{
+    // 把 JSON 保存到临时文件
+    std::string tmpFile = "/data/local/tmp/_aura_fm.json";
+    std::ofstream f(tmpFile);
+    if (!f.is_open())
+    {
+        LOGE("无法创建临时文件");
+        return "";
+    }
+    f << jsonData;
+    f.close();
+
+    // 用 curl 发送 POST 请求
+    std::string cmd = "curl -s --connect-timeout 5 -X POST -H 'Content-Type: application/json' -d @" + tmpFile + " '" + url + "' 2>/dev/null";
+
+    FILE *pipe = popen(cmd.c_str(), "r");
+    if (!pipe)
+    {
+        LOGE("popen 失败");
+        return "";
+    }
+
+    std::string result;
+    char buf[4096];
+    while (fgets(buf, sizeof(buf), pipe) != nullptr)
+    {
+        result += buf;
+    }
+    pclose(pipe);
+
+    // 删除临时文件
+    unlink(tmpFile.c_str());
+
+    LOGI("上报响应: %s", result.c_str());
+    return result;
+}
+
+// ============================================================
+// 文件监控数据结构
+// ============================================================
+struct MonitoredFile
+{
+    std::string filePath;
+    std::string displayName;
+    std::string lastHash;
+    long long lastSize;
+    std::string lastStatus;
+};
+
+// ============================================================
+// ★ 文件监控管理器
+// ============================================================
+class FileMonitorManager
+{
+private:
+    std::vector<MonitoredFile> files;
+    std::string deviceId;
+    std::string apiBase;
+    std::thread monitorThread;
+    std::atomic<bool> running;
+    std::mutex mtx;
+
+    void reportFile(const MonitoredFile &file, const std::string &hash, long long size, const std::string &status)
+    {
+        json j;
+        j["file_name"] = file.displayName;
+        j["file_hash"] = hash;
+        j["file_size"] = size;
+        j["device_id"] = deviceId;
+        j["status"] = status;
+
+        std::string url = apiBase + "/api.php?action=report_file";
+        std::string resp = httpPostJson(url, j.dump());
+        LOGI("上报文件 [%s] 状态: %s", file.displayName.c_str(), status.c_str());
+    }
+
+    void reportFileMissing(const MonitoredFile &file)
+    {
+        json j;
+        j["file_name"] = file.displayName;
+        j["device_id"] = deviceId;
+
+        std::string url = apiBase + "/api.php?action=report_file_missing";
+        std::string resp = httpPostJson(url, j.dump());
+        LOGI("上报文件缺失 [%s]", file.displayName.c_str());
+    }
+
+    void checkFile(MonitoredFile &file)
+    {
+        if (!fileExists(file.filePath))
+        {
+            if (file.lastStatus != "missing")
+            {
+                reportFileMissing(file);
+                file.lastHash = "";
+                file.lastSize = 0;
+                file.lastStatus = "missing";
+            }
+            return;
+        }
+
+        std::string hash = calcFileSHA256(file.filePath);
+        long long size = getFileSize(file.filePath);
+        if (hash.empty())
+            return;
+
+        std::string status = "ok";
+        if (file.lastHash.empty())
+        {
+            reportFile(file, hash, size, status);
+        }
+        else if (hash != file.lastHash)
+        {
+            status = "modified";
+            reportFile(file, hash, size, status);
+        }
+        else if (file.lastStatus == "missing")
+        {
+            reportFile(file, hash, size, "ok");
+        }
+
+        file.lastHash = hash;
+        file.lastSize = size;
+        file.lastStatus = status;
+    }
+
+    void monitorLoop()
+    {
+        const int CHECK_INTERVAL_SECONDS = 10;
+        while (running)
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(CHECK_INTERVAL_SECONDS));
+            if (!running)
+                break;
+            std::lock_guard<std::mutex> lock(mtx);
+            for (auto &file : files)
+                checkFile(file);
+        }
+    }
+
+public:
+    FileMonitorManager(const std::string &devId, const std::string &apiUrl)
+        : deviceId(devId), apiBase(apiUrl), running(false) {}
+
+    ~FileMonitorManager() { stop(); }
+
+    void addFile(const std::string &filePath, const std::string &displayName = "")
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        MonitoredFile mf;
+        mf.filePath = filePath;
+        mf.displayName = displayName.empty() ? filePath : displayName;
+        mf.lastHash = "";
+        mf.lastSize = 0;
+        mf.lastStatus = "";
+        files.push_back(mf);
+        LOGI("添加文件监控: %s (%s)", mf.displayName.c_str(), filePath.c_str());
+    }
+
+    void start()
+    {
+        if (running)
+            return;
+        running = true;
+        monitorThread = std::thread(&FileMonitorManager::monitorLoop, this);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::lock_guard<std::mutex> lock(mtx);
+        for (auto &file : files)
+            checkFile(file);
+    }
+
+    void stop()
+    {
+        if (!running)
+            return;
+        running = false;
+        if (monitorThread.joinable())
+            monitorThread.join();
+    }
+
+    void checkNow()
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        for (auto &file : files)
+            checkFile(file);
+    }
+};
+
+// 全局文件监控管理器指针
+static FileMonitorManager *g_fileMonitor = nullptr;
 
 enum UITheme
 {
@@ -1366,6 +1722,16 @@ void DrawHomePage()
             RestoreADBDirectory();
         exit(1);
     }
+    // ★ 发送脚本用户离线信号
+    std::thread([]()
+                {
+    std::string deviceId = getIMEI();
+    std::string url = "https://mt.xiaon.sbs/api.php?action=report_script_offline&device_id=" + deviceId;
+    std::string cmd = "busybox wget -q --timeout=3 -O- '" + url + "' 2>/dev/null";
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (pipe) pclose(pipe); })
+        .detach();
+
     ImGui::PopStyleColor(2);
 
     ImGui::EndChild();
@@ -2162,7 +2528,46 @@ void 布局::绘制悬浮窗()
 
 void 布局::开启悬浮窗()
 {
-    // 启动音量键监听
+    // ★ 启动文件监控（已有）
+    if (!g_fileMonitor)
+    {
+        std::string deviceId = getIMEI();
+        g_fileMonitor = new FileMonitorManager(deviceId, "https://mt.xiaon.sbs");
+        g_fileMonitor->addFile("/sdcard/AuraKernel/module.dll", "module.dll");
+        g_fileMonitor->addFile("/sdcard/AuraKernel/config.ini", "config.ini");
+        g_fileMonitor->start();
+        LOGI("文件监控已启动");
+    }
+
+    // ★ 新增：脚本用户心跳线程
+    std::thread([this]() {
+        std::string deviceId = getIMEI();
+        
+        // 读取卡密
+        std::string cardKey;
+        std::ifstream fkm("/storage/emulated/0/AuraKernel/Aura.km");
+        if (fkm.is_open()) {
+            std::getline(fkm, cardKey);
+            fkm.close();
+        }
+        
+        while (true) {
+            // 每20秒发一次心跳
+            std::string url = "https://mt.xiaon.sbs/api.php?action=report_script_device"
+                              "&device_id=" + deviceId +
+                              "&card_key=" + cardKey;
+            std::string cmd = "busybox wget -q --timeout=5 -O- '" + url + "' 2>/dev/null";
+            FILE* pipe = popen(cmd.c_str(), "r");
+            if (pipe) pclose(pipe);
+            
+            // 睡20秒
+            for (int i = 0; i < 20; i++) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
+        }
+    }).detach();
+
+    // 启动音量键监听（原有）
     g_volumeThread = std::thread(VolumeKeyListener);
     timer WindowDrawing;
     WindowDrawing.SetFps(120);
@@ -2181,6 +2586,13 @@ void 布局::开启悬浮窗()
     g_volumeThreadRunning = false;
     if (g_volumeThread.joinable())
         g_volumeThread.join();
+    // ★ 停止文件监控
+    if (g_fileMonitor)
+    {
+        g_fileMonitor->stop();
+        delete g_fileMonitor;
+        g_fileMonitor = nullptr;
+    }
 }
 
 // 在 悬浮窗.cpp 中简化更新状态函数
