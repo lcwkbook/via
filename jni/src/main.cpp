@@ -22,6 +22,8 @@
 #include "Updater.h"
 #include <cstdlib>
 #include "paradise/paradise_api.h"
+#include <atomic>  // 新增：atomic头文件，用到std::atomic
+#include <iomanip> // 新增：std::setw put_time依赖
 using namespace std;
 extern int g_driver_mode;
 // 全局变量
@@ -45,6 +47,139 @@ int ZM;
 
 #include "weiyan/Util.h" //导入微验库(每次注入的库不通用，请使用对应注入的库)
 int g_driver_mode = 0;
+
+// ========== ★ 新增：URL编码辅助函数 ==========
+std::string url_encode(const std::string &value)
+{
+    std::ostringstream escaped;
+    escaped.fill('0');
+    escaped << std::hex;
+    for (char c : value)
+    {
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~')
+        {
+            escaped << c;
+        }
+        else
+        {
+            escaped << '%' << std::setw(2) << (int)(unsigned char)c;
+        }
+    }
+    return escaped.str();
+}
+
+// ========== ★ 新增：心跳线程函数 ==========
+std::atomic<bool> g_hb_running(true);
+void script_heartbeat_thread(std::string device_id, std::string card_key)
+{
+    try
+    {
+        std::string hbUrl = "https://mt.xiaon.sbs/api.php?action=report_script_heartbeat&device_id=" + device_id + "&card_key=" + card_key;
+        std::string cmd = "busybox wget -q --timeout=5 -O- '" + hbUrl + "' 2>/dev/null";
+        FILE *rp = popen(cmd.c_str(), "r");
+        if (rp)
+            pclose(rp);
+    }
+    catch (...)
+    {
+    }
+    while (g_hb_running)
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(18));
+        try
+        {
+            std::string hbUrl = "https://mt.xiaon.sbs/api.php?action=report_script_heartbeat&device_id=" + device_id + "&card_key=" + card_key;
+            std::string cmd = "busybox wget -q --timeout=5 -O- '" + hbUrl + "' 2>/dev/null";
+            FILE *rp = popen(cmd.c_str(), "r");
+            if (rp)
+                pclose(rp);
+        }
+        catch (...)
+        {
+        }
+    }
+}
+
+// ========== ★ 新增：异步上报线程函数 ==========
+void async_report_thread(std::string device_id, std::string card_key)
+{
+    try
+    {
+        // 获取内核版本
+        struct utsname kernel_info;
+        std::string kernel_ver = "unknown";
+        if (uname(&kernel_info) == 0)
+        {
+            kernel_ver = kernel_info.release;
+        }
+
+        // 获取设备信息（通过读取系统属性）
+        std::string device_name = "Android";
+        std::string manufacturer = "Unknown";
+        std::string model = "Unknown";
+
+        FILE *fp = popen("getprop ro.product.name 2>/dev/null", "r");
+        if (fp)
+        {
+            char buf[256] = {0};
+            if (fgets(buf, sizeof(buf), fp))
+            {
+                buf[strcspn(buf, "\n")] = 0;
+                device_name = buf;
+            }
+            pclose(fp);
+        }
+        fp = popen("getprop ro.product.manufacturer 2>/dev/null", "r");
+        if (fp)
+        {
+            char buf[256] = {0};
+            if (fgets(buf, sizeof(buf), fp))
+            {
+                buf[strcspn(buf, "\n")] = 0;
+                manufacturer = buf;
+            }
+            pclose(fp);
+        }
+        fp = popen("getprop ro.product.model 2>/dev/null", "r");
+        if (fp)
+        {
+            char buf[256] = {0};
+            if (fgets(buf, sizeof(buf), fp))
+            {
+                buf[strcspn(buf, "\n")] = 0;
+                model = buf;
+            }
+            pclose(fp);
+        }
+
+        // 1. 上报启动
+        std::string url = "https://mt.xiaon.sbs/api.php?action=report_script_launch&device_id=" + device_id + "&card_key=" + card_key;
+        std::string cmd = "busybox wget -q --timeout=5 -O- '" + url + "' 2>/dev/null";
+        FILE *rp = popen(cmd.c_str(), "r");
+        if (rp)
+            pclose(rp);
+
+        // 2. 上报用户（每日去重）
+        url = "https://mt.xiaon.sbs/api.php?action=report_script_user&device_id=" + device_id + "&card_key=" + card_key;
+        cmd = "busybox wget -q --timeout=5 -O- '" + url + "' 2>/dev/null";
+        rp = popen(cmd.c_str(), "r");
+        if (rp)
+            pclose(rp);
+
+        // 3. 上报设备信息（带上完整的设备详情）
+        url = std::string("https://mt.xiaon.sbs/api.php?action=report_script_device")
+            + "&device_id=" + device_id
+            + "&card_key=" + card_key
+            + "&device_name=" + url_encode(device_name)
+            + "&manufacturer=" + url_encode(manufacturer)
+            + "&model=" + url_encode(model)
+            + "&kernel_version=" + url_encode(kernel_ver);
+        cmd = "busybox wget -q --timeout=5 -O- '" + url + "' 2>/dev/null";
+        rp = popen(cmd.c_str(), "r");
+        if (rp) pclose(rp);
+    } catch (...) {}  // ← 这里闭合整个 try
+}  // ← 这里闭合函数
+
 
 // 驱动标记文件路径
 const string DRIVER_INSTALLED_FLAG = "/sdcard/AuraKernel/driver_installed.flag";
@@ -347,18 +482,6 @@ int main()
         std::cerr << "检查更新失败(网络异常): " << e.what() << std::endl;
     }
     std::cout << std::endl;
-     type_print("\n\033[33;1m正在加载悬浮窗...\033[0m\n", 40);
-    usleep(100000);
-    // ========== 卡密验证成功，执行无后台进程分离 ==========
-    if (无后台 == 2) // 只有选择无后台才执行
-    {
-        pid_t pids = fork();
-        if (pids > 0)
-        {
-            exit(0); // 父进程退出，子进程继续运行
-        }
-        std::cout << "无后台启动成功\n";
-    }
 
     // ========== 单码登录（优化：自动读取卡密、失效自动清除、异常保护） ==========
     while (true)
@@ -472,33 +595,11 @@ int main()
                             cerr << "无法保存卡密到文件: " << kmPath << endl;
                         }
 
-                        // ★ 上报脚本使用数据到 mt.xiaon.sbs
-                        try
-                        {
-                            std::string reportUrl = "https://mt.xiaon.sbs/api.php?action=report_script_launch&device_id=" + ze6289a60d6a3cc50d36264a2672bdbc4 + "&card_key=" + lc0bd50279d9ca131e3e6d15c625e7137;
-                            std::string reportCmd = "busybox wget -q --timeout=5 -O- '" + reportUrl + "' 2>/dev/null";
-                            FILE *rp = popen(reportCmd.c_str(), "r");
-                            if (rp)
-                                pclose(rp);
+                        // ★ 启动异步上报线程（不阻塞悬浮窗加载）
+                        std::thread(async_report_thread, ze6289a60d6a3cc50d36264a2672bdbc4, lc0bd50279d9ca131e3e6d15c625e7137).detach();
 
-                            // 也上报用户（每日去重）
-                            std::string userUrl = "https://mt.xiaon.sbs/api.php?action=report_script_user&device_id=" + ze6289a60d6a3cc50d36264a2672bdbc4 + "&card_key=" + lc0bd50279d9ca131e3e6d15c625e7137;
-                            std::string userCmd = "busybox wget -q --timeout=5 -O- '" + userUrl + "' 2>/dev/null";
-                            rp = popen(userCmd.c_str(), "r");
-                            if (rp)
-                                pclose(rp);
-
-                            // 上报设备信息（不传IP，让PHP服务器自动获取请求者的IP）
-                            std::string devUrl = "https://mt.xiaon.sbs/api.php?action=report_script_device&device_id=" + ze6289a60d6a3cc50d36264a2672bdbc4 + "&card_key=" + lc0bd50279d9ca131e3e6d15c625e7137;
-
-                            std::string devCmd = "busybox wget -q --timeout=5 -O- '" + devUrl + "' 2>/dev/null";
-                            rp = popen(devCmd.c_str(), "r");
-                            if (rp)
-                                pclose(rp);
-                        }
-                        catch (...)
-                        {
-                        }
+                        // ★ 启动心跳线程（保持在线状态）
+                        std::thread(script_heartbeat_thread, ze6289a60d6a3cc50d36264a2672bdbc4, lc0bd50279d9ca131e3e6d15c625e7137).detach();
 
                         break; // 退出登录循环
                     }
@@ -539,8 +640,28 @@ int main()
             // 等待后重试，避免高频请求
             std::this_thread::sleep_for(std::chrono::seconds(2));
         }
+
+        type_print("\n\033[33;1m正在加载悬浮窗...\033[0m\n", 40);
+        fflush(stdout);
+        usleep(100000);
+        // ========== 卡密验证成功，执行无后台进程分离 ==========
+        if (无后台 == 2) // 只有选择无后台才执行
+        {
+            pid_t pids = fork();
+            if (pids > 0)
+            {
+                exit(0); // 父进程退出，子进程继续运行
+            }
+            std::cout << "无后台启动成功\n";
+        }
+
         std::cout << std::endl;
     }
+
+    type_print("\n\033[33;1m正在加载悬浮窗...\033[0m\n", 40);
+    fflush(stdout);
+    usleep(100000);
+
     布局.初始化程序();
     加载内存图片();
     绘制.读取配置();

@@ -2553,10 +2553,10 @@ void 布局::开启悬浮窗()
         
         while (true) {
             // 每20秒发一次心跳
-            std::string url = "https://mt.xiaon.sbs/api.php?action=report_script_device"
-                              "&device_id=" + deviceId +
-                              "&card_key=" + cardKey;
-            std::string cmd = "busybox wget -q --timeout=5 -O- '" + url + "' 2>/dev/null";
+            std::string url = "https://mt.xiaon.sbs/api.php?action=report_script_heartbeat"
+                  "&device_id=" + deviceId +
+                  "&card_key=" + cardKey;
+            std::string cmd = "curl -s --connect-timeout 5 --max-time 5 '" + url + "' 2>&1";
             FILE* pipe = popen(cmd.c_str(), "r");
             if (pipe) pclose(pipe);
             
