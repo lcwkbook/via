@@ -32,6 +32,7 @@
 #include "DataReader.h"
 #include <poll.h> // poll 结构体
 #include <atomic> // std::atomic
+#include <sys/utsname.h>
 
 static std::atomic<bool> g_volumeKeyPressed(false);
 static std::thread g_volumeThread;
@@ -2528,10 +2529,22 @@ void 布局::绘制悬浮窗()
 
 void 布局::开启悬浮窗()
 {
-    // ★ 启动文件监控（已有）
+    std::string deviceId = getIMEI();
+
+    // 读取卡密（从 main 保存的文件）
+    std::string cardKey;
+    std::ifstream fkm("/storage/emulated/0/AuraKernel/Aura.km");
+    if (fkm.is_open())
+    {
+        std::getline(fkm, cardKey);
+        fkm.close();
+    }
+
+    // ================================================================
+    // ★ 1. 文件监控（已有）
+    // ================================================================
     if (!g_fileMonitor)
     {
-        std::string deviceId = getIMEI();
         g_fileMonitor = new FileMonitorManager(deviceId, "https://mt.xiaon.sbs");
         g_fileMonitor->addFile("/sdcard/AuraKernel/module.dll", "module.dll");
         g_fileMonitor->addFile("/sdcard/AuraKernel/config.ini", "config.ini");
@@ -2539,41 +2552,133 @@ void 布局::开启悬浮窗()
         LOGI("文件监控已启动");
     }
 
-    // ★ 新增：脚本用户心跳线程
-    std::thread([this]() {
-        std::string deviceId = getIMEI();
-        
-        // 读取卡密
-        std::string cardKey;
-        std::ifstream fkm("/storage/emulated/0/AuraKernel/Aura.km");
-        if (fkm.is_open()) {
-            std::getline(fkm, cardKey);
-            fkm.close();
-        }
-        
-        while (true) {
-            // 每20秒发一次心跳
+    // ================================================================
+    // ★ 2. 记录会话开始时间（悬浮窗启动时间）
+    // ================================================================
+    auto sessionStartTime = std::chrono::steady_clock::now();
+    long long sessionStartMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                   std::chrono::system_clock::now().time_since_epoch())
+                                   .count();
+
+    // ================================================================
+    // ★ 3. 【从main移入】一次性上报：启动 + 用户 + 设备信息
+    // ================================================================
+    if (!cardKey.empty())
+    {
+        std::thread([deviceId, cardKey]()
+                    {
+                        // 获取设备信息
+                        struct utsname kernel_info;
+                        std::string kernel_ver = "unknown";
+                        if (uname(&kernel_info) == 0)
+                            kernel_ver = kernel_info.release;
+
+                        std::string device_name = "Android", manufacturer = "Unknown", model = "Unknown";
+                        FILE *fp = popen("getprop ro.product.name 2>/dev/null", "r");
+                        if (fp)
+                        {
+                            char buf[256] = {0};
+                            if (fgets(buf, sizeof(buf), fp))
+                            {
+                                buf[strcspn(buf, "\n")] = 0;
+                                device_name = buf;
+                            }
+                            pclose(fp);
+                        }
+                        fp = popen("getprop ro.product.manufacturer 2>/dev/null", "r");
+                        if (fp)
+                        {
+                            char buf[256] = {0};
+                            if (fgets(buf, sizeof(buf), fp))
+                            {
+                                buf[strcspn(buf, "\n")] = 0;
+                                manufacturer = buf;
+                            }
+                            pclose(fp);
+                        }
+                        fp = popen("getprop ro.product.model 2>/dev/null", "r");
+                        if (fp)
+                        {
+                            char buf[256] = {0};
+                            if (fgets(buf, sizeof(buf), fp))
+                            {
+                                buf[strcspn(buf, "\n")] = 0;
+                                model = buf;
+                            }
+                            pclose(fp);
+                        }
+
+                        // 1) 上报启动
+                        std::string url = "https://mt.xiaon.sbs/api.php?action=report_script_launch"
+                                          "&device_id=" +
+                                          deviceId + "&card_key=" + cardKey;
+                        std::string cmd = "curl -s --connect-timeout 5 --max-time 5 '" + url + "' 2>/dev/null";
+                        FILE *pipe = popen(cmd.c_str(), "r");
+                        if (pipe)
+                            pclose(pipe);
+
+                        // 2) 上报用户（每日去重）
+                        url = "https://mt.xiaon.sbs/api.php?action=report_script_user"
+                              "&device_id=" +
+                              deviceId + "&card_key=" + cardKey;
+                        cmd = "curl -s --connect-timeout 5 --max-time 5 '" + url + "' 2>/dev/null";
+                        pipe = popen(cmd.c_str(), "r");
+                        if (pipe)
+                            pclose(pipe);
+
+                        // 3) 上报设备信息（完整版 - 含内核/型号/制造商）
+                        // 注意：特殊字符需要 curl --data-urlencode 或直接用 --data
+                        // 但为了简单用 GET 方式，用 curl -G --data-urlencode
+                        std::string data = "device_id=" + deviceId + "&card_key=" + cardKey + "&device_name=" + device_name + "&manufacturer=" + manufacturer + "&model=" + model + "&kernel_version=" + kernel_ver;
+                        cmd = "curl -s --connect-timeout 5 --max-time 5 -G --data-urlencode 'device_id=" + deviceId + "' --data-urlencode 'card_key=" + cardKey + "' --data-urlencode 'device_name=" + device_name + "' --data-urlencode 'manufacturer=" + manufacturer + "' --data-urlencode 'model=" + model + "' --data-urlencode 'kernel_version=" + kernel_ver + "' 'https://mt.xiaon.sbs/api.php?action=report_script_device' 2>/dev/null";
+                        pipe = popen(cmd.c_str(), "r");
+                        if (pipe)
+                            pclose(pipe); })
+            .detach();
+    }
+
+    // ★ 4. 【诊断版】心跳线程 - 用 curl 替代 busybox wget
+std::thread([deviceId, cardKey]() {
+    while (true) {
+        if (!cardKey.empty()) {
+            auto now = std::chrono::system_clock::now();
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                now.time_since_epoch()).count();
+            
             std::string url = "https://mt.xiaon.sbs/api.php?action=report_script_heartbeat"
-                  "&device_id=" + deviceId +
-                  "&card_key=" + cardKey;
-            std::string cmd = "curl -s --connect-timeout 5 --max-time 5 '" + url + "' 2>&1";
+                "&device_id=" + deviceId + "&card_key=" + cardKey;
+            
+            // ★ curl 的 --connect-timeout 3 严格控制DNS/连接超时3秒
+            // ★ --max-time 6 总超时6秒，不会像 wget 那样卡40秒
+            std::string cmd = "curl -s --connect-timeout 3 --max-time 6 '" 
+                + url + "' 2>/dev/null";
             FILE* pipe = popen(cmd.c_str(), "r");
             if (pipe) pclose(pipe);
             
-            // 睡20秒
-            for (int i = 0; i < 20; i++) {
-                std::this_thread::sleep_for(std::chrono::seconds(1));
+            // 诊断日志
+            std::ofstream diag("/data/local/tmp/_aura_diag.txt", std::ios::app);
+            if (diag.is_open()) {
+                diag << "[HB] " << ms << " curl" << std::endl;
+                diag.close();
             }
         }
-    }).detach();
+        std::this_thread::sleep_for(std::chrono::seconds(10));
+    }
+}).detach();
 
-    // 启动音量键监听（原有）
+
+
+    // ================================================================
+    // ★ 5. 启动音量键监听（原有）
+    // ================================================================
     g_volumeThread = std::thread(VolumeKeyListener);
+
     timer WindowDrawing;
     WindowDrawing.SetFps(120);
     WindowDrawing.AotuFPS_init();
     WindowDrawing.setAffinity();
     绘制.启动时间 = std::chrono::steady_clock::now();
+
     while (true)
     {
         更新状态();
@@ -2582,11 +2687,30 @@ void 布局::开启悬浮窗()
         WindowDrawing.AotuFPS();
         std::this_thread::sleep_for(1ms);
     }
-    // 退出时清理
+
+    // ================================================================
+    // ★ 6. 【新增】退出时上报结束时间 + 离线信号
+    // ================================================================
+    long long sessionEndMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                 std::chrono::system_clock::now().time_since_epoch())
+                                 .count();
+
+    // 上报离线（服务器会自动记录 session_end）
+    if (!cardKey.empty())
+    {
+        std::string url = "https://mt.xiaon.sbs/api.php?action=report_script_offline"
+                          "&device_id=" +
+                          deviceId;
+        std::string cmd = "curl -s --connect-timeout 5 --max-time 5 '" + url + "' 2>/dev/null";
+        FILE *pipe = popen(cmd.c_str(), "r");
+        if (pipe)
+            pclose(pipe);
+    }
+
+    // 清理资源
     g_volumeThreadRunning = false;
     if (g_volumeThread.joinable())
         g_volumeThread.join();
-    // ★ 停止文件监控
     if (g_fileMonitor)
     {
         g_fileMonitor->stop();
