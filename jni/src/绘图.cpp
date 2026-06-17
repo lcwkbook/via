@@ -308,90 +308,72 @@ void 绘图::绘制方框(bool 是否可见,bool isboot)
 
 
 
-
-
 void 绘图::绘制人数(int 人机, int 真人, uintptr_t 自身)
 {
-    // 添加静态变量记录初始化状态
-    static bool initialized = false;
-    static float initTimer = 0.0f;
-    
-    // 检查是否已初始化（通过自身是否为0来判断，您可以根据实际情况调整）
+    // ========== 灵动岛样式参数 ==========
+    float capsuleWidth = 180.0f;
+    float capsuleHeight = 50.0f;
+    float cornerRadius = capsuleHeight / 2.0f;
+    float centerX = PX;
+    float topY = 80.0f;
+    float fontSize = 28.0f;
+    ImColor bgColor = ImColor(0, 0, 0, 255);  // 改为完全不透明黑色
+
+    ImVec2 capsuleMin = { centerX - capsuleWidth / 2, topY };
+    ImVec2 capsuleMax = { centerX + capsuleWidth / 2, topY + capsuleHeight };
+    ImGui::GetForegroundDrawList()->AddRectFilled(capsuleMin, capsuleMax, bgColor, cornerRadius);
+
+    // 添加一层半透明边框使边缘更柔和
+    ImGui::GetForegroundDrawList()->AddRect(capsuleMin, capsuleMax, ImColor(80, 80, 80, 100), cornerRadius, 0, 1.5f);
+
     if (自身 == 0) {
-        // 未初始化状态
-        if (!initialized) {
-            initialized = true;
-            initTimer = 0.0f;
-        }
-        
-        // 显示"待初始化"文字，不带闪烁效果
-        string initText = "等待进入对局";
-        float fontSize = 45.0f;
-        auto textSize = ImGui::CalcTextSize(initText.c_str(), 0, fontSize);
-        
-        // 居中显示
-        float textX = PX - textSize.x / 2;
-        float textY = 100; // 适当的上边距
-        
-        // 绘制灰色待初始化文字
-        绘制字体描边(fontSize, textX, textY, 
-                     ImColor(180, 180, 180, 255), // 灰色
-                     initText.c_str());
-        
+        string text = "等待进入对局";
+        auto textSize = ImGui::CalcTextSize(text.c_str(), 0, fontSize);
+        float textX = centerX - textSize.x / 2;
+        float textY = topY + (capsuleHeight - textSize.y) / 2;
+        // 增强描边：先画两层黑色描边
+        ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(textX-1, textY-1), ImColor(0,0,0,255), text.c_str());
+        ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(textX+1, textY+1), ImColor(0,0,0,255), text.c_str());
+        ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(textX, textY), ImColor(180,180,180,255), text.c_str());
         return;
     }
-    
-    // 已初始化状态
-    initialized = true;
-    
-    // 计算总人数
-    int totalPlayers = 人机 + 真人;
-    
-    // 如果总人数为0，显示"安全"
-    if (totalPlayers == 0)
-    {
-        string safeText = "安全";
-        float fontSize = 45.0f;
-        auto textSize = ImGui::CalcTextSize(safeText.c_str(), 0, fontSize);
-        
-        // 居中显示
-        float textX = PX - textSize.x / 2;
-        float textY = 100;
-        
-        // 绘制绿色"安全"文字
-        绘制字体描边(fontSize, textX, textY, 
-                     ImColor(0, 255, 0, 255), // 绿色
-                     safeText.c_str());
-    }
-    else
-    {
-        // 有人时显示数字
-        string countText = std::to_string(totalPlayers);
-        float fontSize = 50.0f; // 稍微大一点
-        auto textSize = ImGui::CalcTextSize(countText.c_str(), 0, fontSize);
-        
-        // 居中显示
-        float textX = PX - textSize.x / 2;
-        float textY = 100;
-        
-        // 根据是否有真人来决定颜色
-        ImColor textColor;
-        if (真人 > 0)
-        {
-            // 有真人时显示红色
-            textColor = ImColor(255, 0, 0, 255);
-        }
-        else
-        {
-            // 没有真人时显示白色
-            textColor = ImColor(255, 255, 255, 255);
-        }
-        
-        // 绘制数字
-        绘制字体描边(fontSize, textX, textY, textColor, countText.c_str());
-    }
-}
 
+    int totalPlayers = 人机 + 真人;
+    if (totalPlayers == 0) {
+        string text = "安全";
+        auto textSize = ImGui::CalcTextSize(text.c_str(), 0, fontSize);
+        float textX = centerX - textSize.x / 2;
+        float textY = topY + (capsuleHeight - textSize.y) / 2;
+        ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(textX-1, textY-1), ImColor(0,0,0,255), text.c_str());
+        ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(textX+1, textY+1), ImColor(0,0,0,255), text.c_str());
+        ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(textX, textY), ImColor(0,255,0,255), text.c_str());
+        return;
+    }
+
+    // 分隔线
+    float lineX = centerX;
+    float lineY1 = topY + 10.0f;
+    float lineY2 = topY + capsuleHeight - 10.0f;
+    ImGui::GetForegroundDrawList()->AddLine(ImVec2(lineX, lineY1), ImVec2(lineX, lineY2), ImColor(150,150,150,255), 2.0f);
+
+    // 真人
+    string realStr = std::to_string(真人);
+    auto realSize = ImGui::CalcTextSize(realStr.c_str(), 0, fontSize);
+    float realX = centerX - capsuleWidth / 4 - realSize.x / 2;
+    float realY = topY + (capsuleHeight - realSize.y) / 2;
+    ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(realX-1, realY-1), ImColor(0,0,0,255), realStr.c_str());
+    ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(realX+1, realY+1), ImColor(0,0,0,255), realStr.c_str());
+    ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(realX, realY), ImColor(255,80,80,255), realStr.c_str());
+
+    // 人机
+    string botStr = std::to_string(人机);
+    auto botSize = ImGui::CalcTextSize(botStr.c_str(), 0, fontSize);
+    float botX = centerX + capsuleWidth / 4 - botSize.x / 2;
+    float botY = topY + (capsuleHeight - botSize.y) / 2;
+    ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(botX-1, botY-1), ImColor(0,0,0,255), botStr.c_str());
+    ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(botX+1, botY+1), ImColor(0,0,0,255), botStr.c_str());
+    ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(botX, botY), ImColor(255,255,255,255), botStr.c_str());
+}
 
 
 
@@ -674,20 +656,33 @@ if (绘制.按钮.血条绘图 == 0)  //分格血条
 
 void 绘图::绘制手持(int 手持, int 状态, int 子弹, int 最大子弹)
 {
-    if (!绘制.按钮.手持2)
+    // 手持图片绘制 - 由 "手持图片" 开关控制
+    if (绘制.按钮.手持)
     {
         手持 = heldconversion(手持);
         if (手持图片.find(手持) != 手持图片.end())
         {
-            ImGui::GetForegroundDrawList()->AddImage(手持图片[手持].DS, ImVec2(MIDDLE - 75 * 0.7f, top - 135 * 0.7f), ImVec2(MIDDLE + 75 * 0.7f, top - 100 * 0.7f), ImVec2(0, 0), ImVec2(1, 1), ImColor(ImVec4(1.0f, 1.0f, 1.0f, 1.0f)));
+            ImGui::GetForegroundDrawList()->AddImage(
+                手持图片[手持].DS,
+                ImVec2(MIDDLE - 75 * 0.7f, top - 135 * 0.7f),
+                ImVec2(MIDDLE + 75 * 0.7f, top - 100 * 0.7f),
+                ImVec2(0, 0), ImVec2(1, 1),
+                ImColor(ImVec4(1.0f, 1.0f, 1.0f, 1.0f))
+            );
         }
     }
-    else
+
+    // 手持文字绘制 - 由 "手持文字" 开关控制
+    if (绘制.按钮.手持2)
     {
         string b = GetHolGunItem(手持);
         b += " [" + to_string(子弹) + "/" + to_string(最大子弹) + "]";
         auto textSize = ImGui::CalcTextSize(b.c_str(), 0, 绘制.手持字体大小);
-        绘制字体描边(绘制.手持字体大小, (MIDDLE + 20) - (textSize.x / 2), top - 88, ImColor(255, 255, 255), b.c_str());
+        绘制字体描边(绘制.手持字体大小,
+                     (MIDDLE + 20) - (textSize.x / 2),
+                     top - 88,
+                     ImColor(255, 255, 255),
+                     b.c_str());
     }
 }
 

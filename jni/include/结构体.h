@@ -9,87 +9,112 @@ using namespace std;
 #include "vector.h"
 #include "transform.h"
 
-//本项目仅用于学习和研究，不用于任何商业用途 否则自己承担所有风险
+// 本项目仅用于学习和研究，不用于任何商业用途 否则自己承担所有风险
 struct Rotator
 {
-	float Pitch;
-	float Yaw;
-	float Roll;
-	Rotator() {}
-	Rotator(float _P, float _Y, float _R) : Pitch(_P), Yaw(_Y), Roll(_R) {}
+    float Pitch;
+    float Yaw;
+    float Roll;
+    Rotator() {}
+    Rotator(float _P, float _Y, float _R) : Pitch(_P), Yaw(_Y), Roll(_R) {}
 };
 
-class FRotator {
-   public:
+class FRotator
+{
+public:
     FRotator()
-        : Pitch(0.f), Yaw(0.f), Roll(0.f) {
+        : Pitch(0.f), Yaw(0.f), Roll(0.f)
+    {
     }
     FRotator(float _Pitch, float _Yaw, float _Roll)
-        : Pitch(_Pitch), Yaw(_Yaw), Roll(_Roll) {
+        : Pitch(_Pitch), Yaw(_Yaw), Roll(_Roll)
+    {
     }
-    ~FRotator() {
+    ~FRotator()
+    {
     }
     float Pitch;
     float Yaw;
     float Roll;
-    inline FRotator Clamp() {
-        if (Pitch > 180) {
+    inline FRotator Clamp()
+    {
+        if (Pitch > 180)
+        {
             Pitch -= 360;
-        } else {
-            if (Pitch < -180) {
+        }
+        else
+        {
+            if (Pitch < -180)
+            {
                 Pitch += 360;
             }
         }
-        if (Yaw > 180) {
+        if (Yaw > 180)
+        {
             Yaw -= 360;
-        } else {
-            if (Yaw < -180) {
+        }
+        else
+        {
+            if (Yaw < -180)
+            {
                 Yaw += 360;
             }
         }
-        if (Pitch > 89) {
+        if (Pitch > 89)
+        {
             Pitch = 89;
         }
-        if (Pitch < -89) {
+        if (Pitch < -89)
+        {
             Pitch = -89;
         }
-        while (Yaw < 180) {
+        while (Yaw < 180)
+        {
             Yaw += 360;
         }
-        while (Yaw > 180) {
+        while (Yaw > 180)
+        {
             Yaw -= 360;
         }
         Roll = 0;
         return FRotator(Pitch, Yaw, Roll);
     }
-    inline float Length() {
+    inline float Length()
+    {
         return sqrtf(Pitch * Pitch + Yaw * Yaw + Roll * Roll);
     }
-    FRotator operator+(FRotator v) {
+    FRotator operator+(FRotator v)
+    {
         return FRotator(Pitch + v.Pitch, Yaw + v.Yaw, Roll + v.Roll);
     }
-    FRotator operator-(FRotator v) {
+    FRotator operator-(FRotator v)
+    {
         return FRotator(Pitch - v.Pitch, Yaw - v.Yaw, Roll - v.Roll);
     }
 };
 
-
-
-struct ConfigItem {
-    const char* name;
-    void* value;
-    enum { INT, FLOAT, BOOL } type;
+struct ConfigItem
+{
+    const char *name;
+    void *value;
+    enum
+    {
+        INT,
+        FLOAT,
+        BOOL
+    } type;
 };
 
-struct 开关 {
+struct 开关
+{
     bool 绘制 = false;
     bool 超体职业;
-  /*  float 第一人称 = 125;
-    float 加速数值 =1.1;
-    float 第三人称 = 100;
-    float 开镜广角 = 10;*/
+    /*  float 第一人称 = 125;
+      float 加速数值 =1.1;
+      float 第三人称 = 100;
+      float 开镜广角 = 10;*/
     bool hide_process = false;
-    bool 烟雾倒计时=false;
+    bool 烟雾倒计时 = false;
     bool 方框 = false;
     bool 漏手模式;
     bool 射线 = false;
@@ -99,8 +124,8 @@ struct 开关 {
     bool 忽略人机 = false;
     bool 血量 = false;
     int 血条绘图 = 0;
-    int 手雷样式=0;
-    
+    int 手雷样式 = 0;
+
     bool 瞬爆雷预测;
     bool 自救倒计时;
     bool 人数 = true;
@@ -117,12 +142,12 @@ struct 开关 {
     bool 被瞄预警 = false;
     bool 背敌预警 = false;
     bool 雷达 = false;
-//    bool 人物加速 = false;
+    //    bool 人物加速 = false;
     bool 隐藏方框背景 = false;
     bool 动作 = false;
     bool Debug = false;
     int Debug模式 = 0;
-    int 当前配置=0;
+    int 当前配置 = 0;
     bool 加速;
     bool 物资总开关 = false;
     int 绘制最大距离 = 500;
@@ -170,26 +195,25 @@ struct 开关 {
     bool 显示类名;
     bool 不想吃鸡;
     bool 延伸;
-    
-//新添加    
-// 刷刀功能相关变量
-bool 人物聚点;
-bool 人物无后;
-bool 人物防抖;
-bool 人物射速;
-bool 人物瞬击;
-bool 人物加速;
-bool 广角设置;
-float 速度值 = 1.0f;
-float 第三人称 = 105.0f;
-float 第一人称 = 100.0f;
-bool 自动开火;    
-bool 内透;    
-bool 解密模式;    
-    
-    
- bool 解密;   
-    
+
+    // 新添加
+    //  刷刀功能相关变量
+    bool 人物聚点;
+    bool 人物无后;
+    bool 人物防抖;
+    bool 人物射速;
+    bool 人物瞬击;
+    bool 人物加速;
+    bool 广角设置;
+    float 速度值 = 1.0f;
+    float 第三人称 = 105.0f;
+    float 第一人称 = 100.0f;
+    bool 自动开火;
+    bool 内透;
+    bool 解密模式;
+
+    bool 解密;
+
     bool 精英勋章;
     bool 显示医疗箱 = false;
     bool 显示急救包 = false;
@@ -205,37 +229,34 @@ bool 解密模式;
     bool 超级物资箱 = false;
     bool 爆炸猎弓 = false;
     bool 绘制信号枪 = false;
-    //新添加
-    bool 隐藏古墓已开启 = false;  // 新增
+    // 新添加
+    bool 隐藏古墓已开启 = false; // 新增
     bool 显示古墓篮子 = false;
-     bool 显示古墓首饰盒 = false;
-     bool 显示古墓宝箱 = false;
-     bool 显示古墓精致宝箱 = false;
-   bool 显示古墓华贵宝箱;
+    bool 显示古墓首饰盒 = false;
+    bool 显示古墓宝箱 = false;
+    bool 显示古墓精致宝箱 = false;
+    bool 显示古墓华贵宝箱;
     // 在你的开关结构体中添加这两行
-bool 显示古墓树木 = false;
-float 物资字体大小 = 14.0f; // 默认值可以根据你的需求调整
+    bool 显示古墓树木 = false;
+    bool 显示自救器 = false;
+    bool 显示飞索 = false;
+    bool 显示黑色物资箱 = false;
+    bool 自定义物资开关 = false;
+    float 物资字体大小 = 14.0f; // 默认值可以根据你的需求调整
 
-    
-    
-    
-    
-    
-    
     bool 绘制金插 = false;
     bool 绘制宝箱 = false;
     bool 绘制药箱 = false;
     bool 绘制武器箱 = false;
     bool 绘制空投 = false;
-    bool 头甲包显示 = false;  // 耐久
+    bool 头甲包显示 = false; // 耐久
     bool 盒子物资 = false;
     bool 背包容量 = false;
     bool 头甲包显示2 = false;
     bool 隐藏已开启 = false;
-    
-    
-    bool 显示对局信息=false;
- //   float 速度值 = 1.15;
+
+    bool 显示对局信息 = false;
+    //   float 速度值 = 1.15;
     float 雷达X = 300;
     float 雷达Y = 400;
     float rotationAngle = 0.0f;
@@ -249,8 +270,8 @@ float 物资字体大小 = 14.0f; // 默认值可以根据你的需求调整
     float 测试数值 = 0.0f;
 };
 
-
-struct 地址 {
+struct 地址
+{
     uintptr_t libdi;
     uintptr_t libue4;
     uintptr_t 世界地址;
@@ -263,56 +284,61 @@ struct 地址 {
     uintptr_t 相机;
 };
 
-
-
-struct FMatrix {
+struct FMatrix
+{
     float M[4][4];
 };
 
-struct D2DVector {
+struct D2DVector
+{
     float X;
     float Y;
-    D2DVector() {
+    D2DVector()
+    {
         this->X = 0;
         this->Y = 0;
     }
-    D2DVector(float x, float y) {
+    D2DVector(float x, float y)
+    {
         this->X = x;
         this->Y = y;
     }
 };
 
-
-struct D3DVector {
+struct D3DVector
+{
     float X;
     float Y;
     float Z;
-    D3DVector() {
+    D3DVector()
+    {
         this->X = 0;
         this->Y = 0;
         this->Z = 0;
     }
-    D3DVector(float x, float y, float z) {
+    D3DVector(float x, float y, float z)
+    {
         this->X = x;
         this->Y = y;
         this->Z = z;
     }
 };
 
-
-
-struct D4DVector {
+struct D4DVector
+{
     float X;
     float Y;
     float Z;
     float W;
-    D4DVector() {
+    D4DVector()
+    {
         this->X = 0;
         this->Y = 0;
         this->Z = 0;
         this->W = 0;
     }
-    D4DVector(float x, float y, float z, float w) {
+    D4DVector(float x, float y, float z, float w)
+    {
         this->X = x;
         this->Y = y;
         this->Z = z;
@@ -320,7 +346,8 @@ struct D4DVector {
     }
 };
 
-struct 自瞄信息 {
+struct 自瞄信息
+{
     FVector_class 瞄准坐标;
     D3DVector 人物向量;
     float 准心距离 = 10000;
@@ -329,7 +356,7 @@ struct 自瞄信息 {
     long int Bone;
     long int Human;
     int 血量;
-    bool isview=true;
+    bool isview = true;
     string 名字;
     float 头;
     float 甲;
@@ -339,50 +366,56 @@ struct 自瞄信息 {
     int 掩体部位;
 };
 
-struct BoneStruct {
-    D3DVector Pos; // 世界坐标
+struct BoneStruct
+{
+    D3DVector Pos;       // 世界坐标
     D2DVector ScreenPos; // 屏幕坐标
-    bool CanSee = true; // 可见判断
+    bool CanSee = true;  // 可见判断
 };
 
-struct 瞄准信息 {
+struct 瞄准信息
+{
     float 距离;
     string 名字;
     string 瞄准武器;
 };
 
-struct FTransform {
+struct FTransform
+{
     D4DVector Rotation;
     D3DVector Translation;
     float chunk;
     D3DVector Scale3D;
 };
 
-struct 备份 {
-    float 自瞄速度 = 20.f;  //&绘制.自瞄.自瞄速度
+struct 备份
+{
+    float 自瞄速度 = 20.f; //&绘制.自瞄.自瞄速度
     float 压枪力度 = 0.f;  //&绘制.自瞄.压枪力度
     float mk20压枪 = 0.f;  //&绘制.mk20
 };
 
-struct 连点配置 {
+struct 连点配置
+{
     float 触摸范围X = 300.0f;
     float 触摸范围Y = 300.0f;
     float 监听位置X = 300.0f;
     float 监听位置Y = 300.0f;
-    float 监听边长=50.0f; 
-    float 触摸范围 = 50.0f;        //圆的半径大小
+    float 监听边长 = 50.0f;
+    float 触摸范围 = 50.0f; // 圆的半径大小
     int 连点速度 = 100;
     bool 启用连点 = false;
-    bool 启用狙击连点=false;
+    bool 启用狙击连点 = false;
     int 充电口方向 = 0; // 添加方向参数
-    bool 连点位置=false;
-    bool 监听位置=false;
-    bool 开火判断=false;
-    bool 监听区域内=false;
-    bool 跟随自瞄连点=false;
+    bool 连点位置 = false;
+    bool 监听位置 = false;
+    bool 开火判断 = false;
+    bool 监听区域内 = false;
+    bool 跟随自瞄连点 = false;
 };
 
-struct Rect {
+struct Rect
+{
     // 成员变量（直接存储起点和终点坐标）
     int startX; // 起点X
     int startY; // 起点Y
@@ -392,39 +425,35 @@ struct Rect {
     // ------------- 构造函数 -------------
     // 默认构造（全0初始化）
     Rect() {}
-    void 初始化(int X1,int X2,int Y1,int Y2)
+    void 初始化(int X1, int X2, int Y1, int Y2)
     {
         this->startX = X1;
         this->startY = Y1;
         this->endX = X2;
         this->endY = Y2;
     }
-      // 判断点是否在矩形内（包含边界）
-    bool contains(float x, float y) const {
+    // 判断点是否在矩形内（包含边界）
+    bool contains(float x, float y) const
+    {
         float rectX = std::min(startX, endX);
         float rectY = std::min(startY, endY);
         float rectWidth = std::abs(endX - startX);
         float rectHeight = std::abs(endY - startY);
-        return x >= rectX && x < rectX + rectWidth && 
-                    y >= rectY && y < rectY + rectHeight;
+        return x >= rectX && x < rectX + rectWidth &&
+               y >= rectY && y < rectY + rectHeight;
     }
-    
 };
 
+struct 自瞄
+{
 
-
-struct 自瞄 {
-
-
-//bool 无目标压枪开关 = false;
-
-
+    // bool 无目标压枪开关 = false;
 
     bool 初始化 = false;
     bool 触摸位置 = false;
-    
+
     bool 无目标压枪开关 = false;
-    
+
     bool 动态自瞄 = false;
     bool 准星射线 = false;
     bool 倒地不瞄 = false;
@@ -438,12 +467,12 @@ struct 自瞄 {
     bool 持续自瞄中 = false;
     bool 隐藏自瞄圈 = false;
     bool 烟雾不瞄 = false;
-    bool 指哪打哪=false;
+    bool 指哪打哪 = false;
     bool 随机触摸点 = false;
     bool 持续锁定 = false;
-    bool 扫车不瞄=false;
-    bool 定速巡航=false;
-    int 定速巡航速率=0;
+    bool 扫车不瞄 = false;
+    bool 定速巡航 = false;
+    int 定速巡航速率 = 0;
     int 自瞄条件 = 0;
     int 充电口方向 = 0;
     int 瞄准优先 = 0;
@@ -452,30 +481,23 @@ struct 自瞄 {
     int lastBoneIndex = -1;
     float 当前自瞄范围 = 500.0f;
     float 喷子自瞄范围 = 500.0f;
-    float 自瞄范围 = 500.0f; 
-    float 开镜自瞄范围 =500.0f;
+    float 自瞄范围 = 500.0f;
+    float 开镜自瞄范围 = 500.0f;
     float 动态范围 = 200.0f;
     float 触摸范围 = 200.0f;
     float 压枪力度 = 2.15f;
-    float 自瞄速度 = 8.f;           // 默认自瞄速度
-    float 腰射自瞄速度 = 2.f;       // 腰射自瞄速度（更灵敏）
-    float 开镜自瞄速度 = 3.f;       // 开镜自瞄速度（更平滑）
+    float 自瞄速度 = 8.f;     // 默认自瞄速度
+    float 腰射自瞄速度 = 2.f; // 腰射自瞄速度（更灵敏）
+    float 开镜自瞄速度 = 3.f; // 开镜自瞄速度（更平滑）
     float 预判力度 = 1.8f;
     float 扫车预判 = 0.f;
-    int 瞄准目标=-1;
+    int 瞄准目标 = -1;
     float 触摸范围X = 1500.0f;
     float 触摸范围Y = 650.0f;
-    
-    //新添加
 
-    float 地形适应系数 = 0.5f;       // 根据地形高度差调整瞄准精度
-    
-    
-    
-    
-    
-    
-    
+    // 新添加
+
+    float 地形适应系数 = 0.5f; // 根据地形高度差调整瞄准精度
 
     int 瞄准对象数量 = 0;
     int 瞄准总数量 = 0;
@@ -488,22 +510,21 @@ struct 自瞄 {
 
     float 腰射距离限制 = 25.0f;
     float 自瞄距离限制 = 300.0f;
-    float 连点速度=100.0f;
+    float 连点速度 = 100.0f;
     bool 开启喷子连点;
     bool 开启单发狙连点;
-    float 三倍压枪=0.f;
-    float 四倍压枪=0.f;
-    float 六倍压枪=0.f;
+    float 三倍压枪 = 0.f;
+    float 四倍压枪 = 0.f;
+    float 六倍压枪 = 0.f;
 
-    bool 自动适应灵敏度=false;  
-    bool 自适应腰射灵敏度=false;  // 新增：是否启用自适应腰射灵敏度
-    int  适应系数 =21;
+    bool 自动适应灵敏度 = false;
+    bool 自适应腰射灵敏度 = false; // 新增：是否启用自适应腰射灵敏度
+    int 适应系数 = 21;
     Rect 连点位置;
 };
 
-
-
-struct 骨骼数据 {
+struct 骨骼数据
+{
     D2DVector Head;
     D2DVector Chest;
     D2DVector Pelvis;
@@ -521,7 +542,8 @@ struct 骨骼数据 {
     D2DVector Right_Ankle;
 
     // 返回成员引用的指针数组（用于遍历）
-    std::vector<D2DVector*> 获取所有骨骼指针() {
+    std::vector<D2DVector *> 获取所有骨骼指针()
+    {
         return {
             &Head, &Chest, &Pelvis,
             &Left_Shoulder, &Right_Shoulder,
@@ -529,20 +551,20 @@ struct 骨骼数据 {
             &Left_Wrist, &Right_Wrist,
             &Left_Thigh, &Right_Thigh,
             &Left_Knee, &Right_Knee,
-            &Left_Ankle, &Right_Ankle
-        };
+            &Left_Ankle, &Right_Ankle};
     }
 };
 
-struct 武器触发条件 {
-    bool 独立调节=false;
-    bool 独立压枪=false;
-    bool 独立预判=false;
-    bool 独立距离限制=false;
-    bool 启用自瞄 = true;       // 是否启用该武器自瞄
-    float 腰射距离限制=50.0f;
-    float 自瞄距离限制 = 100.0f;    // 最大生效距离
-    int 自瞄条件 = 0;           // 0=开火触发 1=开镜触发 2=任意条件
+struct 武器触发条件
+{
+    bool 独立调节 = false;
+    bool 独立压枪 = false;
+    bool 独立预判 = false;
+    bool 独立距离限制 = false;
+    bool 启用自瞄 = true; // 是否启用该武器自瞄
+    float 腰射距离限制 = 50.0f;
+    float 自瞄距离限制 = 100.0f; // 最大生效距离
+    int 自瞄条件 = 0;            // 0=开火触发 1=开镜触发 2=任意条件
 };
 
 struct 武器参数
@@ -552,109 +574,159 @@ struct 武器参数
     float 自瞄速度 = 20.f;
 };
 
-struct Vec2 {
+struct Vec2
+{
     float x;
     float y;
-    Vec2() {
+    Vec2()
+    {
         this->x = 0;
         this->y = 0;
     }
-    Vec2(float x, float y) {
+    Vec2(float x, float y)
+    {
         this->x = x;
         this->y = y;
     }
-    Vec2 operator+(float v) const {
+    Vec2 operator+(float v) const
+    {
         return Vec2(x + v, y + v);
     }
-    Vec2 operator-(float v) const {
+    Vec2 operator-(float v) const
+    {
         return Vec2(x - v, y - v);
     }
-    Vec2 operator*(float v) const {
+    Vec2 operator*(float v) const
+    {
         return Vec2(x * v, y * v);
     }
-    Vec2 operator/(float v) const {
+    Vec2 operator/(float v) const
+    {
         return Vec2(x / v, y / v);
     }
-    Vec2& operator+=(float v) {
-        x += v; y += v; return *this;
+    Vec2 &operator+=(float v)
+    {
+        x += v;
+        y += v;
+        return *this;
     }
-    Vec2& operator-=(float v) {
-        x -= v; y -= v; return *this;
+    Vec2 &operator-=(float v)
+    {
+        x -= v;
+        y -= v;
+        return *this;
     }
-    Vec2& operator*=(float v) {
-        x *= v; y *= v; return *this;
+    Vec2 &operator*=(float v)
+    {
+        x *= v;
+        y *= v;
+        return *this;
     }
-    Vec2& operator/=(float v) {
-        x /= v; y /= v; return *this;
+    Vec2 &operator/=(float v)
+    {
+        x /= v;
+        y /= v;
+        return *this;
     }
-    Vec2 operator+(const Vec2& v) const {
+    Vec2 operator+(const Vec2 &v) const
+    {
         return Vec2(x + v.x, y + v.y);
     }
-    Vec2 operator-(const Vec2& v) const {
+    Vec2 operator-(const Vec2 &v) const
+    {
         return Vec2(x - v.x, y - v.y);
     }
-    Vec2 operator*(const Vec2& v) const {
+    Vec2 operator*(const Vec2 &v) const
+    {
         return Vec2(x * v.x, y * v.y);
     }
-    Vec2 operator/(const Vec2& v) const {
+    Vec2 operator/(const Vec2 &v) const
+    {
         return Vec2(x / v.x, y / v.y);
     }
-    Vec2& operator+=(const Vec2& v) {
-        x += v.x; y += v.y; return *this;
+    Vec2 &operator+=(const Vec2 &v)
+    {
+        x += v.x;
+        y += v.y;
+        return *this;
     }
-    Vec2& operator-=(const Vec2& v) {
-        x -= v.x; y -= v.y; return *this;
+    Vec2 &operator-=(const Vec2 &v)
+    {
+        x -= v.x;
+        y -= v.y;
+        return *this;
     }
-    Vec2& operator*=(const Vec2& v) {
-        x *= v.x; y *= v.y; return *this;
+    Vec2 &operator*=(const Vec2 &v)
+    {
+        x *= v.x;
+        y *= v.y;
+        return *this;
     }
-    Vec2& operator/=(const Vec2& v) {
-        x /= v.x; y /= v.y; return *this;
+    Vec2 &operator/=(const Vec2 &v)
+    {
+        x /= v.x;
+        y /= v.y;
+        return *this;
     }
 };
 
-struct Vec3 {
+struct Vec3
+{
     float x;
     float y;
     float z;
 
-    Vec3() {
+    Vec3()
+    {
         x = y = z = 0.0f;
     }
 
-    Vec3(float _x, float _y, float _z)  { x = _x; y = _y; z = _z; }
+    Vec3(float _x, float _y, float _z)
+    {
+        x = _x;
+        y = _y;
+        z = _z;
+    }
 
-    Vec3 operator+(const Vec3 &v) const {
+    Vec3 operator+(const Vec3 &v) const
+    {
         return {x + v.x, y + v.y, z + v.z};
     }
 
-    Vec3 operator-(const Vec3 &v) const {
+    Vec3 operator-(const Vec3 &v) const
+    {
         return {x - v.x, y - v.y, z - v.z};
     }
 
-    bool operator==(const Vec3 &v) {
+    bool operator==(const Vec3 &v)
+    {
         return x == v.x && y == v.y && z == v.z;
     }
 
-    bool operator!=(const Vec3 &v) {
+    bool operator!=(const Vec3 &v)
+    {
         return !(x == v.x && y == v.y && z == v.z);
     }
 
-    static Vec3 Zero() {
+    static Vec3 Zero()
+    {
         return {0.0f, 0.0f, 0.0f};
     }
 
-    static float Dot(Vec3 lhs, Vec3 rhs) {
+    static float Dot(Vec3 lhs, Vec3 rhs)
+    {
         return (((lhs.x * rhs.x) + (lhs.y * rhs.y)) + (lhs.z * rhs.z));
     }
 
-    static float Distance(Vec3 a, Vec3 b) {
+    static float Distance(Vec3 a, Vec3 b)
+    {
         Vec3 vector = Vec3(a.x - b.x, a.y - b.y, a.z - b.z);
         return sqrt(((vector.x * vector.x) + (vector.y * vector.y)) + (vector.z * vector.z));
     }
 };
 
-struct 自身数据 {
+struct 自身数据
+{
     FVector_class 坐标;
     FVector_class 相机坐标;
     FRotator_class 准星;
@@ -687,8 +759,8 @@ struct 自身数据 {
     float 头;
     float 甲;
     Rotator NowRot;
-	D3DVector CameraLocation;
-	D3DVector Firearms;
+    D3DVector CameraLocation;
+    D3DVector Firearms;
     float 陀螺仪灵敏度第三人称;
     float 陀螺仪灵敏度第一人称;
     float 陀螺仪灵敏度红点;
@@ -700,13 +772,15 @@ struct 自身数据 {
 };
 
 // 地址结构体
-struct 对象地址 {
+struct 对象地址
+{
     long 敌人地址;
     long 物品地址[1000];
     long 车辆地址[50];
 };
 
-struct 敌人信息 {
+struct 敌人信息
+{
     FVector_class 坐标;
     FVector_class 相机坐标;
     FRotator_class 准星;
@@ -714,7 +788,7 @@ struct 敌人信息 {
     FVector_class 骨骼坐标[17];
     D2DVector 雷达;
     D2DVector 对象骨骼;
-    bool 烟雾中=true;
+    bool 烟雾中 = true;
     bool isboot;
     int 队伍;
     int 状态;
@@ -728,29 +802,32 @@ struct 敌人信息 {
     float 头;
     float 甲;
     uint64_t 实体地址;
-    uint64_t  角色实体;
-    uint64_t  实体列表地址;
+    uint64_t 角色实体;
+    uint64_t 实体列表地址;
     int 实体数量;
-    bool isView=true;
+    bool isView = true;
     int 头甲包id;
     long 头甲包地址;
     int 子弹数量, 子弹最大数量;
     int 高级人机;
 };
-struct 物品信息 {
+struct 物品信息
+{
     D3DVector 坐标;
     int 物品;
     int 距离;
 };
 
-struct 车辆信息 {
+struct 车辆信息
+{
     D3DVector 坐标;
     int 车辆;
     int 距离;
 };
 
 // 数据结构体
-struct 对象信息 {
+struct 对象信息
+{
     int isCanRead;
     int 敌人数量;
     int 物品数量;
@@ -762,10 +839,10 @@ struct 对象信息 {
 
 struct 选择配置
 {
-    int 自瞄模式=999;
-    int 无后台开关=999;
-    int 防录屏=999;
-    int 驱动选择=999;
+    int 自瞄模式 = 999;
+    int 无后台开关 = 999;
+    int 防录屏 = 999;
+    int 驱动选择 = 999;
 };
 
 struct Result
@@ -774,7 +851,8 @@ struct Result
     float value2;
 };
 
-struct D3DXMATRIX {
+struct D3DXMATRIX
+{
     float _11;
     float _12;
     float _13;
@@ -793,18 +871,19 @@ struct D3DXMATRIX {
     float _44;
 };
 
-struct D3DXVECTOR4 {
+struct D3DXVECTOR4
+{
     float X;
     float Y;
     float Z;
     float W;
 };
 
-struct FTransform1 {
+struct FTransform1
+{
     D3DXVECTOR4 Rotation;
     D3DVector Translation;
     D3DVector Scale3D;
 };
-
 
 #endif
