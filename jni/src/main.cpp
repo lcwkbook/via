@@ -25,15 +25,12 @@
 using namespace std;
 extern int g_driver_mode;
 // 全局变量
-// 打字机输出函数
 void type_print(const char *str, int ms = 5)
 {
     setvbuf(stdout, NULL, _IONBF, 0);
-    while (*str)
-    {
-        printf("%c", *str++);
-        usleep(ms * 200);
-    }
+    printf("%s", str);
+    fflush(stdout);
+    (void)ms; // 保留参数兼容，但不使用
 }
 
 int abs_ScreenX, abs_ScreenY;
@@ -45,7 +42,6 @@ int ZM;
 
 #include "weiyan/Util.h" //导入微验库(每次注入的库不通用，请使用对应注入的库)
 int g_driver_mode = 0;
-
 
 // 驱动标记文件路径
 const string DRIVER_INSTALLED_FLAG = "/sdcard/AuraKernel/driver_installed.flag";
@@ -72,29 +68,33 @@ int main()
 {
 
     setvbuf(stdout, NULL, _IONBF, 0);
-    printf("\n选择驱动:\n");
-    printf("  1 - KPM驱动 (暂不推荐首选-作者关服务器了)\n");
-    printf("  2 - ditpro_kpm驱动 (最新推荐)\n");
-    printf("  3 - Paradise驱动(次选推荐)\n");
-    printf("  4 - 备用驱动(自动刷入)\n");
-    printf("输入: ");
+    printf("\n");
+    printf("  ┌─────────────────────────────────────────┐\n");
+    printf("  │  \033[1;36m  🚀 AuraKernel 驱动选择  \033[0m              │\n");
+    printf("  ├─────────────────────────────────────────┤\n");
+    printf("  │  \033[1;33m  [1]\033[0m  KPM驱动          \033[2m(暂不推荐)\033[0m      │\n");
+    printf("  │  \033[1;32m  [2]\033[0m  ditpro_kpm驱动   \033[1;32m✨ 最新推荐\033[0m     │\n");
+    printf("  │  \033[1;36m  [3]\033[0m  Paradise驱动     \033[2m(次选推荐)\033[0m       │\n");
+    printf("  │  \033[1;37m  [4]\033[0m  备用驱动         \033[2m(自动刷入)\033[0m       │\n");
+    printf("  └─────────────────────────────────────────┘\n");
+    printf("  \033[1;33m⮕\033[0m 请选择 \033[1m[1-4]\033[0m: ");
     int choice = 0;
     scanf("%d", &choice);
 
     if (choice == 1) // KPM驱动
     {
         g_driver_mode = 1;
-        printf("[*] 已选择KPM模式，跳过刷入\n");
+        printf("\n  \033[1;36m┌─\033[0m 已选择: \033[1;33mKPM驱动\033[0m \033[2m(跳过刷入)\033[0m\n");
     }
     else if (choice == 2) // ditpro_kpm驱动
     {
         g_driver_mode = 3;
-        printf("[*] 已选择ditpro_kpm模式，跳过刷入\n");
+        printf("\n  \033[1;36m┌─\033[0m 已选择: \033[1;32mditpro_kpm驱动\033[0m \033[2m(跳过刷入)\033[0m\n");
     }
     else if (choice == 3) // Paradise驱动
     {
         g_driver_mode = 2;
-        printf("[*] 已选择Paradise模式，跳过刷入\n");
+        printf("\n  \033[1;36m┌─\033[0m 已选择: \033[1;36mParadise驱动\033[0m \033[2m(跳过刷入)\033[0m\n");
     }
     else if (choice == 4) // 备用驱动(自动刷入)
     {
@@ -108,16 +108,16 @@ int main()
         if (access(flag_path.c_str(), 0) == 0)
         {
             has_flag = true;
-            printf("\033[1;32m[+] 检测到驱动已刷入，跳过刷入\n\033[0m");
+            printf("  \033[1;32m  ✔\033[0m 检测到驱动已刷入，跳过刷入\n");
         }
 
         // 没刷过 → 刷入
         if (!has_flag)
         {
-            printf("\033[1;33m[+] 首次启动，自动刷入驱动...\n\033[0m");
+            printf("  \033[1;33m  ⚡\033[0m 首次启动，自动刷入驱动...\n");
             if (!模块刷入())
             {
-                printf("[-] 驱动刷入失败\n");
+                printf("  \033[1;31m  ✘\033[0m 驱动刷入失败\n");
                 return 1;
             }
 
@@ -129,17 +129,17 @@ int main()
             {
                 write(fd, "ok", 2);
                 close(fd);
-                printf("\033[1;32m[+] 驱动刷入成功，已创建标记：%s\n\033[0m", flag_path.c_str());
+                printf("  \033[1;32m  ✔\033[0m 驱动刷入成功，已创建标记: \033[2m%s\033[0m\n", flag_path.c_str());
             }
             else
             {
-                printf("\033[1;31m[!] 标记文件创建失败\n\033[0m");
+                printf("  \033[1;31m  ✘\033[0m 标记文件创建失败\n");
             }
         }
     }
     else
     {
-        printf("[-] 无效输入\n");
+        printf("  \033[1;31m  ✘\033[0m 无效输入\n");
         return 1;
     }
 
@@ -158,7 +158,11 @@ int main()
     // ===================== 驱动1 自动刷入（修复：不再重复刷）=====================
     if (g_driver_mode == 0)
     {
-        printf("\033[1;34m[+] 正在检测Aura独家驱动状态...\033[0m\n");
+        printf("\n  \033[1;36m┌──────────────────────────────────────────┐\033[0m\n");
+        printf("  \033[1;36m│  🔍 Aura独家驱动状态检测\033[0m                  │\n");
+        printf("  \033[1;36m└──────────────────────────────────────────┘\033[0m\n");
+        // ↓ 原来第158行替换为:
+        printf("  \033[1;34m  ⏳ 正在检测驱动状态...\033[0m\n");
         绘制.读写.reopen_dev();
 
         bool moduleOk = false;
@@ -172,50 +176,55 @@ int main()
             // 驱动没打开 → 检查是否曾经刷入过
             if (isFileExists(DRIVER_INSTALLED_FLAG))
             {
-                printf("\033[1;33m[-] 驱动已刷入但未加载，尝试重新打开...\033[0m\n");
+                printf("  \033[1;33m  ⚠ 驱动已刷入但未加载，尝试重新打开...\033[0m\n");
                 绘制.读写.reopen_dev();
                 if (绘制.读写.fd > 0 && 绘制.读写.get_Module_On())
                 {
                     moduleOk = true;
-                    printf("\033[1;32m[+] 驱动打开成功！\033[0m\n");
+                    printf("  \033[1;32m  ✔ 驱动打开成功！\033[0m\n");
                 }
             }
 
             // 还是不行 → 必须重新刷
             if (!moduleOk)
             {
-                printf("\033[1;33m[-] 驱动未激活，开始自动刷入...\033[0m\n");
+                printf("  \033[1;33m  ⚠ 驱动未激活，开始自动刷入...\033[0m\n");
                 if (!模块刷入())
                 {
-                    printf("\033[1;31m[!] 驱动刷入失败\n\033[0m");
+                    printf("  \033[1;31m  ✘ 驱动刷入失败\033[0m\n");
                     return 0;
                 }
 
                 // 刷入成功 → 创建标记
                 createDriverFlag();
-                printf("\033[1;32m[+] 驱动刷入成功，已标记无需重复刷入！\033[0m\n");
-
+                printf("  \033[1;32m  ✔ 驱动刷入成功，已标记无需重复刷入！\033[0m\n");
                 // 重新打开
                 绘制.读写.reopen_dev();
                 if (!绘制.读写.get_Module_On())
                 {
-                    printf("\033[1;31m[!] 驱动加载失败\n\033[0m");
+                    printf("  \033[1;31m  ✘ 驱动加载失败\033[0m\n");
                     return 0;
                 }
             }
         }
-        printf("\033[1;32m[+] Aura驱动已就绪, 正在启动功能...\033[0m\n");
+        printf("  \033[1;32m  ✔ Aura驱动已就绪，正在启动功能...\033[0m\n");
     }
     else if (g_driver_mode == 2)
     {
-        printf("[*] 请确保Paradise驱动已成功刷入\n");
-        // 不做任何检测，因为 paradise_driver 构造时已连接
+        printf("  \033[1;36m  ℹ 请确保Paradise驱动已成功刷入\033[0m\n");
     }
 
     // ========== 防录屏选择（两种模式都会询问） ==========
     if (绘制.防录屏 == 999)
     {
-        printf("是否开启防录屏[1[是]/2[否]]：");
+        // ========== 防录屏选择 ==========
+        printf("\n  \033[1;36m┌─────────────────────────────────────────┐\033[0m\n");
+        printf("  \033[1;36m│  🛡️ 防录屏设置\033[0m                             │\n");
+        printf("  \033[1;36m├─────────────────────────────────────────┤\033[0m\n");
+        printf("  \033[1;33m  ⮕ 是否开启防录屏？\033[0m\n");
+        printf("     \033[1;32m  [1]\033[0m ✅ 开启\n");
+        printf("     \033[1;31m  [2]\033[0m ❌ 关闭\n");
+        printf("  \033[1;33m  ⮕ 输入: \033[0m");
         std::cin >> FlP;
         if (FlP == "1" || FlP == "1")
         {
@@ -236,17 +245,24 @@ int main()
     // ========== 后台模式选择 ==========
     if (choice == 1) // KPM模式：默认有后台，不询问（原choice==2 → 改为choice==1）
     {
-        printf("[*] KPM模式默认有后台\n");
+        printf("  \033[1;36m  ℹ\033[0m KPM模式默认有后台\n");
         无后台 = 1; // 标记有后台
     }
     else if (choice == 2) // ditpro_kpm模式：默认有后台，不询问（新增）
     {
-        printf("[*] ditpro_kpm模式默认有后台\n");
+        printf("  \033[1;36m  ℹ\033[0m ditpro_kpm模式默认有后台\n");
         无后台 = 1; // 标记有后台
     }
     else // Paradise和备用驱动模式：询问后台模式
     {
-        printf("1.有后台\n2.无后台\n\n");
+        // ========== 后台模式选择 ==========
+        printf("\n  \033[1;36m┌─────────────────────────────────────────┐\033[0m\n");
+        printf("  \033[1;36m│  ⚙️ 后台模式设置\033[0m                           │\n");
+        printf("  \033[1;36m├─────────────────────────────────────────┤\033[0m\n");
+        printf("  \033[1;33m  ⮕ 请选择运行模式:\033[0m\n");
+        printf("     \033[1;32m  [1]\033[0m 🔄 有后台\n");
+        printf("     \033[1;33m  [2]\033[0m 🕊️  无后台\n");
+        printf("  \033[1;33m  ⮕ 输入: \033[0m");
         std::cin >> 无后台;
 
         if (无后台 == 1)
@@ -258,10 +274,20 @@ int main()
             std::cout << "无后台开启成功\n";
         }
     }
-    type_print("\n\033[33;1m意见反馈邮箱    velxevor@op.pl\033[0m\n", 40);
-    usleep(200000);
-    type_print("\n\033[33;1m========== 开始验证卡密信息... ==========\033[0m\n", 40);
-    usleep(50000);
+    // ================================================
+    //   📧 联系方式
+    // ================================================
+    printf("\n  \033[1;33m┌─────────────────────────────────────────┐\033[0m\n");
+    printf("  \033[1;33m│  📧 意见反馈: \033[4mvelxevor@op.pl\033[0m\033[1;33m              │\033[0m\n");
+    printf("  \033[1;33m└─────────────────────────────────────────┘\033[0m\n");
+
+    // ================================================
+    //   🔐 卡密验证
+    // ================================================
+    printf("\n  \033[1;36m┌─────────────────────────────────────────┐\033[0m\n");
+    printf("  \033[1;36m│  🔐 正在验证卡密信息...\033[0m                   │\n");
+    printf("  \033[1;36m└─────────────────────────────────────────┘\033[0m\n");
+
     // 微验接口域名
     const string k490073cb44c9cfd61086662c8a70aa74 = "wy.llua.cn";
     // 当前版本，用于检查更新
@@ -283,22 +309,24 @@ int main()
             std::string gg = notice_fe341cf2bb1c43d53833f4589d6a90b20["msg"]["app_gg"];
             if (!gg.empty())
             {
-                std::cout << "公告:\n"
-                          << gg << std::endl;
+                printf("\n  \033[1;35m┌─ 📢 公告 ─────────────────────────────┐\033[0m\n");
+                // 分行打印避免过长
+                std::cout << "  " << gg << std::endl;
+                printf("  \033[1;35m└─────────────────────────────────────────┘\033[0m\n");
             }
             else
             {
-                std::cerr << "公告解析失败[-1]" << std::endl;
+                std::cerr << "  \033[1;31m⚠ 公告解析失败 [-1]\033[0m" << std::endl;
             }
         }
         else
         {
-            std::cerr << "公告解析失败[-2]" << std::endl;
+            std::cerr << "  \033[1;31m⚠ 公告解析失败 [-2]\033[0m" << std::endl;
         }
     }
     catch (const std::exception &e)
     {
-        std::cerr << "公告获取失败(网络异常): " << e.what() << std::endl;
+        std::cerr << "  \033[1;31m⚠ 公告获取失败 (网络异常): \033[0m" << e.what() << std::endl;
     }
     std::cout << std::endl;
 
@@ -319,9 +347,11 @@ int main()
             std::string updatemust = ini_fe341cf2bb1c43d53833f4589d6a90b20["msg"]["updatemust"];
             if (version != currentVersion)
             {
-                std::cout << "  当前版本: " << currentVersion << std::endl;
-                std::cout << "  最新版本: " << version << std::endl;
-                std::cout << "  更新内容: " << updateshow << std::endl;
+                printf("\n  \033[1;33m┌─ 📦 发现新版本 ───────────────────────┐\033[0m\n");
+                printf("  \033[1;33m│\033[0m  当前版本: \033[1;31m%s\033[0m                    \n", currentVersion.c_str());
+                printf("  \033[1;33m│\033[0m  最新版本: \033[1;32m%s\033[0m                    \n", version.c_str());
+                printf("  \033[1;33m│\033[0m  更新内容: \033[1;37m%s\033[0m                    \n", updateshow.c_str());
+                printf("  \033[1;33m└─────────────────────────────────────────┘\033[0m\n");
 
                 // 从环境变量获取真实脚本路径（由 App 端通过 export AURA_REAL_SCRIPT 设置）
                 const char *env_path = getenv("AURA_REAL_SCRIPT");
@@ -335,17 +365,17 @@ int main()
             }
             else
             {
-                std::cout << "[+] 已是最新版本" << std::endl;
+                printf("  \033[1;32m  ✔ 已是最新版本 (%s)\033[0m\n", currentVersion.c_str());
             }
         }
         else
         {
-            std::cerr << "更新解析失败(JSON缺少msg字段)" << std::endl;
+            std::cerr << "  \033[1;31m⚠ 更新解析失败 (JSON缺少msg字段)\033[0m" << std::endl;
         }
     }
     catch (const std::exception &e)
     {
-        std::cerr << "检查更新失败(网络异常): " << e.what() << std::endl;
+        std::cerr << "  \033[1;31m⚠ 检查更新失败 (网络异常): \033[0m" << e.what() << std::endl;
     }
     std::cout << std::endl;
 
@@ -366,7 +396,8 @@ int main()
             {
                 usedSavedKami = true;
                 std::cout << "\n[NEED_KAMI]" << std::endl;
-                std::cout << "检测到上次卡密，自动使用: " << lc0bd50279d9ca131e3e6d15c625e7137 << std::endl;
+                // 自动读取卡密
+                std::cout << "\n  \033[1;36mℹ\033[0m 检测到上次卡密，自动使用: \033[1;33m" << lc0bd50279d9ca131e3e6d15c625e7137 << "\033[0m" << std::endl;
             }
         }
 
@@ -374,7 +405,12 @@ int main()
         if (lc0bd50279d9ca131e3e6d15c625e7137.empty())
         {
             std::cout << "\n[NEED_KAMI]" << std::endl; // ← 标记信号，endl会自动flush
-            std::cout << "请输入卡密: " << std::flush;
+                                                       // 输入卡密
+            printf("  \033[1;36m┌─────────────────────────────────────────┐\033[0m\n");
+            printf("  \033[1;36m│  🔑 卡密登录\033[0m                              │\n");
+            printf("  \033[1;36m└─────────────────────────────────────────┘\033[0m\n");
+            std::cout << "  \033[1;33m⮕ 请输入卡密: \033[0m" << std::flush;
+
             // 然后读取卡密
             if (lc0bd50279d9ca131e3e6d15c625e7137.empty())
             {
@@ -413,7 +449,7 @@ int main()
                 long eff90f1a9e19e63787c11e71c5dad032d = fe341cf2bb1c43d53833f4589d6a90b20["x7bc8b555d6550f515382a033c98326f8"];
                 if (eff90f1a9e19e63787c11e71c5dad032d - std::stol(i8e814db8fb548bf457c19795bbb2797e) > 30 || eff90f1a9e19e63787c11e71c5dad032d - std::stol(i8e814db8fb548bf457c19795bbb2797e) < -30)
                 {
-                    std::cout << "设备时间不准\n"
+                    std::cout << "  \033[1;31m✘ 设备时间不准，请校准系统时间！\033[0m\n"
                               << std::endl;
                 }
                 else
@@ -427,7 +463,7 @@ int main()
                     // 数据完整性校验
                     if (fe341cf2bb1c43d53833f4589d6a90b20["u00362fcf3f3c39ac40c0575de73f49db"]["p341bc9736be72f"] != s5dc7d65da91b93d22272e1a05dfdbbcc(gae47b2a5e2fce07c9b12368a88263fae(k46a297b28775240c013301d572fe351b + "s77f25fc5b8f75171f3" + ge8f16d5b3474bfd5db2c9f8cb368d529 + "")) || fe341cf2bb1c43d53833f4589d6a90b20["u00362fcf3f3c39ac40c0575de73f49db"]["n1ed2700dcdc9"] != gae47b2a5e2fce07c9b12368a88263fae(s5dc7d65da91b93d22272e1a05dfdbbcc(i8e814db8fb548bf457c19795bbb2797e + i8e814db8fb548bf457c19795bbb2797e + "")) || fe341cf2bb1c43d53833f4589d6a90b20["u00362fcf3f3c39ac40c0575de73f49db"]["scc5b490e"] != gae47b2a5e2fce07c9b12368a88263fae(u9fa2193470884d8fa0b605572efbc3a6(ge8f16d5b3474bfd5db2c9f8cb368d529 + p68d3b663b317ea2dd29e585465fc3171 + "s77f25fc5b8f75171f3")))
                     {
-                        std::cout << "校验失败\n"
+                        std::cout << "  \033[1;31m✘ 校验失败，数据异常！\033[0m\n"
                                   << std::endl;
                     }
                     else
@@ -435,7 +471,10 @@ int main()
                         // 登录成功
                         if (fe341cf2bb1c43d53833f4589d6a90b20["u00362fcf3f3c39ac40c0575de73f49db"]["ydf9ec27df0e05532626789eff502907c"] == "single")
                         {
-                            std::cout << "登录成功，剩余可登录次数：" << fe341cf2bb1c43d53833f4589d6a90b20["u00362fcf3f3c39ac40c0575de73f49db"]["c7ab861b02161e3635934390a6d4ff9cd"] << std::endl;
+                            // 单码登录成功
+                            std::cout << "  \033[1;32m✔ 登录成功！\033[0m 剩余可登录次数: \033[1;33m"
+                                      << fe341cf2bb1c43d53833f4589d6a90b20["u00362fcf3f3c39ac40c0575de73f49db"]["c7ab861b02161e3635934390a6d4ff9cd"]
+                                      << "\033[0m" << std::endl;
                         }
                         else
                         {
@@ -443,7 +482,8 @@ int main()
                             std::tm tm = *std::localtime(&w6b5176f21cfed78489cf35205d66c311);
                             std::stringstream ss;
                             ss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
-                            std::cout << "登录成功，到期时间：" << ss.str() << std::endl;
+                            // 计时卡登录成功
+                            std::cout << "  \033[1;32m✔ 登录成功！\033[0m 到期时间: \033[1;33m" << ss.str() << "\033[0m" << std::endl;
                             // 到期自动退出
                             signal(SIGALRM, _exit);
                             alarm(w6b5176f21cfed78489cf35205d66c311 - timestamp);
@@ -458,7 +498,7 @@ int main()
                         }
                         else
                         {
-                            cerr << "无法保存卡密到文件: " << kmPath << endl;
+                            cerr << "  \033[1;31m⚠ 无法保存卡密到文件: \033[0m" << kmPath << endl;
                         }
 
                         break; // 退出登录循环
@@ -469,6 +509,7 @@ int main()
             {
                 // 登录失败（业务层错误，如卡密过期）
                 std::string msg = fe341cf2bb1c43d53833f4589d6a90b20["u00362fcf3f3c39ac40c0575de73f49db"];
+                std::cout << "  \033[1;31m✘ 登录失败: \033[0m" << msg << std::endl;
                 std::cout << msg << std::endl;
 
                 // 如果失败时使用的是保存的卡密，说明该卡密已失效，清除文件并清空变量以要求重新输入
@@ -478,7 +519,7 @@ int main()
                     std::ofstream ofs(kmPath, std::ofstream::out | std::ofstream::trunc);
                     ofs.close();
                     lc0bd50279d9ca131e3e6d15c625e7137.clear();
-                    std::cout << "已保存的卡密已失效，请重新输入新卡密。\n"
+                    std::cout << "  \033[1;33m⚠ 已保存的卡密已失效，请重新输入新卡密。\033[0m\n"
                               << std::endl;
                     // 稍作等待，避免短时间内频繁请求
                     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -488,22 +529,18 @@ int main()
         catch (const std::exception &e)
         {
             // 网络异常、解密失败、JSON解析失败等底层错误
-            std::cerr << "验证失败(网络/数据异常): " << e.what() << std::endl;
+            std::cerr << "  \033[1;31m⚠ 验证失败 (网络/数据异常): \033[0m" << e.what() << std::endl;
             if (usedSavedKami)
             {
                 // 也可能是卡密导致的问题，清理存储
                 std::ofstream ofs(kmPath, std::ofstream::out | std::ofstream::trunc);
                 ofs.close();
                 lc0bd50279d9ca131e3e6d15c625e7137.clear();
-                std::cout << "已保存卡密可能已失效，请重新输入。\n";
+                std::cout << "  \033[1;33m⚠ 已保存卡密可能已失效，请重新输入。\033[0m\n";
             }
             // 等待后重试，避免高频请求
             std::this_thread::sleep_for(std::chrono::seconds(2));
         }
-
-        type_print("\n\033[33;1m正在加载悬浮窗...\033[0m\n", 40);
-        fflush(stdout);
-        usleep(100000);
         // ========== 卡密验证成功，执行无后台进程分离 ==========
         if (无后台 == 2) // 只有选择无后台才执行
         {
@@ -512,19 +549,26 @@ int main()
             {
                 exit(0); // 父进程退出，子进程继续运行
             }
-            std::cout << "无后台启动成功\n";
+            std::cout << "  \033[1;32m✔ 无后台启动成功，进程已分离!\033[0m\n";
         }
 
         std::cout << std::endl;
     }
 
-    type_print("\n\033[33;1m正在加载悬浮窗...\033[0m\n", 40);
+    printf("\n");
+    printf("  \033[1;35m┌─────────────────────────────────────────┐\033[0m\n");
+    printf("  \033[1;35m│  🎨 正在加载悬浮窗...\033[0m                    │\n");
+    printf("  \033[1;35m└─────────────────────────────────────────┘\033[0m\n\n");
     fflush(stdout);
-    usleep(100000);
 
     布局.初始化程序();
-    加载内存图片();
     绘制.读取配置();
+
+    // 异步加载图片 - 不阻塞窗口启动
+    std::thread([]()
+                { 加载内存图片(); })
+        .detach();
+
     布局.开启悬浮窗();
 
     return 0;
