@@ -1711,6 +1711,19 @@ void DrawHomePage()
     ImGui::EndChild();
     current_y += 170 + card_padding;
 
+    // ★ 新增：坐标解密按钮 ★
+    current_y += 10;
+    ImGui::SetCursorPos(ImVec2(20 + (ImGui::GetContentRegionAvail().x - fullW) * 0.5f, current_y + 10));
+    ImGui::PushStyleColor(ImGuiCol_Button, 绘制.按钮.坐标解密 ? ImVec4(0.2f, 0.7f, 0.4f, 0.8f) : ImVec4(0.4f, 0.4f, 0.4f, 0.8f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.8f, 0.5f, 0.9f));
+    if (ImGui::Button(绘制.按钮.坐标解密 ? "坐标解密:开" : "坐标解密:关", ImVec2(fullW, 38)))
+    {
+        绘制.按钮.坐标解密 = !绘制.按钮.坐标解密;
+        AddNotification(绘制.按钮.坐标解密 ? "坐标解密已开启" : "坐标解密已关闭", true);
+    }
+    ImGui::PopStyleColor(2);
+    current_y += 55; // 按钮高度38+间距
+
     // 退出按钮（居中）
     ImGui::SetCursorPos(ImVec2(20 + (ImGui::GetContentRegionAvail().x - fullW) * 0.5f, current_y + 10));
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.2f, 0.2f, 0.8f));

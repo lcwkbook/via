@@ -1112,6 +1112,125 @@ ImColor 绘制::floatArrToImColor(float arr[4])
     return ImColor(arr[0] * 255, arr[1] * 255, arr[2] * 255, arr[3] * 255);
 }
 
+// ============================================================
+// 坐标解密算法 - 在绘制.cpp中 更新对象数据() 函数前面添加
+// ============================================================
+
+// 全局解密缓存（也可放在函数内用static）
+static std::unordered_map<uintptr_t, FVector_class> g_解密缓存;
+static std::unordered_map<uintptr_t, bool> g_解密缓存已初始化;
+static std::unordered_map<uintptr_t, std::chrono::steady_clock::time_point> g_缓存时间;
+static std::unordered_map<uintptr_t, FVector_class> g_敌人速度缓存;
+
+// 判断坐标是否被加密（Z轴突变检测）
+bool 判断坐标是否加密(const FVector_class &坐标, const FVector_class &自身坐标)
+{
+    // 1. 坐标距离自身超过10000单位 → 明显加密
+    float 距离 = sqrt(pow(坐标.X - 自身坐标.X, 2) + pow(坐标.Y - 自身坐标.Y, 2) + pow(坐标.Z - 自身坐标.Z, 2));
+    if (距离 > 10000.0f)
+        return true;
+
+    // 2. Z轴与自身差距超过500单位 → Z被篡改
+    if (fabs(坐标.Z - 自身坐标.Z) > 500.0f)
+        return true;
+
+    return false;
+}
+
+// 检测多个敌人在自身5米正下方
+bool 检测下方敌人集群(const FVector_class &自身坐标)
+{
+    int 下方计数 = 0;
+    float 水平阈值 = 500.0f; // 5米（游戏单位通常是cm）
+    float 垂直上限 = 300.0f; // 下方3米内
+    float 垂直下限 = 10.0f;  // 至少10cm在下方
+
+    // 注：这里无法直接访问本轮所有敌人坐标，用距离判断替代
+    // 检测逻辑在主循环外部也可以用另外的方式
+    return false; // 简化版，在主循环中用更精确方式
+}
+
+// 核心解密函数 - 在坐标读取后立即调用
+void 算法解密坐标(FVector_class &敌人坐标, const FVector_class &自身坐标, uintptr_t 敌人地址)
+{
+    bool 被加密 = 判断坐标是否加密(敌人坐标, 自身坐标);
+
+    if (!被加密)
+    {
+        // 坐标正常 → 更新缓存
+        g_解密缓存[敌人地址] = 敌人坐标;
+        g_解密缓存已初始化[敌人地址] = true;
+        return;
+    }
+
+    // 坐标被加密！
+    if (g_解密缓存已初始化[敌人地址])
+    {
+        // 有历史缓存 → 用历史坐标 + Z轴修正
+        FVector_class &缓存 = g_解密缓存[敌人地址];
+        敌人坐标.X = 缓存.X;
+        敌人坐标.Y = 缓存.Y;
+        // Z轴用自身Z减去170（假设敌人在地面）
+        敌人坐标.Z = 自身坐标.Z - 170.0f;
+    }
+    else
+    {
+        // 无缓存 → 直接用自身坐标（至少显示在附近）
+        敌人坐标.X = 自身坐标.X;
+        敌人坐标.Y = 自身坐标.Y;
+        敌人坐标.Z = 自身坐标.Z - 170.0f;
+        g_解密缓存[敌人地址] = 敌人坐标;
+        g_解密缓存已初始化[敌人地址] = true;
+    }
+}
+// 复用的矩阵转换（来自骨骼.hpp）
+FMatrix TransformToMatrix(FTransform transform)
+{
+    FMatrix matrix;
+    matrix.M[3][0] = transform.Translation.X;
+    matrix.M[3][1] = transform.Translation.Y;
+    matrix.M[3][2] = transform.Translation.Z;
+    float x2 = transform.Rotation.X + transform.Rotation.X;
+    float y2 = transform.Rotation.Y + transform.Rotation.Y;
+    float z2 = transform.Rotation.Z + transform.Rotation.Z;
+    float xx2 = transform.Rotation.X * x2;
+    float yy2 = transform.Rotation.Y * y2;
+    float zz2 = transform.Rotation.Z * z2;
+    matrix.M[0][0] = (1 - (yy2 + zz2)) * transform.Scale3D.X;
+    matrix.M[1][1] = (1 - (xx2 + zz2)) * transform.Scale3D.Y;
+    matrix.M[2][2] = (1 - (xx2 + yy2)) * transform.Scale3D.Z;
+    float yz2 = transform.Rotation.Y * z2;
+    float wx2 = transform.Rotation.W * x2;
+    matrix.M[2][1] = (yz2 - wx2) * transform.Scale3D.Z;
+    matrix.M[1][2] = (yz2 + wx2) * transform.Scale3D.Y;
+    float xy2 = transform.Rotation.X * y2;
+    float wz2 = transform.Rotation.W * z2;
+    matrix.M[1][0] = (xy2 - wz2) * transform.Scale3D.Y;
+    matrix.M[0][1] = (xy2 + wz2) * transform.Scale3D.X;
+    float xz2 = transform.Rotation.X * z2;
+    float wy2 = transform.Rotation.W * y2;
+    matrix.M[2][0] = (xz2 + wy2) * transform.Scale3D.Z;
+    matrix.M[0][2] = (xz2 - wy2) * transform.Scale3D.X;
+    matrix.M[0][3] = 0;
+    matrix.M[1][3] = 0;
+    matrix.M[2][3] = 0;
+    matrix.M[3][3] = 1;
+    return matrix;
+}
+
+FMatrix MatrixMulti(const FMatrix &m1, const FMatrix &m2)
+{
+    FMatrix matrix;
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+        {
+            matrix.M[i][j] = 0;
+            for (int k = 0; k < 4; k++)
+                matrix.M[i][j] += m1.M[i][k] * m2.M[k][j];
+        }
+    return matrix;
+}
+
 void 绘制::更新对象数据()
 {
     if (按钮.雷达)
@@ -1135,6 +1254,85 @@ void 绘制::更新对象数据()
         // 主循环
         对象地址.敌人地址 = 读写.getPtr64(地址.数组地址 + a * 8);
         读写.readv(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_RootComponent) + 0x1B0, &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
+        FVector_class &坐标 = 对象信息.敌人信息.坐标;
+        if (按钮.坐标解密)
+        {
+            // ─── 帧间一致性检测 ───
+            if (g_解密缓存已初始化[对象地址.敌人地址])
+            {
+                FVector_class &上一帧 = g_解密缓存[对象地址.敌人地址];
+
+                // 计算偏移
+                float 水平偏移 = sqrt(pow(坐标.X - 上一帧.X, 2) + pow(坐标.Y - 上一帧.Y, 2));
+                float 垂直偏移 = fabs(坐标.Z - 上一帧.Z);
+
+                // 加密判断
+                bool 水平加密 = (水平偏移 > 800.0f);
+                bool 垂直加密 = (垂直偏移 > 300.0f);
+
+                // 替换原来的代码
+                if (水平加密 || 垂直加密)
+                {
+                    FVector_class &速度 = g_敌人速度缓存[对象地址.敌人地址];
+                    float dt = 0.05f; // 预测时间因子（根据帧率调整）
+
+                    // XY用上一帧+速度预测
+                    坐标.X = 上一帧.X + 速度.X * dt;
+                    坐标.Y = 上一帧.Y + 速度.Y * dt;
+
+                    // ★ 关键修复：Z用上一帧的Z + 速度预测，而不是用自身Z！
+                    if (!垂直加密)
+                    {
+                        坐标.Z = 上一帧.Z + 速度.Z * dt;
+                    }
+                    else
+                    {
+                        // Z确实加密了，也用上一帧Z，不低于地面即可
+                        坐标.Z = 上一帧.Z;
+                        if (坐标.Z < -10000)
+                            坐标.Z = 上一帧.Z; // 保护
+                    }
+
+                    g_缓存时间[对象地址.敌人地址] = std::chrono::steady_clock::now();
+                }
+                else
+                {
+                    // 正常更新缓存
+                    g_解密缓存[对象地址.敌人地址] = 坐标;
+                    g_缓存时间[对象地址.敌人地址] = std::chrono::steady_clock::now();
+                    读写.readv(对象地址.敌人地址 + Offsets::Actor_Velocity,
+                               &g_敌人速度缓存[对象地址.敌人地址], sizeof(FVector_class));
+                }
+            }
+            else
+            {
+                // ─── 首次遇到：验证坐标是否合理 ───
+                float 距离 = sqrt(pow(坐标.X - 自身数据.坐标.X, 2) + pow(坐标.Y - 自身数据.坐标.Y, 2) + pow(坐标.Z - 自身数据.坐标.Z, 2));
+
+                if (距离 > 10.0f && 距离 < 300000.0f)
+                {
+                    g_解密缓存[对象地址.敌人地址] = 坐标;
+                    g_解密缓存已初始化[对象地址.敌人地址] = true;
+                    g_缓存时间[对象地址.敌人地址] = std::chrono::steady_clock::now();
+                    读写.readv(对象地址.敌人地址 + Offsets::Actor_Velocity,
+                               &g_敌人速度缓存[对象地址.敌人地址], sizeof(FVector_class));
+                }
+                else
+                {
+                    // 首次读取就是加密数据 → 用自身坐标作为基准
+                    坐标.X = 自身数据.坐标.X;
+                    坐标.Y = 自身数据.坐标.Y;
+                    坐标.Z = 自身数据.坐标.Z - 170.0f;
+                    g_解密缓存[对象地址.敌人地址] = 坐标;
+                    g_解密缓存已初始化[对象地址.敌人地址] = true;
+                    g_缓存时间[对象地址.敌人地址] = std::chrono::steady_clock::now();
+                    memset(&g_敌人速度缓存[对象地址.敌人地址], 0, sizeof(FVector_class));
+                    // ← 不再 continue！
+                }
+            }
+        }
+        // ★★★ 解密结束 ★★★
+
         对象信息.敌人信息.距离 = 计算.计算距离(自身数据.坐标, 对象信息.敌人信息.坐标);
         FVector2D screenPos = WorldToScreen(对象信息.敌人信息.坐标);
         FVector2D footPos = WorldToScreen(FVector_class{对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z - 5});
@@ -1146,7 +1344,12 @@ void 绘制::更新对象数据()
         };
         static std::unordered_map<uintptr_t, SmoothPos> smoothCache;
 
-        bool screenValid = (footPos.X != INFINITY && footPos.Y != INFINITY && headPos.Y != INFINITY);
+        // 增强屏幕有效性判断：防空框
+        float screenW = ImGui::GetIO().DisplaySize.x;
+        float screenH = ImGui::GetIO().DisplaySize.y;
+        bool screenValid = (footPos.X != INFINITY && footPos.Y != INFINITY && headPos.Y != INFINITY && footPos.X > -screenW && footPos.X < screenW * 2 // 不过度偏离屏幕
+                            && footPos.Y > -screenH && footPos.Y < screenH * 2 && headPos.Y > -screenH && headPos.Y < screenH * 2);
+
         if (!screenValid)
         {
             smoothCache.erase(对象地址.敌人地址); // 清理残留缓存
