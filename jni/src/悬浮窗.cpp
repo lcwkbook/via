@@ -1598,13 +1598,13 @@ void DrawLeftNavigation(int &selectedMenu)
 
     const float iconSize = 30.0f;
     const float iconTextSpacing = 12.0f;
-    const float itemSpacing = 15.0f;
+    const float itemSpacing = 24.0f;
 
     for (int i = 0; i < IM_ARRAYSIZE(menuItems); i++)
     {
         bool selected = (selectedMenu == i);
         float avail = ImGui::GetContentRegionAvail().x - 20.0f;
-        ImVec2 btnSize(avail, 60.0f);
+        ImVec2 btnSize(avail, 70.0f);
         ImVec2 cursor = ImGui::GetCursorScreenPos();
         ImDrawList *dl = ImGui::GetWindowDrawList();
 
@@ -1651,103 +1651,275 @@ void DrawLeftNavigation(int &selectedMenu)
 // ---------- 主页 ----------
 void DrawHomePage()
 {
-    ImGui::BeginChild("##HomeContent", ImVec2(-1, -1), false); // 不自动添加滚动条（但我们手动控制布局）
-    float avail_y = ImGui::GetContentRegionAvail().y;
-    float current_y = 10.0f;
-    float card_padding = 10.0f;
-    float fullW = ImGui::GetContentRegionAvail().x - 40.0f;
+    // ── 全局布局常量 ──────────────────────────────────────────────────
+    constexpr float kSideMargin = 20.0f;
+    constexpr float kCardGap = 16.0f;
+    constexpr float kInnerPad = 18.0f;
 
-    // 状态卡片
-    ImGui::SetCursorPos(ImVec2(20, current_y));
-    ImGui::BeginChild("##StatusCard", ImVec2(-1, 90), true);
-    ImGui::SetCursorPos(ImVec2(15, 15));
-    bool connected = (绘制.地址.世界地址 != 0x0);
-    ImGui::TextColored(connected ? ImVec4(0.3f, 0.9f, 0.5f, 1.0f) : ImVec4(1.0f, 0.4f, 0.4f, 1.0f), connected ? "● 已连接" : "○ 未连接");
-    ImGui::SameLine(150);
-    ImGui::Text("负载: %.1f%%", 绘制.运行负载);
-    ImGui::SameLine(300);
-    ImGui::Text("延迟: %d ms", 绘制.网络延迟);
-    ImGui::SetCursorPosX(15);
-    ImGui::Text("游戏初始化数据 内核读取");
-    ImGui::SameLine(300);
-    ImGui::Text("不动内存");
-    ImGui::EndChild();
-    current_y += 90 + card_padding;
+    constexpr float kStatusH = 96.0f;
+    constexpr float kSecondH = 242.0f; // 标题46 + 内容居中
+    constexpr float kBottomH = 78.0f;
 
-    // 状态栏开关
-    ImGui::SetCursorPos(ImVec2(20, current_y));
-    ImGui::Checkbox("显示顶部状态栏", &showTopStatusBar);
-    current_y += 50 + card_padding;
+    // 标题区域结束位置（两列共用）
+    constexpr float kContentTop = 46.0f;
 
-    // 游戏控制卡片（高度稍大）
-    ImGui::SetCursorPos(ImVec2(20, current_y));
-    ImGui::BeginChild("##GameControl", ImVec2(-1, 180), true);
-    ImGui::SetCursorPos(ImVec2(15, 15));
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.5f, 0.8f, 0.8f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.25f, 0.6f, 0.9f, 0.9f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.15f, 0.45f, 0.7f, 1.0f));
-    if (ImGui::Button("链接游戏", ImVec2(fullW, 36)))
-    {
-        绘制.初始化绘制("com.tencent.tmgp.pubgmhd", abs_ScreenX, abs_ScreenY);
-        绘制.按钮.绘制 = true;
-        绘制.按钮.人数 = true;
-    }
-    ImGui::PopStyleColor(3);
-    ImGui::Spacing();
-    if (ImGui::Button("扫描解密", ImVec2(fullW, 36)))
-    {
-        绘制.解密数组选择窗口开启 = true;
-        if (绘制.解密地址列表.empty())
-            绘制.重新扫描解密地址();
-    }
-    ImGui::Spacing();
-    ImGui::PushStyleColor(ImGuiCol_Button, 绘制.按钮.解密 ? ImVec4(0.2f, 0.7f, 0.4f, 0.8f) : ImVec4(0.4f, 0.4f, 0.4f, 0.8f));
-    if (ImGui::Button(绘制.按钮.解密 ? "解密已启用" : "数组解密", ImVec2(fullW, 36)))
-    {
-        绘制.按钮.解密 = !绘制.按钮.解密;
-        AddNotification(绘制.按钮.解密 ? "解密启用" : "解密禁用", true);
-    }
-    ImGui::PopStyleColor();
-    ImGui::EndChild();
-    current_y += 170 + card_padding;
+    const float outerAvailW = ImGui::GetContentRegionAvail().x;
+    const float availW = outerAvailW - kSideMargin * 2;
+    const float halfW = (availW - kCardGap) * 0.5f;
 
-    // ★ 新增：坐标解密按钮 ★
-    current_y += 10;
-    ImGui::SetCursorPos(ImVec2(20 + (ImGui::GetContentRegionAvail().x - fullW) * 0.5f, current_y + 10));
-    ImGui::PushStyleColor(ImGuiCol_Button, 绘制.按钮.坐标解密 ? ImVec4(0.2f, 0.7f, 0.4f, 0.8f) : ImVec4(0.4f, 0.4f, 0.4f, 0.8f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.3f, 0.8f, 0.5f, 0.9f));
-    if (ImGui::Button(绘制.按钮.坐标解密 ? "坐标解密:开" : "坐标解密:关", ImVec2(fullW, 38)))
+    ImGui::BeginChild("##HomeContent", ImVec2(-1, -1), false);
     {
-        绘制.按钮.坐标解密 = !绘制.按钮.坐标解密;
-        AddNotification(绘制.按钮.坐标解密 ? "坐标解密已开启" : "坐标解密已关闭", true);
-    }
-    ImGui::PopStyleColor(2);
-    current_y += 55; // 按钮高度38+间距
+        // =============================================================
+        //  第一行：状态卡片
+        // =============================================================
+        ImGui::SetCursorPos(ImVec2(kSideMargin, 14));
+        ImGui::BeginChild("##StatusCard", ImVec2(-1, kStatusH), true);
+        {
+            const float childW = ImGui::GetContentRegionAvail().x;
+            const bool connected = (绘制.地址.世界地址 != 0x0);
 
-    // 退出按钮（居中）
-    ImGui::SetCursorPos(ImVec2(20 + (ImGui::GetContentRegionAvail().x - fullW) * 0.5f, current_y + 10));
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.7f, 0.2f, 0.2f, 0.8f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.8f, 0.25f, 0.25f, 0.9f));
-    if (ImGui::Button("退出程序", ImVec2(fullW, 38)))
-    {
-        // 停止音量监听线程
-        g_volumeThreadRunning = false;
-        if (无痕读取开启 && std::filesystem::exists(备份目录))
-            RestoreADBDirectory();
-        exit(1);
-    }
-    // ★ 发送脚本用户离线信号
-    std::thread([]()
+            ImGui::SetCursorPos(ImVec2(kInnerPad, 12));
+            ImGui::TextColored(
+                connected ? ImVec4(0.20f, 0.85f, 0.45f, 1.0f)
+                          : ImVec4(1.00f, 0.35f, 0.35f, 1.0f),
+                connected ? "● 已连接" : "○ 未连接");
+
+            ImGui::SetCursorPos(ImVec2(170.0f, 12));
+            ImGui::TextColored(ImVec4(0.55f, 0.75f, 0.95f, 1.0f), "负载");
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.90f, 0.90f, 0.90f, 1.0f),
+                               "%.1f%%", 绘制.运行负载);
+
+            ImGui::SetCursorPos(ImVec2(310.0f, 12));
+            ImGui::TextColored(ImVec4(0.55f, 0.75f, 0.95f, 1.0f), "延迟");
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.90f, 0.90f, 0.90f, 1.0f),
+                               "%d ms", 绘制.网络延迟);
+
+            ImGui::SetCursorPos(ImVec2(kInnerPad, 52));
+            ImGui::TextColored(ImVec4(0.50f, 0.50f, 0.50f, 1.0f),
+                               "游戏初始化数据  ·  内核读取  ·  不动内存");
+
+            const float cbW = 130.0f;
+            ImGui::SetCursorPos(ImVec2(childW - cbW - 10.0f, 52));
+            ImGui::Checkbox("顶部状态栏", &showTopStatusBar);
+        }
+        ImGui::EndChild();
+
+        // =============================================================
+        //  第二行：游戏控制（左） | 快捷信息（右）
+        //        两列内容均在各自区域内垂直+水平居中
+        // =============================================================
+        const float secondY = 14.0f + kStatusH + kCardGap;
+
+        // ── 左列：游戏控制 ────────────────────────────────────────────
+        ImGui::SetCursorPos(ImVec2(kSideMargin, secondY));
+        ImGui::BeginChild("##GameCtrlLeft", ImVec2(halfW, kSecondH), true);
+        {
+            const float ctrlW = ImGui::GetContentRegionAvail().x;
+
+            ImGui::SetCursorPos(ImVec2(kInnerPad, 14));
+            ImGui::TextColored(ImVec4(0.80f, 0.80f, 0.95f, 1.0f), "游戏控制");
+            ImGui::Separator();
+
+            // 三个按钮垂直居中
+            const float btnW = ctrlW - 40.0f;       // 按钮宽（左右各20px呼吸空间）
+            const float btnH = 42.0f;               // 按钮高
+            const float gap = 14.0f;                // 按钮间距
+            const float btnsH = btnH * 3 + gap * 2; // 三个按钮总高
+            const float topY = kContentTop + (kSecondH - kContentTop - btnsH) * 0.5f;
+            const float cx = (ctrlW - btnW) * 0.5f; // 水平居中
+
+            // 按钮 1
+            ImGui::SetCursorPos(ImVec2(cx, topY));
+            if (ImGui::Button("扫描解密", ImVec2(btnW, btnH)))
+            {
+                绘制.解密数组选择窗口开启 = true;
+                if (绘制.解密地址列表.empty())
+                    绘制.重新扫描解密地址();
+            }
+
+            // 按钮 2
+            ImGui::SetCursorPos(ImVec2(cx, topY + (btnH + gap)));
+            {
+                bool active = 绘制.按钮.解密;
+                ImGui::PushStyleColor(
+                    ImGuiCol_Button,
+                    active ? ImVec4(0.18f, 0.68f, 0.38f, 0.85f)
+                           : ImVec4(0.40f, 0.40f, 0.40f, 0.80f));
+                if (ImGui::Button(active ? "解密已启用" : "数组解密",
+                                  ImVec2(btnW, btnH)))
                 {
-    std::string deviceId = getIMEI();
-    std::string url = "https://mt.xiaon.sbs/api.php?action=report_script_offline&device_id=" + deviceId;
-    std::string cmd = "busybox wget -q --timeout=3 -O- '" + url + "' 2>/dev/null";
-    FILE* pipe = popen(cmd.c_str(), "r");
-    if (pipe) pclose(pipe); })
-        .detach();
+                    绘制.按钮.解密 = !active;
+                    AddNotification(active ? "解密禁用" : "解密启用", true);
+                }
+                ImGui::PopStyleColor();
+            }
 
-    ImGui::PopStyleColor(2);
+            // 按钮 3
+            ImGui::SetCursorPos(ImVec2(cx, topY + (btnH + gap) * 2));
+            {
+                bool active = 绘制.按钮.坐标解密;
+                ImGui::PushStyleColor(
+                    ImGuiCol_Button,
+                    active ? ImVec4(0.18f, 0.68f, 0.38f, 0.85f)
+                           : ImVec4(0.40f, 0.40f, 0.40f, 0.80f));
+                ImGui::PushStyleColor(
+                    ImGuiCol_ButtonHovered,
+                    ImVec4(0.28f, 0.78f, 0.48f, 0.92f));
+                if (ImGui::Button(active ? "坐标解密: 开" : "坐标解密: 关",
+                                  ImVec2(btnW, btnH)))
+                {
+                    绘制.按钮.坐标解密 = !active;
+                    AddNotification(active ? "坐标解密已关闭" : "坐标解密已开启",
+                                    true);
+                }
+                ImGui::PopStyleColor(2);
+            }
+        }
+        ImGui::EndChild();
 
+        // ── 右列：快捷信息（垂直堆叠 4 行，值完整显示） ──────────────
+        ImGui::SameLine();
+        ImGui::SetCursorPos(
+            ImVec2(kSideMargin + halfW + kCardGap, secondY));
+        ImGui::BeginChild("##QuickInfoRight",
+                          ImVec2(halfW, kSecondH), true);
+        {
+            const float infoW = ImGui::GetContentRegionAvail().x;
+
+            ImGui::SetCursorPos(ImVec2(kInnerPad, 14));
+            ImGui::TextColored(ImVec4(0.80f, 0.80f, 0.95f, 1.0f), "快捷信息");
+            ImGui::Separator();
+
+            // 四行垂直居中
+            const float bW = infoW - 36.0f;
+            const float bH = 40.0f;
+            const float gap = 8.0f;
+            const float rowsH = bH * 4 + gap * 3; // 四行总高
+            const float startY = kContentTop + (kSecondH - kContentTop - rowsH) * 0.5f;
+            const float cx = (infoW - bW) * 0.5f; // 水平居中
+
+            // -- 行1：运行时长 --
+            ImGui::SetCursorPos(ImVec2(cx, startY));
+            ImGui::BeginChild("##InfoRow1", ImVec2(bW, bH), true);
+            {
+                ImGui::SetCursorPos(ImVec2(12, 10));
+                ImGui::TextColored(ImVec4(0.50f, 0.72f, 1.00f, 1.0f),
+                                   "运行时长");
+                ImGui::SameLine();
+                ImGui::SetCursorPosX(bW - 100.0f);
+                ImGui::TextColored(ImVec4(0.90f, 0.90f, 0.90f, 1.0f),
+                                   "%.1f min",
+                                   ImGui::GetIO().DeltaTime * ImGui::GetFrameCount() / 60.0f);
+            }
+            ImGui::EndChild();
+
+            // -- 行2：帧率 --
+            ImGui::SetCursorPos(ImVec2(cx, startY + (bH + gap)));
+            ImGui::BeginChild("##InfoRow2", ImVec2(bW, bH), true);
+            {
+                ImGui::SetCursorPos(ImVec2(12, 10));
+                ImGui::TextColored(ImVec4(0.50f, 0.72f, 1.00f, 1.0f),
+                                   "帧率");
+                ImGui::SameLine();
+                ImGui::SetCursorPosX(bW - 100.0f);
+                ImGui::TextColored(ImVec4(0.90f, 0.90f, 0.90f, 1.0f),
+                                   "%.0f FPS", ImGui::GetIO().Framerate);
+            }
+            ImGui::EndChild();
+
+            // -- 行3：游戏窗口 --
+            ImGui::SetCursorPos(ImVec2(cx, startY + (bH + gap) * 2));
+            ImGui::BeginChild("##InfoRow3", ImVec2(bW, bH), true);
+            {
+                ImGui::SetCursorPos(ImVec2(12, 10));
+                ImGui::TextColored(ImVec4(0.50f, 0.72f, 1.00f, 1.0f),
+                                   "游戏窗口");
+                ImGui::SameLine();
+                ImGui::SetCursorPosX(bW - 150.0f);
+                ImGui::TextColored(ImVec4(0.90f, 0.90f, 0.90f, 1.0f),
+                                   "%d x %d", abs_ScreenX, abs_ScreenY);
+            }
+            ImGui::EndChild();
+
+            // -- 行4：内存模式 --
+            ImGui::SetCursorPos(ImVec2(cx, startY + (bH + gap) * 3));
+            ImGui::BeginChild("##InfoRow4", ImVec2(bW, bH), true);
+            {
+                ImGui::SetCursorPos(ImVec2(12, 10));
+                ImGui::TextColored(ImVec4(0.50f, 0.72f, 1.00f, 1.0f),
+                                   "内存模式");
+                ImGui::SameLine();
+                ImGui::SetCursorPosX(bW - 100.0f);
+                ImGui::TextColored(ImVec4(0.90f, 0.90f, 0.90f, 1.0f),
+                                   "%s", 无痕读取开启 ? "无痕" : "标准");
+            }
+            ImGui::EndChild();
+        }
+        ImGui::EndChild();
+
+        // =============================================================
+        //  第三行：底部操作栏
+        // =============================================================
+        const float thirdY = secondY + kSecondH + kCardGap;
+
+        ImGui::SetCursorPos(ImVec2(kSideMargin, thirdY));
+        ImGui::BeginChild("##BottomActions", ImVec2(-1, kBottomH), true);
+        {
+            const float areaW = ImGui::GetContentRegionAvail().x;
+            const float gap = 16.0f;
+            const float btnW = (areaW - 36.0f - gap) * 0.5f;
+            const float btnH = 44.0f;
+            const float btnY = (kBottomH - btnH) * 0.5f;
+            const float cx = (areaW - btnW * 2 - gap) * 0.5f;
+
+            ImGui::SetCursorPos(ImVec2(cx, btnY));
+            ImGui::PushStyleColor(ImGuiCol_Button,
+                                  ImVec4(0.18f, 0.52f, 0.82f, 0.92f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                                  ImVec4(0.22f, 0.62f, 0.92f, 1.00f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive,
+                                  ImVec4(0.14f, 0.42f, 0.72f, 1.00f));
+            if (ImGui::Button("链接游戏", ImVec2(btnW, btnH)))
+            {
+                绘制.初始化绘制("com.tencent.tmgp.pubgmhd",
+                                abs_ScreenX, abs_ScreenY);
+                绘制.按钮.绘制 = true;
+                绘制.按钮.人数 = true;
+            }
+            ImGui::PopStyleColor(3);
+
+            ImGui::SameLine();
+            ImGui::SetCursorPos(ImVec2(cx + btnW + gap, btnY));
+            ImGui::PushStyleColor(ImGuiCol_Button,
+                                  ImVec4(0.68f, 0.18f, 0.18f, 0.88f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                                  ImVec4(0.78f, 0.22f, 0.22f, 0.96f));
+            if (ImGui::Button("退出程序", ImVec2(btnW, btnH)))
+            {
+                g_volumeThreadRunning = false;
+                if (无痕读取开启 && std::filesystem::exists(备份目录))
+                    RestoreADBDirectory();
+
+                std::thread([]()
+                            {
+                    std::string did = getIMEI();
+                    std::string url = "https://mt.xiaon.sbs/api.php"
+                                      "?action=report_script_offline"
+                                      "&device_id=" + did;
+                    std::string cmd = "busybox wget -q --timeout=3 -O- '"
+                                      + url + "' 2>/dev/null";
+                    FILE* p = popen(cmd.c_str(), "r");
+                    if (p) pclose(p); })
+                    .detach();
+
+                exit(1);
+            }
+            ImGui::PopStyleColor(2);
+        }
+        ImGui::EndChild();
+    }
     ImGui::EndChild();
 }
 

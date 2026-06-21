@@ -173,17 +173,17 @@ struct paradise_addr_translate_cmd
 #define WMT_DEVICE_GRE 6
 #define WMT_NORMAL_iNC_oWB 7
 
-
 // ===================== 新增：ditpro_kpm驱动 =====================
 #include <optional>
 #include <memory>
 #include <cstring>
 
-#define __NR_syscall_  18
-#define __FLAGS        1UL << 0
+#define __NR_syscall_ 18
+#define __FLAGS 1UL << 0
 #define __CHECKSUCCESS (1UL << 30)
 
-enum class DitproDriverType : int {
+enum class DitproDriverType : int
+{
     ERR = -1,
     DITPRO_KPM = 0,
     DITS_KO = 1,
@@ -191,7 +191,8 @@ enum class DitproDriverType : int {
     RT_KO = 3
 };
 
-enum class DitproMemoryOp : uint64_t {
+enum class DitproMemoryOp : uint64_t
+{
     INIT = 1UL << 1,
     READ = 1UL << 2,
     WRITE = 1UL << 3,
@@ -202,7 +203,8 @@ enum class DitproMemoryOp : uint64_t {
     UNINSTALL = 1UL << 9
 };
 
-enum class DitproOtherOp : uint64_t {
+enum class DitproOtherOp : uint64_t
+{
     PROCESS_PID = 1UL << 10,
     MODULE_BASE = 1UL << 11,
     HIDE_PID = 1UL << 12,
@@ -210,86 +212,103 @@ enum class DitproOtherOp : uint64_t {
     HIDE_EVENT = 1UL << 14,
     UNHIDE_EVENT = 1UL << 15,
     GETUSERMAPS = 1UL << 22,
-    LINGYE = 1UL << 25,//零页
+    LINGYE = 1UL << 25, // 零页
 };
 
-constexpr uint64_t operator|(DitproMemoryOp lhs, DitproMemoryOp rhs) {
+constexpr uint64_t operator|(DitproMemoryOp lhs, DitproMemoryOp rhs)
+{
     return static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs);
 }
 
-constexpr uint64_t operator|(uint64_t lhs, DitproMemoryOp rhs) {
+constexpr uint64_t operator|(uint64_t lhs, DitproMemoryOp rhs)
+{
     return lhs | static_cast<uint64_t>(rhs);
 }
 
-constexpr uint64_t operator|(DitproMemoryOp lhs, uint64_t rhs) {
+constexpr uint64_t operator|(DitproMemoryOp lhs, uint64_t rhs)
+{
     return static_cast<uint64_t>(lhs) | rhs;
 }
 
-constexpr uint64_t operator|(DitproOtherOp lhs, DitproOtherOp rhs) {
+constexpr uint64_t operator|(DitproOtherOp lhs, DitproOtherOp rhs)
+{
     return static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs);
 }
 
-constexpr uint64_t operator|(uint64_t lhs, DitproOtherOp rhs) {
+constexpr uint64_t operator|(uint64_t lhs, DitproOtherOp rhs)
+{
     return static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs);
 }
 
-struct Dit_uct_base {
+struct Dit_uct_base
+{
     int pid;
     const char *name;
     unsigned long start;
     unsigned long end;
 };
 
-struct Dit_uct {
+struct Dit_uct
+{
     uint64_t addr;
     void *buffer;
     uint64_t size;
 } __attribute__((aligned(8)));
 
-struct Dit_uct_kpm_list {
+struct Dit_uct_kpm_list
+{
     uint64_t addr[10];
     void *buffer;
     uint64_t size;
 } __attribute__((aligned(8)));
 
-struct Dit_uct_array {
-    uint64_t count;     //数量
-    uint64_t array_addr;//地址
-    void *buffer;       //缓冲区
-    uint64_t size;      //列表页大小
+struct Dit_uct_array
+{
+    uint64_t count;      // 数量
+    uint64_t array_addr; // 地址
+    void *buffer;        // 缓冲区
+    uint64_t size;       // 列表页大小
 };
 
-struct user_maps {
+struct user_maps
+{
     unsigned int pid;
     unsigned long count;
     char *lists;
 };
 
-class ditpro_driver {
+class ditpro_driver
+{
 private:
-    int fd{ -1 };
-    DitproDriverType type{ DitproDriverType::ERR };
+    int fd{-1};
+    DitproDriverType type{DitproDriverType::ERR};
 
-    DitproDriverType find_dis() {
-        if (auto check = __CHECKSUCCESS; syscall(__NR_syscall_, &check) == 616) {
+    DitproDriverType find_dis()
+    {
+        if (auto check = __CHECKSUCCESS; syscall(__NR_syscall_, &check) == 616)
+        {
             int flags = 616;
             fd = syscall(__NR_syscall_, &flags);
             return (fd > 0) ? DitproDriverType::DITS_KO : DitproDriverType::ERR;
-        } else if (syscall(__NR_syscall_, (__FLAGS | __CHECKSUCCESS)) == 616) {
+        }
+        else if (syscall(__NR_syscall_, (__FLAGS | __CHECKSUCCESS)) == 616)
+        {
             return DitproDriverType::DITPRO_KPM;
         }
         return DitproDriverType::ERR;
     }
 
-    template<typename... Args>
-    long call(Args &&...args) {
-        switch (type) {
-            case DitproDriverType::DITPRO_KPM:
-                return syscall(__NR_syscall_, std::forward<decltype(args)>(args)...);
-            case DitproDriverType::DITS_KO:
-                return ioctl(fd, std::forward<decltype(args)>(args)...);
-            default:
-                return -1;
+    template <typename... Args>
+    long call(Args &&...args)
+    {
+        switch (type)
+        {
+        case DitproDriverType::DITPRO_KPM:
+            return syscall(__NR_syscall_, std::forward<decltype(args)>(args)...);
+        case DitproDriverType::DITS_KO:
+            return ioctl(fd, std::forward<decltype(args)>(args)...);
+        default:
+            return -1;
         }
     }
 
@@ -297,47 +316,60 @@ public:
     bool connected = false;
     pid_t pid = -1;
 
-    ditpro_driver() {
+    ditpro_driver()
+    {
         type = find_dis();
-        if (type == DitproDriverType::DITS_KO) {
+        if (type == DitproDriverType::DITS_KO)
+        {
             printf("[+] 检测到DITS驱动\n");
             connected = true;
-        } else if (type == DitproDriverType::DITPRO_KPM) {
+        }
+        else if (type == DitproDriverType::DITPRO_KPM)
+        {
             printf("[+] 检测到DITPRO_KPM驱动\n");
             connected = true;
-        } else {
+        }
+        else
+        {
             printf("[-] 未找到ditpro系列驱动\n");
             connected = false;
         }
     }
 
-    ~ditpro_driver() {
-        if (connected) {
+    ~ditpro_driver()
+    {
+        if (connected)
+        {
             UnMem();
             unProc();
         }
     }
 
     // 初始化读取 返回true成功
-    bool init_pid(int pid) {
+    bool init_pid(int pid)
+    {
         this->pid = pid;
         return call((__FLAGS | DitproMemoryOp::INIT), pid) > 0;
     }
 
     // 读取内存
-    long read(uint64_t addr, void *buffer, uint64_t size) {
-        struct Dit_uct cm = { addr, buffer, size };
+    long read(uint64_t addr, void *buffer, uint64_t size)
+    {
+        struct Dit_uct cm = {addr, buffer, size};
         uint64_t flags = (__FLAGS | DitproMemoryOp::READ);
         return call(flags, &cm);
     }
 
     // 链式指针读取（最多10层）
-    long read_chain(std::initializer_list<uint64_t> nums, void *buffer, uint64_t size) {
+    long read_chain(std::initializer_list<uint64_t> nums, void *buffer, uint64_t size)
+    {
         struct Dit_uct_kpm_list cm;
         memset(cm.addr, -1, sizeof cm.addr);
         size_t i = 0;
-        for (uint64_t val: nums) {
-            if (i >= 10) return -1;
+        for (uint64_t val : nums)
+        {
+            if (i >= 10)
+                return -1;
             cm.addr[i++] = val;
         }
         cm.buffer = buffer;
@@ -348,24 +380,29 @@ public:
     }
 
     // 写入内存
-    long write(uint64_t addr, void *buffer, uint64_t size) {
-        struct Dit_uct cm = { addr, buffer, size };
+    long write(uint64_t addr, void *buffer, uint64_t size)
+    {
+        struct Dit_uct cm = {addr, buffer, size};
         uint64_t flags = (__FLAGS | DitproMemoryOp::WRITE);
         return call(flags, &cm);
     }
 
     // 获取进程PID
-    std::optional<int> get_pid(std::string_view name) {
-        if (auto pid = call((__FLAGS | DitproOtherOp::PROCESS_PID), name.data()); pid > 2) {
+    std::optional<int> get_pid(std::string_view name)
+    {
+        if (auto pid = call((__FLAGS | DitproOtherOp::PROCESS_PID), name.data()); pid > 2)
+        {
             return pid;
         }
         return std::nullopt;
     }
 
     // 获取模块基址 (bss=true获取bss段)
-    std::optional<uint64_t> get_module_base(int pid, std::string_view name, bool bss = false) {
-        struct Dit_uct_base cm = { pid, name.data(), bss, bss };
-        if (call((__FLAGS | DitproOtherOp::MODULE_BASE), &cm) == 0) {
+    std::optional<uint64_t> get_module_base(int pid, std::string_view name, bool bss = false)
+    {
+        struct Dit_uct_base cm = {pid, name.data(), bss, bss};
+        if (call((__FLAGS | DitproOtherOp::MODULE_BASE), &cm) == 0)
+        {
             return cm.start;
         }
         return std::nullopt;
@@ -373,10 +410,10 @@ public:
 
     // 隐藏进程
     int hideProc() { return call((__FLAGS | DitproOtherOp::HIDE_PID), gettid()); }
-    
+
     // 恢复进程（隐藏后必须调用，否则重启）
     int unProc() { return call((__FLAGS | DitproOtherOp::UNHIDE_PID), gettid()); }
-    
+
     // 卸载驱动
     void UnMem() { call((__FLAGS | DitproMemoryOp::UNINSTALL)); }
 };
@@ -1080,8 +1117,8 @@ public:
         {104100, "SPAS-12霰弹枪"},
     };
 
-    std::string DebugAimedClassName;   // 当前准星对准的类名/地址字符串
-    bool bDebugAimedValid = false;     // 是否有效对准
+    std::string DebugAimedClassName; // 当前准星对准的类名/地址字符串
+    bool bDebugAimedValid = false;   // 是否有效对准
 
     static std::vector<ConfigItem> configItems;
     static std::vector<ConfigItem> boolConfigItems;
@@ -1274,6 +1311,9 @@ public:
     void InitShoot();
     FVector2D WorldToScreen(const FVector_class &WorldLocation);
     D2DVector WorldToScreen2(const FVector_class &WorldLocation);
+    void WorldToScreenBatch(const FVector_class &WorldLoc,
+                            float &outX, float &outY,
+                            float &outFootY, float &outHeadY);
 };
 
 class 布局

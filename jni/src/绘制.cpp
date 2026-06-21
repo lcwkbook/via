@@ -1015,6 +1015,41 @@ D2DVector 绘制::WorldToScreen2(const FVector_class &WorldLocation)
     return ScreenLocation;
 }
 
+// ═══════════════════════════════════════════════════════════
+// ★ 新增：批量 WorldToScreen（一次矩阵运算出3个坐标）
+// ═══════════════════════════════════════════════════════════
+void 绘制::WorldToScreenBatch(const FVector_class &WorldLoc,
+                               float &outX, float &outY,
+                               float &outFootY, float &outHeadY)
+{
+    float matrix[16];
+    memcpy(matrix, 自身数据.矩阵, sizeof(matrix));
+
+    float w = matrix[3] * WorldLoc.X + matrix[7] * WorldLoc.Y + matrix[11] * WorldLoc.Z + matrix[15];
+    if (w < 0.01f)
+    {
+        outX = outY = outFootY = outHeadY = INFINITY;
+        return;
+    }
+
+    float halfW = displayInfo.width / 2.0f;
+    float halfH = displayInfo.height / 2.0f;
+    float invW = 1.0f / w;
+
+    // 屏幕中心X
+    float baseX = halfW + (matrix[0] * WorldLoc.X + matrix[4] * WorldLoc.Y + matrix[8] * WorldLoc.Z + matrix[12]) * invW * halfW;
+    // 屏幕中心Y（身体）
+    float baseY = halfH - (matrix[1] * WorldLoc.X + matrix[5] * WorldLoc.Y + matrix[9] * WorldLoc.Z + matrix[13]) * invW * halfH;
+
+    outX = baseX;
+    outY = baseY;
+    // 脚底Y（Z-5）
+    outFootY = halfH - (matrix[1] * WorldLoc.X + matrix[5] * WorldLoc.Y + matrix[9] * (WorldLoc.Z - 5.0f) + matrix[13]) * invW * halfH;
+    // 头顶Y（Z+身高）
+    outHeadY = halfH - (matrix[1] * WorldLoc.X + matrix[5] * WorldLoc.Y + matrix[9] * (WorldLoc.Z + Offsets::HumanHeight) + matrix[13]) * invW * halfH;
+}
+
+
 // 更新 数据
 void 绘制::更新地址数据()
 {
@@ -1334,9 +1369,11 @@ void 绘制::更新对象数据()
         // ★★★ 解密结束 ★★★
 
         对象信息.敌人信息.距离 = 计算.计算距离(自身数据.坐标, 对象信息.敌人信息.坐标);
-        FVector2D screenPos = WorldToScreen(对象信息.敌人信息.坐标);
-        FVector2D footPos = WorldToScreen(FVector_class{对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z - 5});
-        FVector2D headPos = WorldToScreen(FVector_class{对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z + Offsets::HumanHeight});
+        float sx, sy, footY, headY;
+        WorldToScreenBatch(对象信息.敌人信息.坐标, sx, sy, footY, headY);
+        FVector2D screenPos = {sx, sy};
+        FVector2D footPos = {sx, footY};
+        FVector2D headPos = {sx, headY};
 
         struct SmoothPos
         {

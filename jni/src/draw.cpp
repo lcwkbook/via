@@ -218,9 +218,25 @@ void drawBegin()
   ImGui::NewFrame();
 }
 
-void drawEnd()
-{
-  ImGui::Render();
-  FrameRender(ImGui::GetDrawData());
-  FramePresent();
+void drawEnd() {
+    ImGui::Render();
+    FrameRender(ImGui::GetDrawData());
+    FramePresent();
+    
+    // ★ 用户可调的帧率上限
+    int targetFps = 绘制.按钮.当前帧率;
+    if (targetFps > 0)  // 只在设置了帧率时才限制
+    {
+        static auto lastTime = std::chrono::steady_clock::now();
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(now - lastTime).count();
+        
+        const long long FRAME_TIME = 1000000 / targetFps;
+        if (elapsed < FRAME_TIME) {
+            std::this_thread::sleep_for(std::chrono::microseconds(FRAME_TIME - elapsed));
+        }
+        lastTime = now;
+    }
 }
+
+
