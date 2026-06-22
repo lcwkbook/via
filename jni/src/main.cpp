@@ -34,19 +34,24 @@ std::string getIMEI()
 {
     char buf[128] = {0};
     // 优先读取设备序列号作为唯一标识
-    FILE* fp = popen("getprop ro.serialno 2>/dev/null", "r");
-    if (fp) {
-        if (fgets(buf, sizeof(buf), fp)) {
+    FILE *fp = popen("getprop ro.serialno 2>/dev/null", "r");
+    if (fp)
+    {
+        if (fgets(buf, sizeof(buf), fp))
+        {
             buf[strcspn(buf, "\n\r")] = 0;
         }
         pclose(fp);
     }
 
     // 序列号为空则降级读取 Android ID
-    if (strlen(buf) == 0) {
+    if (strlen(buf) == 0)
+    {
         fp = popen("settings get secure android_id 2>/dev/null", "r");
-        if (fp) {
-            if (fgets(buf, sizeof(buf), fp)) {
+        if (fp)
+        {
+            if (fgets(buf, sizeof(buf), fp))
+            {
                 buf[strcspn(buf, "\n\r")] = 0;
             }
             pclose(fp);
@@ -97,6 +102,14 @@ void createDriverFlag()
 
 int main()
 {
+
+    printf("\n");
+    printf("  \033[1;36m┌──────────────────────────────────────────┐\033[0m\n");
+    printf("  \033[1;36m│  🔒 正在验证卡密信息...\033[0m                      │\n");
+    printf("  \033[1;36m└──────────────────────────────────────────┘\033[0m\n\n");
+    fflush(stdout);
+
+    network_verify();
 
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("\n");
@@ -285,6 +298,22 @@ int main()
         }
     }
 
+    printf("\n");
+    printf("  \033[1;35m┌─────────────────────────────────────────┐\033[0m\n");
+    printf("  \033[1;35m│  🎨 正在加载悬浮窗...\033[0m                    │\n");
+    printf("  \033[1;35m└─────────────────────────────────────────┘\033[0m\n\n");
+    fflush(stdout);
+    signal(SIGPIPE, SIG_IGN);
+
+    布局.初始化程序();
+    绘制.读取配置();
+
+    // 异步加载图片
+    std::thread([]()
+                { 加载内存图片(); })
+        .detach();
+    布局.开启悬浮窗();
+
     // ========== 无后台进程分离（原登录循环内逻辑前移） ==========
     if (无后台 == 2)
     {
@@ -296,29 +325,5 @@ int main()
         std::cout << "  \033[1;32m✔ 无后台启动成功，进程已分离!\033[0m\n";
     }
     std::cout << std::endl;
-    printf("\n");
-    printf("  \033[1;36m┌──────────────────────────────────────────┐\033[0m\n");
-    printf("  \033[1;36m│  🔒 正在验证卡密信息...\033[0m                      │\n");
-    printf("  \033[1;36m└──────────────────────────────────────────┘\033[0m\n\n");
-    fflush(stdout);
-    
-    network_verify();
-
-    printf("\n");
-    printf("  \033[1;35m┌─────────────────────────────────────────┐\033[0m\n");
-    printf("  \033[1;35m│  🎨 正在加载悬浮窗...\033[0m                    │\n");
-    printf("  \033[1;35m└─────────────────────────────────────────┘\033[0m\n\n");
-    fflush(stdout);
-    signal(SIGPIPE, SIG_IGN);
-    布局.初始化程序();
-    绘制.读取配置();
-
-    // 异步加载图片
-    std::thread([]()
-                { 加载内存图片(); })
-        .detach();
-
-    布局.开启悬浮窗();
-
     return 0;
 }

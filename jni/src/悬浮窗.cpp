@@ -3037,9 +3037,9 @@ void 布局::开启悬浮窗()
     {
         更新状态();
         绘制悬浮窗();
-        WindowDrawing.SetFps(绘制.按钮.当前帧率);
-        WindowDrawing.AotuFPS();
-        std::this_thread::sleep_for(1ms);
+        // WindowDrawing.SetFps(绘制.按钮.当前帧率);
+        // WindowDrawing.AotuFPS();
+        // std::this_thread::sleep_for(1ms);
     }
 
     // ================================================================

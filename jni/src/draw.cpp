@@ -218,25 +218,31 @@ void drawBegin()
   ImGui::NewFrame();
 }
 
+// draw.cpp 的 drawEnd()
 void drawEnd() {
     ImGui::Render();
     FrameRender(ImGui::GetDrawData());
     FramePresent();
     
-    // ★ 用户可调的帧率上限
     int targetFps = 绘制.按钮.当前帧率;
-    if (targetFps > 0)  // 只在设置了帧率时才限制
+    if (targetFps > 0)
     {
         static auto lastTime = std::chrono::steady_clock::now();
         auto now = std::chrono::steady_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(now - lastTime).count();
         
         const long long FRAME_TIME = 1000000 / targetFps;
+        
+        // ★ 核心修复：如果实际帧时间已经超过目标，不再sleep！
+        //   否则降频时 sleep 会加剧掉帧
         if (elapsed < FRAME_TIME) {
             std::this_thread::sleep_for(std::chrono::microseconds(FRAME_TIME - elapsed));
         }
+        // ★ 如果 elapsed >= FRAME_TIME，说明CPU已经跑不动了
+        //   直接跳过sleep，全力跑，不额外增加延迟
         lastTime = now;
     }
 }
+
 
 
