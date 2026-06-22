@@ -6,6 +6,12 @@ LOCAL_MODULE    := driver_prebuilt
 LOCAL_SRC_FILES := include/driver.a
 include $(PREBUILT_STATIC_LIBRARY)
 
+# ========== 预编译 PhysXPro 静态库（新增） ==========
+include $(CLEAR_VARS)
+LOCAL_MODULE    := PhysXPro
+LOCAL_SRC_FILES := lib/libPhysXPro.a
+include $(PREBUILT_STATIC_LIBRARY)
+
 # ========== 预编译 paradise 静态库（新增） ==========
 include $(CLEAR_VARS)
 LOCAL_MODULE    := paradise_prebuilt
@@ -43,14 +49,16 @@ LOCAL_SRC_FILES := $(FILE_LIST:$(LOCAL_PATH)/%=%)
 
 LOCAL_LDLIBS := -llog -landroid -lEGL -lGLESv1_CM -lGLESv2 -lGLESv3
 LOCAL_LDLIBS += -lz
+LOCAL_LDLIBS += -Wl,--allow-multiple-definition
 
 LOCAL_LDFLAGS += $(LOCAL_PATH)/lib/*.a
-LOCAL_LDFLAGS += -Wl,--gc-sections,--strip-all,-llog
+LOCAL_LDFLAGS += -Wl,--gc-sections,--strip-all,--allow-multiple-definition,-llog
 LOCAL_LDFLAGS += -lEGL -lGLESv2 -lGLESv3 -landroid -llog
 LOCAL_LDFLAGS += -L$(LOCAL_PATH)/include/lib
 
 
 # 链接 driver 静态库
 LOCAL_STATIC_LIBRARIES := driver_prebuilt paradise_prebuilt
+LOCAL_STATIC_LIBRARIES += PhysXPro
 
 include $(BUILD_EXECUTABLE)

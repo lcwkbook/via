@@ -25,6 +25,7 @@
 // 添加ptrace过检测功能
 #include <sys/ptrace.h>
 #include "json.hpp"
+#include "TomieModel.h"
 
 // ========== 自定义物资全局变量 ==========
 DataReader *g_CustomReader = nullptr;
@@ -47,7 +48,11 @@ std::map<std::string, std::chrono::steady_clock::time_point> 自救Timers;
 bool 线程开启状态 = false;
 extern bool showTopStatusBar;
 // 掩体函数
-
+// 全局内存读取函数（给 PhysX Pro 用）
+// bool MyPhysXReadv(uint64_t addr, void *buffer, size_t size)
+// {
+//     return 绘制.读写.readv(addr, buffer, size);
+// }
 void 更新自救倒计时()
 {
     auto it = 自救Timers.begin();
@@ -946,6 +951,7 @@ void 绘制::初始化绘制(string 包名, int 真实X, int 真实Y)
         this->PY = 真实X / 2;
     }
     地址.libue4 = 读写.get_module_base((char *)"libUE4.so");
+    printf("[调试] libUE4 基址: 0x%lX\n", 地址.libue4);  // ← 加上这行
 
     // 设置启动时间
     启动时间 = std::chrono::steady_clock::now();
@@ -963,6 +969,19 @@ void 绘制::初始化绘制(string 包名, int 真实X, int 真实Y)
 
     DebugAimedClassName.clear();
     bDebugAimedValid = false;
+    // // ===== PhysX Pro 初始化 =====
+    // static bool physxInited = false;
+    // if (!physxInited && 地址.libue4 != 0)
+    // {
+    //     printf("[调试] 即将调用 InitPhysX, libUE4=0x%lX\n", 地址.libue4);
+    //     InitPhysX("5124768803969458", 地址.libue4, MyPhysXReadv, 0);
+    //     physxInited = true;
+    //     printf("[+] PhysX Pro 初始化成功\n");
+    // }
+    // else
+    // {
+    //     printf("[调试] 跳过 InitPhysX: physxInited=%d, libUE4=0x%lX\n", physxInited, 地址.libue4);  // ★ 新增
+    // }
 }
 
 FVector2D 绘制::WorldToScreen(const FVector_class &WorldLocation)
@@ -1019,8 +1038,8 @@ D2DVector 绘制::WorldToScreen2(const FVector_class &WorldLocation)
 // ★ 新增：批量 WorldToScreen（一次矩阵运算出3个坐标）
 // ═══════════════════════════════════════════════════════════
 void 绘制::WorldToScreenBatch(const FVector_class &WorldLoc,
-                               float &outX, float &outY,
-                               float &outFootY, float &outHeadY)
+                              float &outX, float &outY,
+                              float &outFootY, float &outHeadY)
 {
     float matrix[16];
     memcpy(matrix, 自身数据.矩阵, sizeof(matrix));
@@ -1048,7 +1067,6 @@ void 绘制::WorldToScreenBatch(const FVector_class &WorldLoc,
     // 头顶Y（Z+身高）
     outHeadY = halfH - (matrix[1] * WorldLoc.X + matrix[5] * WorldLoc.Y + matrix[9] * (WorldLoc.Z + Offsets::HumanHeight) + matrix[13]) * invW * halfH;
 }
-
 
 // 更新 数据
 void 绘制::更新地址数据()
@@ -1110,10 +1128,15 @@ void 绘制::更新地址数据()
     if (controller != 0)
     {
         uintptr_t camManager = 读写.getPtr64(controller + Offsets::Controller_CameraManager);
+        // 在 camManager 那段代码中添加视角读取
         if (camManager != 0)
         {
             自身数据.Fov = 读写.getFloat(camManager + Offsets::CameraManager_FOV);
-            // 注：如果 FOV 读不到，自瞄可能受影响，但不影响绘制
+            // 新增：读取相机坐标
+            读写.readv(camManager + Offsets::CameraManager_CameraPos, &自身数据.相机坐标, sizeof(自身数据.相机坐标));
+            // 新增：读取相机旋转
+            自身数据.视角.X = 读写.getFloat(camManager + Offsets::CameraManager_Rotation);     // Pitch
+            自身数据.视角.Y = 读写.getFloat(camManager + Offsets::CameraManager_Rotation + 4); // Yaw
         }
         自身数据.准星Y = 读写.getFloat(controller + Offsets::Controller_AimYaw) - 90.0f;
     }
@@ -2795,6 +2818,18 @@ void 绘制::更新对象数据()
 
             bool LineOfSightTo1 = false;
             bool LineOfSightToTab[15] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false};
+            // if (按钮.物理掩体检测)
+            // {
+            //     // 用 PhysX Pro 的 LinePosition 检测可见性
+            //     D3DVector origin(自身数据.坐标.X, 自身数据.坐标.Y, 自身数据.坐标.Z);
+            //     D3DVector target(对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z);
+            //     LineOfSightToTab[0] = LinePosition(origin, target);
+            //     printf("[调试] LinePosition 返回: %d\n", LineOfSightToTab[0]); 
+            // }
+            // else
+            // {
+            //     LineOfSightToTab[0] = true; // 旧逻辑
+            // }
             if (按钮.雷达)
             {
                 if (对象信息.敌人信息.距离 <= 300)
@@ -3098,6 +3133,36 @@ void 绘制::运行绘制()
         计时器.updateTimers();
         计时器.checkAndRemoveTimers();
     }
+    // ===== PhysX Pro 模型绘制 =====
+    // if (按钮.模型绘制 && 地址.libue4 != 0)
+    // {
+    //     // 构造相机参数（需要从自身数据获取）
+    //     Vec3 camPos(自身数据.坐标.X, 自身数据.坐标.Y, 自身数据.坐标.Z);
+    //     Rotator camRot{自身数据.视角.X, 自身数据.视角.Y, 0.0f};
+    //     float fov = 自身数据.Fov > 0 ? 自身数据.Fov : 90.0f;
+
+    //     auto triangles = PhysXMesh(camPos, camRot, fov,
+    //                                displayInfo.width, displayInfo.height);
+
+    //     for (const auto &tri : triangles)
+    //     {
+    //         float x0 = tri[0].x, y0 = tri[0].y;
+    //         float x1 = tri[1].x, y1 = tri[1].y;
+    //         float x2 = tri[2].x, y2 = tri[2].y;
+
+    //         // 只绘制在屏幕内的三角形
+    //         if ((x0 > 0 && x0 < displayInfo.width && y0 > 0 && y0 < displayInfo.height) ||
+    //             (x1 > 0 && x1 < displayInfo.width && y1 > 0 && y1 < displayInfo.height) ||
+    //             (x2 > 0 && x2 < displayInfo.width && y2 > 0 && y2 < displayInfo.height))
+    //         {
+    //             ImDrawList *draw = ImGui::GetForegroundDrawList();
+    //             draw->AddTriangleFilled(ImVec2(x0, y0), ImVec2(x1, y1), ImVec2(x2, y2),
+    //                                     IM_COL32(100, 150, 255, 60));
+    //             draw->AddTriangle(ImVec2(x0, y0), ImVec2(x1, y1), ImVec2(x2, y2),
+    //                               IM_COL32(255, 50, 50, 255), 2.0f);
+    //         }
+    //     }
+    // }
 }
 
 const char *绘制::Level(char *name)

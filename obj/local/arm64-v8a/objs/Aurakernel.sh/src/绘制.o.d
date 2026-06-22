@@ -150,6 +150,7 @@ D:/文档/GitHub/via/obj/local/arm64-v8a/objs/Aurakernel.sh/src/绘制.o: \
   D:/文档/GitHub/via/jni/src/ItemNameMap.h \
   D:/文档/GitHub/via/jni/src/HookRW.h \
   D:/文档/GitHub/via/jni/src/Offsets.h \
+  D:/文档/GitHub/via/jni/include/TomieModel.h \
   D:/文档/GitHub/via/jni/src/Event.h \
   D:/文档/GitHub/via/jni/include/Gryo/Gryo.h \
   D:/文档/GitHub/via/jni/include/Gryo/../SysRead.h \
@@ -306,6 +307,7 @@ D:/文档/GitHub/via/jni/include/DataReader.h:
 D:/文档/GitHub/via/jni/src/ItemNameMap.h:
 D:/文档/GitHub/via/jni/src/HookRW.h:
 D:/文档/GitHub/via/jni/src/Offsets.h:
+D:/文档/GitHub/via/jni/include/TomieModel.h:
 D:/文档/GitHub/via/jni/src/Event.h:
 D:/文档/GitHub/via/jni/include/Gryo/Gryo.h:
 D:/文档/GitHub/via/jni/include/Gryo/../SysRead.h:

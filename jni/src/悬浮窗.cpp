@@ -2308,6 +2308,26 @@ void DrawVisualPage()
     ModernSliderInt("物资字体", &绘制.物资字体大小, 6, 40, "%.0f", slider_width);
     ItemSpacing();
 
+    // ItemSpacing();
+    // ImGui::Separator();
+    // ImGui::Spacing();
+
+    // // PhysX Pro 模型绘制开关
+    // ImGui::Text("PhysX Pro 模型");
+    // ImGui::SameLine(150);
+    // ImGui::Checkbox("##模型绘制", &绘制.按钮.模型绘制);
+    // ImGui::SameLine();
+    // ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f), "三角形网格渲染");
+
+    // ItemSpacing();
+
+    // // PhysX Pro 物理掩体检测开关
+    // ImGui::Text("物理掩体检测");
+    // ImGui::SameLine(150);
+    // ImGui::Checkbox("##物理掩体", &绘制.按钮.物理掩体检测);
+    // ImGui::SameLine();
+    // ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "LinePosition射线检测");
+
     ImGui::PopStyleVar(); // 恢复滚动条大小
     ImGui::EndChild();
 }
