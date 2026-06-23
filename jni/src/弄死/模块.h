@@ -133,7 +133,7 @@ inline bool ms_isColorOS() {
 
 inline bool 模块刷入() {
     printf("\n\033[1;36m");
-    printf("[Via驱动------自动刷入\n]");
+    printf("[Aura驱动------自动刷入\n]");
     printf("\033[0m");
 
     char buffer[256];
@@ -161,30 +161,30 @@ inline bool 模块刷入() {
     bool ok = false;
 
     if (strncmp(buffer, "5.10", 4) == 0) {
-        printf("\033[36m[-] 检测到 5.10 内核, 正在刷入Via驱动...\033[0m\n");
+        printf("\033[36m[-] 检测到 5.10 内核, 正在刷入Aura驱动...\033[0m\n");
         ok = ms_hexStringToFile(dev_ioctl_510, randomDir);
     } else if (strncmp(buffer, "6.1", 3) == 0) {
-        printf("\033[36m[-] 检测到 6.1 内核, 正在刷入Via驱动...\033[0m\n");
+        printf("\033[36m[-] 检测到 6.1 内核, 正在刷入Aura驱动...\033[0m\n");
         ok = ms_hexStringToFile(dev_ioctl_61, randomDir);
     } else if (strncmp(buffer, "6.6", 3) == 0) {
-        printf("\033[36m[-] 检测到 6.6 内核, 正在刷入Via驱动...\033[0m\n");
+        printf("\033[36m[-] 检测到 6.6 内核, 正在刷入Aura驱动...\033[0m\n");
         ok = ms_hexStringToFile(dev_ioctl_66, randomDir);
     } else if (strncmp(buffer, "5.15", 4) == 0) {
-        printf("\033[36m[-] 检测到 5.15 内核, 正在刷入Via驱动...\033[0m\n");
+        printf("\033[36m[-] 检测到 5.15 内核, 正在刷入Aura驱动...\033[0m\n");
         ok = ms_hexStringToFile(dev_ioctl_515, randomDir);
     } else if (strncmp(buffer, "5.4.", 4) == 0) {
         if (strncmp(buffer, "5.4.61", 6) == 0) {
-            printf("\033[36m[-] 检测到 5.4.61 内核, 正在刷入Via驱动...\033[0m\n");
+            printf("\033[36m[-] 检测到 5.4.61 内核, 正在刷入Aura驱动...\033[0m\n");
             ok = ms_hexStringToFile(dev_ioctl_5461, randomDir);
         } else if (strncmp(buffer, "5.4.86", 6) == 0) {
-            printf("\033[36m[-] 检测到 5.4.86 内核, 正在刷入Via驱动...\033[0m\n");
+            printf("\033[36m[-] 检测到 5.4.86 内核, 正在刷入Aura驱动...\033[0m\n");
             ok = ms_hexStringToFile(dev_ioctl_5486, randomDir);
         } else if (strncmp(buffer, "5.4.147", 7) == 0) {
             if (isColor) {
-                printf("\033[36m[-] 检测到 5.4.147 ColorOS 内核, 正在刷入Via驱动...\033[0m\n");
+                printf("\033[36m[-] 检测到 5.4.147 ColorOS 内核, 正在刷入Aura驱动...\033[0m\n");
                 ok = ms_hexStringToFile(dev_ioctl_54147coloros, randomDir);
             } else {
-                printf("\033[36m[-] 检测到 5.4.147 内核, 正在刷入Via驱动...\033[0m\n");
+                printf("\033[36m[-] 检测到 5.4.147 内核, 正在刷入Aura驱动...\033[0m\n");
                 ok = ms_hexStringToFile(dev_ioctl_54147, randomDir);
             }
         } else {
@@ -193,35 +193,35 @@ inline bool 模块刷入() {
         }
     } else if (strncmp(buffer, "4.19.157", 8) == 0) {
         if (isColor) {
-            printf("\033[36m[-] 检测到 4.19.157 ColorOS 内核, 正在刷入Via驱动...\033[0m\n");
+            printf("\033[36m[-] 检测到 4.19.157 ColorOS 内核, 正在刷入Aura驱动...\033[0m\n");
             ok = ms_hexStringToFile(dev_ioctl_419157coloros, randomDir);
         } else {
-            printf("\033[36m[-] 检测到 4.19.157 内核, 正在刷入Via驱动...\033[0m\n");
+            printf("\033[36m[-] 检测到 4.19.157 内核, 正在刷入Aura驱动...\033[0m\n");
             ok = ms_hexStringToFile(dev_ioctl_419157, randomDir);
         }
     } else if (strncmp(buffer, "4.19.191", 8) == 0) {
-        printf("\033[36m[-] 检测到 4.19.191 内核, 正在刷入Via驱动...\033[0m\n");
+        printf("\033[36m[-] 检测到 4.19.191 内核, 正在刷入Aura驱动...\033[0m\n");
         ok = ms_hexStringToFile(dev_ioctl_419191, randomDir);
     } else if (strncmp(buffer, "4.19.113", 8) == 0) {
-        printf("\033[36m[-] 检测到 4.19.113 内核, 正在刷入Via驱动...\033[0m\n");
+        printf("\033[36m[-] 检测到 4.19.113 内核, 正在刷入Aura驱动...\033[0m\n");
         ok = ms_hexStringToFile(dev_ioctl_419113, randomDir);
     } else if (strncmp(buffer, "4.19.81", 7) == 0) {
-        printf("\033[36m[-] 检测到 4.19.81 内核, 正在刷入Via驱动...\033[0m\n");
+        printf("\033[36m[-] 检测到 4.19.81 内核, 正在刷入Aura驱动...\033[0m\n");
         ok = ms_hexStringToFile(dev_ioctl_41981, randomDir);
     } else if (strncmp(buffer, "4.14.186", 8) == 0) {
-        printf("\033[36m[-] 检测到 4.14.186 内核, 正在刷入Via驱动...\033[0m\n");
+        printf("\033[36m[-] 检测到 4.14.186 内核, 正在刷入Aura驱动...\033[0m\n");
         ok = ms_hexStringToFile(dev_ioctl_414186, randomDir);
     } else if (strncmp(buffer, "4.14.180", 8) == 0) {
-        printf("\033[36m[-] 检测到 4.14.180 内核, 正在刷入Via驱动...\033[0m\n");
+        printf("\033[36m[-] 检测到 4.14.180 内核, 正在刷入Aura驱动...\033[0m\n");
         ok = ms_hexStringToFile(dev_ioctl_414180, randomDir);
     } else if (strncmp(buffer, "4.14.141", 8) == 0) {
-        printf("\033[36m[-] 检测到 4.14.141 内核, 正在刷入Via驱动...\033[0m\n");
+        printf("\033[36m[-] 检测到 4.14.141 内核, 正在刷入Aura驱动...\033[0m\n");
         ok = ms_hexStringToFile(dev_ioctl_414141, randomDir);
     } else if (strncmp(buffer, "4.14.117", 8) == 0) {
-        printf("\033[36m[-] 检测到 4.14.117 内核, 正在刷入Via驱动...\033[0m\n");
+        printf("\033[36m[-] 检测到 4.14.117 内核, 正在刷入Aura驱动...\033[0m\n");
         ok = ms_hexStringToFile(dev_ioctl_414117, randomDir);
     } else {
-        printf("\033[1;31m[!] 未找到适合的Via驱动...\n\033[0m");
+        printf("\033[1;31m[!] 未找到适合的Aura驱动...\n\033[0m");
         return false;
     }
 
@@ -238,7 +238,7 @@ inline bool 模块刷入() {
         return false;
     }
 
-    printf("\033[1;32m[+] Via驱动刷入完成 ; 正在等待驱动初始化...\033[0m\n");
+    printf("\033[1;32m[+] Aura驱动刷入完成 ; 正在等待驱动初始化...\033[0m\n");
     sleep(1);
     return true;
 }

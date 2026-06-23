@@ -674,20 +674,33 @@ if (绘制.按钮.血条绘图 == 0)  //分格血条
 
 void 绘图::绘制手持(int 手持, int 状态, int 子弹, int 最大子弹)
 {
-    if (!绘制.按钮.手持2)
+    // 手持图片绘制 - 由 "手持图片" 开关控制
+    if (绘制.按钮.手持)
     {
         手持 = heldconversion(手持);
         if (手持图片.find(手持) != 手持图片.end())
         {
-            ImGui::GetForegroundDrawList()->AddImage(手持图片[手持].DS, ImVec2(MIDDLE - 75 * 0.7f, top - 135 * 0.7f), ImVec2(MIDDLE + 75 * 0.7f, top - 100 * 0.7f), ImVec2(0, 0), ImVec2(1, 1), ImColor(ImVec4(1.0f, 1.0f, 1.0f, 1.0f)));
+            ImGui::GetForegroundDrawList()->AddImage(
+                手持图片[手持].DS,
+                ImVec2(MIDDLE - 75 * 0.7f, top - 135 * 0.7f),
+                ImVec2(MIDDLE + 75 * 0.7f, top - 100 * 0.7f),
+                ImVec2(0, 0), ImVec2(1, 1),
+                ImColor(ImVec4(1.0f, 1.0f, 1.0f, 1.0f))
+            );
         }
     }
-    else
+
+    // 手持文字绘制 - 由 "手持文字" 开关控制
+    if (绘制.按钮.手持2)
     {
         string b = GetHolGunItem(手持);
         b += " [" + to_string(子弹) + "/" + to_string(最大子弹) + "]";
         auto textSize = ImGui::CalcTextSize(b.c_str(), 0, 绘制.手持字体大小);
-        绘制字体描边(绘制.手持字体大小, (MIDDLE + 20) - (textSize.x / 2), top - 88, ImColor(255, 255, 255), b.c_str());
+        绘制字体描边(绘制.手持字体大小,
+                     (MIDDLE + 20) - (textSize.x / 2),
+                     top - 88,
+                     ImColor(255, 255, 255),
+                     b.c_str());
     }
 }
 

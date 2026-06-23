@@ -17,10 +17,14 @@
 #include "图片调用.h"
 #include "物资ID.h"
 #include "辅助类.h"
+#include "DataReader.h"
 #include "HookRW.h" // 添加HookRW头文件
 
 // 添加ptrace过检测功能
 #include <sys/ptrace.h>
+#include "json.hpp"
+using json = nlohmann::json;
+extern float statusBarAlpha;
 int decrypt_zero_x()
 {
     return 0x8; // 默认偏移值，根据你的游戏修改
@@ -494,7 +498,15 @@ void 绘制::保存配置()
 {
     // 保存自瞄和武器配置
     nlohmann::json aim_config;
+    json config;
+    // ... 其他配置项 ...
+    config["status_bar_alpha"] = statusBarAlpha; // 现在 json 和 statusBarAlpha 均已声明
 
+    std::ofstream file("/sdcard/AuraKernel/config.json"); // 示例路径
+    if (file.is_open())
+    {
+        file << config.dump(4);
+    }
     // 自瞄配置
     aim_config["自瞄"] = {
         {"当前自瞄范围", 自瞄.当前自瞄范围},
@@ -572,9 +584,9 @@ void 绘制::保存配置()
     }
 
     // 保存自瞄配置到文件
-    std::ofstream aim_file("/data/adb/BXYUN自瞄配置.json");
-    aim_file << aim_config.dump(4);
-    aim_file.close();
+    // std::ofstream aim_file("/sdcard/AuraKernel/Aura自瞄配置.json");
+    // aim_file << aim_config.dump(4);
+    // aim_file.close();
 
     // 保存基础配置
     nlohmann::json base_config;
@@ -646,6 +658,9 @@ void 绘制::保存配置()
         {"爆炸猎弓", 按钮.爆炸猎弓},
         {"超体职业", 按钮.超体职业},
         {"精英勋章", 按钮.精英勋章},
+        {"自救器", 按钮.显示自救器},
+        {"飞索", 按钮.显示飞索},
+        {"黑色物资箱", 按钮.显示黑色物资箱},
         {"绘制最大距离", 按钮.绘制最大距离},
     };
 
@@ -706,124 +721,133 @@ void 绘制::保存配置()
         车辆颜色[3]};
 
     // 保存基础配置到文件
-    std::ofstream base_file("/data/adb/Via选择配置.json");
+    std::ofstream base_file("/sdcard/AuraKernel/Aura选择配置.json");
     base_file << base_config.dump(4);
     base_file.close();
 }
 
 void 绘制::重置配置()
 {
-    remove("/data/adb/Via配置.json");
-    remove("/data/adb/Via选择配置.json");
+    remove("/sdcard/AuraKernel/Aura配置.json");
+    remove("/sdcard/AuraKernel/Aura选择配置.json");
 }
 
 void 绘制::读取配置()
 {
-    // 读取自瞄配置文件
-    std::ifstream aim_file("/data/adb/BXYUN自瞄配置.json");
-    if (aim_file.is_open())
+    std::ifstream file("/sdcard/AuraKernel/config.json");
+    if (!file.is_open())
+        return;
+
+    json config = json::parse(file);
+    if (config.contains("status_bar_alpha"))
     {
-        nlohmann::json aim_config = nlohmann::json::parse(aim_file);
-
-        // 读取自瞄配置
-        if (aim_config.contains("自瞄"))
-        {
-            const auto &aim = aim_config["自瞄"];
-            自瞄.当前自瞄范围 = aim.value("当前自瞄范围", 自瞄.当前自瞄范围);
-            自瞄.触摸范围 = aim.value("触摸范围", 自瞄.触摸范围);
-            自瞄.自瞄速度 = aim.value("自瞄速度", 自瞄.自瞄速度);
-            自瞄.腰射自瞄速度 = aim.value("腰射自瞄速度", 自瞄.腰射自瞄速度);
-            自瞄.开镜自瞄速度 = aim.value("开镜自瞄速度", 自瞄.开镜自瞄速度);
-            自瞄.压枪力度 = aim.value("压枪力度", 自瞄.压枪力度);
-            自瞄.预判力度 = aim.value("预判力度", 自瞄.预判力度);
-            自瞄.趴下位置调节 = aim.value("趴下位置调节", 自瞄.趴下位置调节);
-            自瞄.触摸采样率 = aim.value("触摸采样率", 自瞄.触摸采样率);
-            自瞄.喷子距离限制 = aim.value("喷子距离限制", 自瞄.喷子距离限制);
-            自瞄.掉血自瞄数率 = aim.value("掉血自瞄数率", 自瞄.掉血自瞄数率);
-            自瞄.腰射距离限制 = aim.value("腰射距离限制", 自瞄.腰射距离限制);
-            自瞄.自瞄距离限制 = aim.value("自瞄距离限制", 自瞄.自瞄距离限制);
-            自瞄.触摸范围X = aim.value("触摸范围X", 自瞄.触摸范围X);
-            自瞄.触摸范围Y = aim.value("触摸范围Y", 自瞄.触摸范围Y);
-            自瞄.自瞄条件 = aim.value("自瞄条件", 自瞄.自瞄条件);
-            自瞄.充电口方向 = aim.value("充电口方向", 自瞄.充电口方向);
-            自瞄.瞄准部位 = aim.value("瞄准部位", 自瞄.瞄准部位);
-            自瞄.喷子自瞄条件 = aim.value("喷子自瞄条件", 自瞄.喷子自瞄条件);
-            自瞄.喷子自瞄范围 = aim.value("喷子自瞄范围", 自瞄.喷子自瞄范围);
-            自瞄.连点速度 = aim.value("连点速度", 自瞄.连点速度);
-            自瞄.定速巡航速率 = aim.value("定速巡航速率", 自瞄.定速巡航速率);
-            自瞄.三倍压枪 = aim.value("三倍压枪", 自瞄.三倍压枪);
-            自瞄.四倍压枪 = aim.value("四倍压枪", 自瞄.四倍压枪);
-            自瞄.六倍压枪 = aim.value("六倍压枪", 自瞄.六倍压枪);
-            自瞄.开镜自瞄范围 = aim.value("开镜自瞄范围", 自瞄.开镜自瞄范围);
-            if (aim.contains("连点位置"))
-            {
-                const auto &pos = aim["连点位置"];
-                自瞄.连点位置.startX = pos.value("startX", 自瞄.连点位置.startX);
-                自瞄.连点位置.startY = pos.value("startY", 自瞄.连点位置.startY);
-                自瞄.连点位置.endX = pos.value("endX", 自瞄.连点位置.endX);
-                自瞄.连点位置.endY = pos.value("endY", 自瞄.连点位置.endY);
-            }
-            自瞄.初始化 = aim.value("初始化", 自瞄.初始化);
-            自瞄.隐藏自瞄圈 = aim.value("隐藏自瞄圈", 自瞄.隐藏自瞄圈);
-            自瞄.随机触摸点 = aim.value("随机触摸点", 自瞄.随机触摸点);
-            自瞄.持续锁定 = aim.value("持续锁定", 自瞄.持续锁定);
-            自瞄.触摸位置 = aim.value("触摸位置", 自瞄.触摸位置);
-            自瞄.动态自瞄 = aim.value("动态自瞄", 自瞄.动态自瞄);
-            自瞄.准星射线 = aim.value("准星射线", 自瞄.准星射线);
-            自瞄.倒地不瞄 = aim.value("倒地不瞄", 自瞄.倒地不瞄);
-            自瞄.掉血自瞄 = aim.value("掉血自瞄", 自瞄.掉血自瞄);
-            自瞄.自瞄控件 = aim.value("自瞄控件", 自瞄.自瞄控件);
-            自瞄.喷子自瞄 = aim.value("喷子自瞄", 自瞄.喷子自瞄);
-            自瞄.狙击自瞄 = aim.value("狙击自瞄", 自瞄.狙击自瞄);
-            自瞄.人机不瞄 = aim.value("人机不瞄", 自瞄.人机不瞄);
-            自瞄.框内自瞄 = aim.value("框内自瞄", 自瞄.框内自瞄);
-            自瞄.软锁自瞄 = aim.value("软锁自瞄", 自瞄.软锁自瞄);
-            自瞄.开启单发狙连点 = aim.value("开启单发狙连点", 自瞄.开启单发狙连点);
-            自瞄.开启喷子连点 = aim.value("开启喷子连点", 自瞄.开启喷子连点);
-            自瞄.扫车不瞄 = aim.value("扫车不瞄", 自瞄.扫车不瞄);
-            自瞄.定速巡航 = aim.value("定速巡航", 自瞄.定速巡航);
-            自瞄.适应系数 = aim.value("适应系数", 自瞄.适应系数);
-            自瞄.自动适应灵敏度 = aim.value("自动适应灵敏度", 自瞄.自动适应灵敏度);
-        }
-
-        // 读取武器触发配置
-        if (aim_config.contains("武器触发配置"))
-        {
-            const auto &weapon_trigger = aim_config["武器触发配置"];
-            for (const auto &[key, value] : weapon_trigger.items())
-            {
-                int weapon_id = std::stoi(key);
-                武器触发条件 condition;
-                condition.独立调节 = value.value("独立调节", condition.独立调节);
-                condition.独立压枪 = value.value("独立压枪", condition.独立压枪);
-                condition.独立预判 = value.value("独立预判", condition.独立预判);
-                condition.独立距离限制 = value.value("独立距离限制", condition.独立距离限制);
-                condition.启用自瞄 = value.value("启用自瞄", true);
-                condition.腰射距离限制 = value.value("腰射距离限制", 50.0f);
-                condition.自瞄距离限制 = value.value("自瞄距离限制", 100.0f);
-                condition.自瞄条件 = value.value("自瞄条件", 0);
-                武器触发配置[weapon_id] = condition;
-            }
-        }
-
-        // 读取武器参数配置
-        if (aim_config.contains("武器参数配置"))
-        {
-            const auto &weapon_params = aim_config["武器参数配置"];
-            for (const auto &[key, value] : weapon_params.items())
-            {
-                int weapon_id = std::stoi(key);
-                武器参数 params;
-                params.压枪力度 = value.value("压枪力度", 2.15f);
-                params.预判力度 = value.value("预判力度", 1.45f);
-                params.自瞄速度 = value.value("自瞄速度", 35.f);
-                武器参数配置[weapon_id] = params;
-            }
-        }
+        statusBarAlpha = config["status_bar_alpha"].get<float>();
     }
+    // 读取自瞄配置文件
+    // std::ifstream aim_file("/sdcard/AuraKernel/Aura自瞄配置.json");
+    // if (aim_file.is_open())
+    // {
+    //     nlohmann::json aim_config = nlohmann::json::parse(aim_file);
+
+    //     // 读取自瞄配置
+    //     if (aim_config.contains("自瞄"))
+    //     {
+    //         const auto &aim = aim_config["自瞄"];
+    //         自瞄.当前自瞄范围 = aim.value("当前自瞄范围", 自瞄.当前自瞄范围);
+    //         自瞄.触摸范围 = aim.value("触摸范围", 自瞄.触摸范围);
+    //         自瞄.自瞄速度 = aim.value("自瞄速度", 自瞄.自瞄速度);
+    //         自瞄.腰射自瞄速度 = aim.value("腰射自瞄速度", 自瞄.腰射自瞄速度);
+    //         自瞄.开镜自瞄速度 = aim.value("开镜自瞄速度", 自瞄.开镜自瞄速度);
+    //         自瞄.压枪力度 = aim.value("压枪力度", 自瞄.压枪力度);
+    //         自瞄.预判力度 = aim.value("预判力度", 自瞄.预判力度);
+    //         自瞄.趴下位置调节 = aim.value("趴下位置调节", 自瞄.趴下位置调节);
+    //         自瞄.触摸采样率 = aim.value("触摸采样率", 自瞄.触摸采样率);
+    //         自瞄.喷子距离限制 = aim.value("喷子距离限制", 自瞄.喷子距离限制);
+    //         自瞄.掉血自瞄数率 = aim.value("掉血自瞄数率", 自瞄.掉血自瞄数率);
+    //         自瞄.腰射距离限制 = aim.value("腰射距离限制", 自瞄.腰射距离限制);
+    //         自瞄.自瞄距离限制 = aim.value("自瞄距离限制", 自瞄.自瞄距离限制);
+    //         自瞄.触摸范围X = aim.value("触摸范围X", 自瞄.触摸范围X);
+    //         自瞄.触摸范围Y = aim.value("触摸范围Y", 自瞄.触摸范围Y);
+    //         自瞄.自瞄条件 = aim.value("自瞄条件", 自瞄.自瞄条件);
+    //         自瞄.充电口方向 = aim.value("充电口方向", 自瞄.充电口方向);
+    //         自瞄.瞄准部位 = aim.value("瞄准部位", 自瞄.瞄准部位);
+    //         自瞄.喷子自瞄条件 = aim.value("喷子自瞄条件", 自瞄.喷子自瞄条件);
+    //         自瞄.喷子自瞄范围 = aim.value("喷子自瞄范围", 自瞄.喷子自瞄范围);
+    //         自瞄.连点速度 = aim.value("连点速度", 自瞄.连点速度);
+    //         自瞄.定速巡航速率 = aim.value("定速巡航速率", 自瞄.定速巡航速率);
+    //         自瞄.三倍压枪 = aim.value("三倍压枪", 自瞄.三倍压枪);
+    //         自瞄.四倍压枪 = aim.value("四倍压枪", 自瞄.四倍压枪);
+    //         自瞄.六倍压枪 = aim.value("六倍压枪", 自瞄.六倍压枪);
+    //         自瞄.开镜自瞄范围 = aim.value("开镜自瞄范围", 自瞄.开镜自瞄范围);
+    //         if (aim.contains("连点位置"))
+    //         {
+    //             const auto &pos = aim["连点位置"];
+    //             自瞄.连点位置.startX = pos.value("startX", 自瞄.连点位置.startX);
+    //             自瞄.连点位置.startY = pos.value("startY", 自瞄.连点位置.startY);
+    //             自瞄.连点位置.endX = pos.value("endX", 自瞄.连点位置.endX);
+    //             自瞄.连点位置.endY = pos.value("endY", 自瞄.连点位置.endY);
+    //         }
+    //         自瞄.初始化 = aim.value("初始化", 自瞄.初始化);
+    //         自瞄.隐藏自瞄圈 = aim.value("隐藏自瞄圈", 自瞄.隐藏自瞄圈);
+    //         自瞄.随机触摸点 = aim.value("随机触摸点", 自瞄.随机触摸点);
+    //         自瞄.持续锁定 = aim.value("持续锁定", 自瞄.持续锁定);
+    //         自瞄.触摸位置 = aim.value("触摸位置", 自瞄.触摸位置);
+    //         自瞄.动态自瞄 = aim.value("动态自瞄", 自瞄.动态自瞄);
+    //         自瞄.准星射线 = aim.value("准星射线", 自瞄.准星射线);
+    //         自瞄.倒地不瞄 = aim.value("倒地不瞄", 自瞄.倒地不瞄);
+    //         自瞄.掉血自瞄 = aim.value("掉血自瞄", 自瞄.掉血自瞄);
+    //         自瞄.自瞄控件 = aim.value("自瞄控件", 自瞄.自瞄控件);
+    //         自瞄.喷子自瞄 = aim.value("喷子自瞄", 自瞄.喷子自瞄);
+    //         自瞄.狙击自瞄 = aim.value("狙击自瞄", 自瞄.狙击自瞄);
+    //         自瞄.人机不瞄 = aim.value("人机不瞄", 自瞄.人机不瞄);
+    //         自瞄.框内自瞄 = aim.value("框内自瞄", 自瞄.框内自瞄);
+    //         自瞄.软锁自瞄 = aim.value("软锁自瞄", 自瞄.软锁自瞄);
+    //         自瞄.开启单发狙连点 = aim.value("开启单发狙连点", 自瞄.开启单发狙连点);
+    //         自瞄.开启喷子连点 = aim.value("开启喷子连点", 自瞄.开启喷子连点);
+    //         自瞄.扫车不瞄 = aim.value("扫车不瞄", 自瞄.扫车不瞄);
+    //         自瞄.定速巡航 = aim.value("定速巡航", 自瞄.定速巡航);
+    //         自瞄.适应系数 = aim.value("适应系数", 自瞄.适应系数);
+    //         自瞄.自动适应灵敏度 = aim.value("自动适应灵敏度", 自瞄.自动适应灵敏度);
+    //     }
+
+    //     // 读取武器触发配置
+    //     if (aim_config.contains("武器触发配置"))
+    //     {
+    //         const auto &weapon_trigger = aim_config["武器触发配置"];
+    //         for (const auto &[key, value] : weapon_trigger.items())
+    //         {
+    //             int weapon_id = std::stoi(key);
+    //             武器触发条件 condition;
+    //             condition.独立调节 = value.value("独立调节", condition.独立调节);
+    //             condition.独立压枪 = value.value("独立压枪", condition.独立压枪);
+    //             condition.独立预判 = value.value("独立预判", condition.独立预判);
+    //             condition.独立距离限制 = value.value("独立距离限制", condition.独立距离限制);
+    //             condition.启用自瞄 = value.value("启用自瞄", true);
+    //             condition.腰射距离限制 = value.value("腰射距离限制", 50.0f);
+    //             condition.自瞄距离限制 = value.value("自瞄距离限制", 100.0f);
+    //             condition.自瞄条件 = value.value("自瞄条件", 0);
+    //             武器触发配置[weapon_id] = condition;
+    //         }
+    //     }
+
+    //     // 读取武器参数配置
+    //     if (aim_config.contains("武器参数配置"))
+    //     {
+    //         const auto &weapon_params = aim_config["武器参数配置"];
+    //         for (const auto &[key, value] : weapon_params.items())
+    //         {
+    //             int weapon_id = std::stoi(key);
+    //             武器参数 params;
+    //             params.压枪力度 = value.value("压枪力度", 2.15f);
+    //             params.预判力度 = value.value("预判力度", 1.45f);
+    //             params.自瞄速度 = value.value("自瞄速度", 35.f);
+    //             武器参数配置[weapon_id] = params;
+    //         }
+    //     }
+    // }
 
     // 读取基础配置文件
-    std::ifstream base_file("/data/adb/Via选择配置.json");
+    std::ifstream base_file("/sdcard/AuraKernel/Aura选择配置.json");
     if (base_file.is_open())
     {
         nlohmann::json base_config = nlohmann::json::parse(base_file);
@@ -897,6 +921,9 @@ void 绘制::读取配置()
             按钮.爆炸猎弓 = button.value("爆炸猎弓", 按钮.爆炸猎弓);
             按钮.精英勋章 = button.value("精英勋章", 按钮.精英勋章);
             按钮.超体职业 = button.value("超体职业", 按钮.超体职业);
+            按钮.显示自救器 = button.value("自救器", false);
+            按钮.显示飞索 = button.value("飞索", false);
+            按钮.显示黑色物资箱 = button.value("黑色物资箱", false);
             按钮.绘制最大距离 = button.value("绘制最大距离", 按钮.绘制最大距离);
         }
 
@@ -2447,7 +2474,7 @@ void 绘制::更新对象数据()
                     name.c_str());
             }
 
-            if (strstr(ClassName, "_revivalAED_Pickup_C") != 0)
+            if (按钮.显示自救器 && strstr(ClassName, "_revivalAED_Pickup_C") != 0)
             {
                 std::string name = "自救器[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -2470,30 +2497,7 @@ void 绘制::更新对象数据()
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
-            if (strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme") != 0)
-            {
-                std::string name = "黑色物资箱子[";
-                name += std::to_string((int)对象信息.敌人信息.距离);
-                name += "米]";
-                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
-                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-
-                // 绘制描边
-                for (int x = -1; x <= 1; x++)
-                {
-                    for (int y = -1; y <= 1; y++)
-                    {
-                        if (x != 0 || y != 0)
-                        {
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
-                        }
-                    }
-                }
-                // 绘制中心文字
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
-            }
-
-            if (strstr(ClassName, "BP_Pickup_Finger_C") != 0)
+            if (按钮.显示飞索 && strstr(ClassName, "BP_Pickup_Finger_C") != 0)
             {
                 std::string name = "飞索[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -2669,7 +2673,7 @@ void 绘制::更新对象数据()
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(0, 0, 255, 255), name.c_str());
             }
 
-            if (strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme_C") != 0)
+            if (按钮.显示黑色物资箱 && (strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme") != 0 || strstr(ClassName, "BP_WAlnnerWrapperList_C") != 0))
             {
                 std::string name = "黑色物资箱[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -2738,7 +2742,54 @@ void 绘制::更新对象数据()
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
-            if (strstr(ClassName, "ckUp_BP_Bag_Lv3_C") != 0 or strstr(ClassName, "PickUp_BP_Bag_Lv3_B_C") != 0)
+            // 三级头
+            if (按钮.显示防具 && (strstr(ClassName, "ckUp_BP_Helmet_Lv3_C") != 0 || strstr(ClassName, "PickUp_BP_Helmet_Lv3_C") != 0))
+            {
+                std::string name = "三级头[";
+                name += std::to_string((int)对象信息.敌人信息.距离);
+                name += "米]";
+                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
+                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                // 绘制描边
+                for (int x = -1; x <= 1; x++)
+                {
+                    for (int y = -1; y <= 1; y++)
+                    {
+                        if (x != 0 || y != 0)
+                        {
+                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                        }
+                    }
+                }
+                // 绘制中心文字（使用橙色表示三级头，可自行修改）
+                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 128, 0, 255), name.c_str());
+            }
+            // 三级甲
+            if (按钮.显示防具 && (strstr(ClassName, "ckUp_BP_Armor_Lv3_C") != 0 || strstr(ClassName, "PickUp_BP_Armor_Lv3_C") != 0))
+            {
+                std::string name = "三级甲[";
+                name += std::to_string((int)对象信息.敌人信息.距离);
+                name += "米]";
+                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
+                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                // 绘制描边
+                for (int x = -1; x <= 1; x++)
+                {
+                    for (int y = -1; y <= 1; y++)
+                    {
+                        if (x != 0 || y != 0)
+                        {
+                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                        }
+                    }
+                }
+                // 绘制中心文字（使用蓝色表示三级甲，可自行修改）
+                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(0, 120, 255, 255), name.c_str());
+            }
+
+            if (按钮.显示防具 && (strstr(ClassName, "ckUp_BP_Bag_Lv3_C") != 0 || strstr(ClassName, "PickUp_BP_Bag_Lv3_B_C") != 0))
             {
                 std::string name = "三级包[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -2970,6 +3021,56 @@ void 绘制::更新对象数据()
                     }
                     // 绘制中心文字
                     ImGui::GetForegroundDrawList()->AddText(NULL, 25, textPos, ImColor(255, 255, 0, 255), name.c_str());
+                }
+            }
+
+            // ========== 自定义物资绘制 ==========
+            if (按钮.自定义物资开关)
+            {
+                static DataReader customReader;
+                static bool customDataLoaded = false;
+                static bool firstAttempt = true;
+
+                if (!customDataLoaded)
+                {
+                    if (customReader.loadDataFromFile("/sdcard/AuraKernel/自定义物资.txt"))
+                        customDataLoaded = true;
+                    firstAttempt = false;
+                }
+
+                if (customDataLoaded && t_屏幕坐标.W > 0)
+                {
+                    if (对象信息.敌人信息.距离 < 2000.0f) // 可根据需要调整
+                    {
+                        const CustomItemInfo *info = customReader.getItemInfo(ClassName);
+                        if (info)
+                        {
+                            char buffer[128];
+                            snprintf(buffer, sizeof(buffer), "%s[%d米]", info->displayName.c_str(), (int)对象信息.敌人信息.距离);
+
+                            float fontSize = info->fontSize;
+                            if (fontSize <= 0)
+                                fontSize = 物资字体大小; // 后备
+
+                            ImVec2 textSize = ImGui::CalcTextSize(buffer, 0, fontSize);
+                            ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                            ImColor textColor = info->color;
+                            ImColor outlineColor = ImColor(0, 0, 0, 255);
+
+                            // 描边
+                            for (int x = -1; x <= 1; x++)
+                            {
+                                for (int y = -1; y <= 1; y++)
+                                {
+                                    if (x != 0 || y != 0)
+                                        ImGui::GetForegroundDrawList()->AddText(NULL, fontSize, {textPos.x + x, textPos.y + y}, outlineColor, buffer);
+                                }
+                            }
+                            // 主文字
+                            ImGui::GetForegroundDrawList()->AddText(NULL, fontSize, textPos, textColor, buffer);
+                        }
+                    }
                 }
             }
         }
@@ -3528,7 +3629,7 @@ void 绘制::更新对象数据()
                 {
                     绘图.绘制动作(对象信息.敌人信息.状态);
                 }
-                if (按钮.手持 && !是否掐雷)
+                if ((按钮.手持 || 按钮.手持2) && !是否掐雷)
                     绘图.绘制手持(对象信息.敌人信息.手持, 对象信息.敌人信息.状态, 对象信息.敌人信息.子弹数量, 对象信息.敌人信息.子弹最大数量);
             }
         }

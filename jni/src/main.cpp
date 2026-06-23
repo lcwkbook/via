@@ -38,30 +38,36 @@ int ZM;
 布局 布局;
 绘制 绘制;
 
-void displayAgreement() {
-    system("clear");
+// void displayAgreement() {
+//     system("clear");
     
-    // 统一使用亮白色粗体
-    printf("\033[1;37m"); 
-    printf("免！责！声！明！\n\n");
-    printf("•仅限于技术研究 安全测试 逆向工程教育用途\n");
-    printf("• 严禁用于游戏作弊、网络攻击、商业盈利等非法活动\n");
-    printf("• 违反使用条款可能导致手机自动重启并清除相关数据\n\n");
-    printf("• 使用本工具需遵守当地所有相关法律法规\n");
-    printf("• 如所在地法律禁止此类工具，请立即停止使用\n");
-    printf("• 任何违法行为与开发者无关\n\n");
-    printf("\033[1;37m"); // 保持白色
-    printf("回车键同意...\033[0m");
-    getchar();
-}
+//     // 统一使用亮白色粗体
+//     printf("\033[1;37m"); 
+//     printf("免！责！声！明！\n\n");
+//     printf("•仅限于技术研究 安全测试 逆向工程教育用途\n");
+//     printf("• 严禁用于游戏作弊、网络攻击、商业盈利等非法活动\n");
+//     printf("• 违反使用条款可能导致手机自动重启并清除相关数据\n\n");
+//     printf("• 使用本工具需遵守当地所有相关法律法规\n");
+//     printf("• 如所在地法律禁止此类工具，请立即停止使用\n");
+//     printf("• 任何违法行为与开发者无关\n\n");
+//     printf("\033[1;37m"); // 保持白色
+//     printf("回车键同意...\033[0m");
+//     getchar();
+// }
 #include "weiyan/Util.h"//导入微验库(每次注入的库不通用，请使用对应注入的库)
 int main() {
+    if (mkdir("/sdcard/AuraKernel", 0777) == -1) {
+        if (errno != EEXIST) {
+            perror("创建AuraKernel文件夹失败,请手动在/sdcard/下创建AuraKernel文件夹");
+        }
+    }
+    system("chmod 777 -R /sdcard/AuraKernel");
     // 微验接口域名
 	const string p53adc95617fa3801e961094a9623f569 = "wy.llua.cn";
 	// 当前版本，用于检查更新
-	const string currentVersion = "1.0.1";
+	const string currentVersion = "1.36.2.15";
 	// 卡密存储路径
-	const string kmPath = "/sdcard/via.km";
+	const string kmPath = "/sdcard/AuraKernel/AuraKernel.km";
 	
 	// 获取公告
 	string notice_data = httppost(p53adc95617fa3801e961094a9623f569,"v2/7a53d5145d003d56b56a6a93675ebfc5",q055b46e7ab1787e2889e16edbec3fe53(q055b46e7ab1787e2889e16edbec3fe53(ic564ef4492dc141853f75f5a1a7f8c79(q055b46e7ab1787e2889e16edbec3fe53(ic564ef4492dc141853f75f5a1a7f8c79(e86fce770c123cd27a1bc7e98ba5d8636(e86fce770c123cd27a1bc7e98ba5d8636("id=MqLA3bZQzdY","6mP4biWXu5VCqL1RBgnGY02M3kQfdlJjeycHNAwUZDav+9tTIzK8/EFrhoOSsxp7"),"gobrO8/4nKY+0ypCsBPwtWfqeDxQichLH9zImAZadXRUu72j31kFvVJTS6GNE5Ml"),"x589e22663c9931c59123645a089706340e7b")),"w124dafa8243aed37c90d40"))));
@@ -193,8 +199,8 @@ int main() {
 	
 
     // 显示免责声明
-    displayAgreement();
-    printf("\033[1;34m[+] 正在检测Via独家驱动状态...\033[0m\n");
+    // displayAgreement();
+    printf("\033[1;34m[+] 正在检测Aura独家驱动状态...\033[0m\n");
     绘制.读写.reopen_dev();
     bool moduleOk = false;
     if (绘制.读写.fd > 0 && 绘制.读写.get_Module_On()) {
@@ -203,15 +209,15 @@ int main() {
     if (!moduleOk) {
         printf("\033[1;33m[-] 检测到驱动未激活, 开始自动刷入...\033[0m\n");
         if (!模块刷入()) {
-            printf("\033[1;31m[!] Via驱动刷入失败, 程序退出\n\033[0m");
+            printf("\033[1;31m[!] Aura驱动刷入失败, 程序退出\n\033[0m");
             return 0;
         }
         if (!绘制.读写.reopen_dev() || !绘制.读写.get_Module_On()) {
-            printf("\033[1;31m[!] Via驱动加载失败, 请重启设备后重试\n\033[0m");
+            printf("\033[1;31m[!] Aura驱动加载失败, 请重启设备后重试\n\033[0m");
             return 0;
         }
     }
-    printf("\033[1;32m[+] Via驱动已就绪, 正在启动功能...\033[0m\n");
+    printf("\033[1;32m[+] Aura驱动已就绪, 正在启动功能...\033[0m\n");
 
     if (绘制.防录屏 == 999) {
         printf("是否开启防录屏[1[是]/2[否]]：");

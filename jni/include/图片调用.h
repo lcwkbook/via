@@ -118,9 +118,21 @@
 #include "手持图片/群众.h"
 #include "手持图片/齿轮.h"
 #include "手持图片/准星.h"
+#include "images/主页.h"
+#include "images/人物.h"
+#include "images/物资.h"
+#include "images/颜色.h"
+#include "images/视觉.h"
+#include "images/设置.h"
 extern std::map<int, MyTextureData> 手持图片;
 
 inline void 加载内存图片() {
+手持图片[300] = createTexture_ALL_FromMem(主页, sizeof(主页));
+手持图片[301] = createTexture_ALL_FromMem(人物, sizeof(人物));
+手持图片[302] = createTexture_ALL_FromMem(物资, sizeof(物资));
+手持图片[303] = createTexture_ALL_FromMem(视觉, sizeof(视觉));
+手持图片[304] = createTexture_ALL_FromMem(颜色, sizeof(颜色));
+手持图片[305] = createTexture_ALL_FromMem(设置, sizeof(设置));
 
 手持图片[250] = createTexture_ALL_FromMem(宝箱, sizeof(宝箱));
 手持图片[251] = createTexture_ALL_FromMem(药箱, sizeof(药箱));
