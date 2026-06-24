@@ -233,7 +233,8 @@ void 绘图::绘制头甲包(int id)
 
 void 绘图::绘制方框(bool 是否可见, bool isboot)
 {
-    if (绘制.对象信息.敌人信息.距离 > 绘制.按钮.绘制最大距离) return;  // 新增
+    if (绘制.对象信息.敌人信息.距离 > 绘制.按钮.绘制最大距离)
+        return;            // 新增
     float 缩放比例 = 0.2f; // 例如 1.0 代表不缩放。0.5代表缩放到原始的50%
     // 计算方块的边长，根据矩形的尺寸调整
     float 方块边长比例 = 0.8f; // 方块边长占矩形宽度的比例（例如5%）
@@ -265,83 +266,463 @@ void 绘图::绘制方框(bool 是否可见, bool isboot)
 
 void 绘图::绘制人数(int 人机, int 真人)
 {
+    // ========== 获取屏幕信息 ==========
+    float screenW = ImGui::GetIO().DisplaySize.x;
+    float screenH = ImGui::GetIO().DisplaySize.y;
+    float time = ImGui::GetTime();
+
     // ========== 灵动岛样式参数 ==========
-    float capsuleWidth = 180.0f;
-    float capsuleHeight = 50.0f;
+    float capsuleWidth = 210.0f;
+    float capsuleHeight = 54.0f;
     float cornerRadius = capsuleHeight / 2.0f;
-    float centerX = PX;
+    float centerX = screenW / 2.0f;
     float topY = 80.0f;
-    float fontSize = 28.0f;
-    ImColor bgColor = ImColor(0, 0, 0, 255); // 改为完全不透明黑色
+    float numberFontSize = 26.0f;
+    float labelFontSize = 12.0f;
 
-    ImVec2 capsuleMin = {centerX - capsuleWidth / 2, topY};
-    ImVec2 capsuleMax = {centerX + capsuleWidth / 2, topY + capsuleHeight};
-    ImGui::GetForegroundDrawList()->AddRectFilled(capsuleMin, capsuleMax, bgColor, cornerRadius);
+    ImVec2 cMin = {centerX - capsuleWidth / 2, topY};
+    ImVec2 cMax = {centerX + capsuleWidth / 2, topY + capsuleHeight};
 
-    // 添加一层半透明边框使边缘更柔和
-    ImGui::GetForegroundDrawList()->AddRect(capsuleMin, capsuleMax, ImColor(80, 80, 80, 100), cornerRadius, 0, 1.5f);
-
-    if (绘制.地址.世界地址 == 0)   // 世界地址为0表示未进入对局
-    {
-        string text = "等待进入对局";
-        auto textSize = ImGui::CalcTextSize(text.c_str(), 0, fontSize);
-        float textX = centerX - textSize.x / 2;
-        float textY = topY + (capsuleHeight - textSize.y) / 2;
-        // 增强描边：先画两层黑色描边
-        ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(textX - 1, textY - 1), ImColor(0, 0, 0, 255), text.c_str());
-        ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(textX + 1, textY + 1), ImColor(0, 0, 0, 255), text.c_str());
-        ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(textX, textY), ImColor(180, 180, 180, 255), text.c_str());
-        return;
-    }
+    auto *draw = ImGui::GetForegroundDrawList();
 
     int totalPlayers = 人机 + 真人;
-    if (totalPlayers == 0)
-    {
-        string text = "安全";
-        auto textSize = ImGui::CalcTextSize(text.c_str(), 0, fontSize);
+
+    // ================================================================
+    // 1. 动态外发光 - 脉冲呼吸效果
+    // ================================================================
+    ImColor glowColor;
+    float pulse = sinf(time * 1.8f) * 0.25f + 0.75f; // 0.5 ~ 1.0 脉冲
+
+    if (绘制.地址.世界地址 == 0) {
+        glowColor = ImColor(60, 120, 255, (int)(70 * pulse));
+    } else if (totalPlayers == 0) {
+        glowColor = ImColor(0, 255, 140, (int)(90 * pulse));
+    } else if (真人 > 0) {
+        // 有真人时红色脉冲更剧烈
+        float dangerPulse = sinf(time * 2.5f) * 0.35f + 0.65f;
+        glowColor = ImColor(255, 40, 40, (int)(100 * dangerPulse));
+    } else {
+        glowColor = ImColor(255, 200, 30, (int)(60 * pulse));
+    }
+
+    // 多层外发光（带脉冲动画）
+    for (int i = 3; i >= 1; i--) {
+        float pr = pulse * 0.3f + 0.7f;
+        float r = 20.0f * (i / 3.0f) * pr;
+        ImColor c = glowColor;
+        c.Value.w = glowColor.Value.w * (i / 3.0f) * 0.4f;
+        draw->AddRectFilled(
+            ImVec2(cMin.x - r, cMin.y - r),
+            ImVec2(cMax.x + r, cMax.y + r),
+            c, cornerRadius + r);
+    }
+
+    // ================================================================
+    // 2. 主背景 - 毛玻璃效果
+    // ================================================================
+    draw->AddRectFilled(cMin, cMax, ImColor(8, 8, 18, 240), cornerRadius);
+
+    // 顶部高光反射（动态扫光效果）
+    float scanY = fmod(time * 30.0f, capsuleHeight);
+    float scanAlpha = (scanY < capsuleHeight * 0.3f)
+                          ? (scanY / (capsuleHeight * 0.3f)) * 30
+                          : 30.0f - (scanY - capsuleHeight * 0.3f) / (capsuleHeight * 0.7f) * 30;
+    if (scanAlpha > 0) {
+        draw->AddRectFilled(
+            ImVec2(cMin.x + 6, cMin.y + scanY),
+            ImVec2(cMax.x - 6, cMin.y + scanY + 2),
+            ImColor(255, 255, 255, (int)scanAlpha));
+    }
+
+    // 顶部静态高光层
+    float highlightH = capsuleHeight * 0.35f;
+    draw->AddRectFilledMultiColor(
+        ImVec2(cMin.x + 4, cMin.y + 2),
+        ImVec2(cMax.x - 4, cMin.y + highlightH),
+        ImColor(255, 255, 255, 20), ImColor(255, 255, 255, 20),
+        ImColor(255, 255, 255, 3), ImColor(255, 255, 255, 3));
+
+    // 底部微弱反光
+    draw->AddRectFilledMultiColor(
+        ImVec2(cMin.x + 4, cMax.y - highlightH * 0.5f),
+        ImVec2(cMax.x - 4, cMax.y - 2),
+        ImColor(255, 255, 255, 2), ImColor(255, 255, 255, 2),
+        ImColor(255, 255, 255, 12), ImColor(255, 255, 255, 12));
+
+    // ================================================================
+    // 3. 动态边框
+    // ================================================================
+    // 外边框颜色随状态变化
+    ImColor borderColor;
+    if (绘制.地址.世界地址 == 0)
+        borderColor = ImColor(80, 140, 255, (int)(50 * pulse + 30));
+    else if (totalPlayers == 0)
+        borderColor = ImColor(0, 255, 140, (int)(40 * pulse + 30));
+    else if (真人 > 0)
+        borderColor = ImColor(255, 60, 60, (int)(60 * pulse + 30));
+    else
+        borderColor = ImColor(255, 200, 30, (int)(40 * pulse + 30));
+
+    draw->AddRect(cMin, cMax, borderColor, cornerRadius, 0, 1.5f);
+
+    // 内层亮边
+    draw->AddRect(
+        ImVec2(cMin.x + 1.5f, cMin.y + 1.5f),
+        ImVec2(cMax.x - 1.5f, cMax.y - 1.5f),
+        ImColor(255, 255, 255, 10), cornerRadius, 0, 0.8f);
+
+    // ================================================================
+    // 4. 四角装饰呼吸灯
+    // ================================================================
+    float cornerGlow = sinf(time * 2.2f) * 0.4f + 0.6f;
+    int cornerAlpha = (int)(cornerGlow * 80);
+    float cornerLen = 12.0f;
+
+    // 左上角
+    draw->AddLine(ImVec2(cMin.x + 2, cMin.y + 2), ImVec2(cMin.x + cornerLen, cMin.y + 2),
+                  ImColor(255, 255, 255, cornerAlpha), 1.8f);
+    draw->AddLine(ImVec2(cMin.x + 2, cMin.y + 2), ImVec2(cMin.x + 2, cMin.y + cornerLen),
+                  ImColor(255, 255, 255, cornerAlpha), 1.8f);
+    // 右上角
+    draw->AddLine(ImVec2(cMax.x - 2, cMin.y + 2), ImVec2(cMax.x - cornerLen, cMin.y + 2),
+                  ImColor(255, 255, 255, cornerAlpha), 1.8f);
+    draw->AddLine(ImVec2(cMax.x - 2, cMin.y + 2), ImVec2(cMax.x - 2, cMin.y + cornerLen),
+                  ImColor(255, 255, 255, cornerAlpha), 1.8f);
+    // 左下角
+    draw->AddLine(ImVec2(cMin.x + 2, cMax.y - 2), ImVec2(cMin.x + cornerLen, cMax.y - 2),
+                  ImColor(255, 255, 255, cornerAlpha), 1.8f);
+    draw->AddLine(ImVec2(cMin.x + 2, cMax.y - 2), ImVec2(cMin.x + 2, cMax.y - cornerLen),
+                  ImColor(255, 255, 255, cornerAlpha), 1.8f);
+    // 右下角
+    draw->AddLine(ImVec2(cMax.x - 2, cMax.y - 2), ImVec2(cMax.x - cornerLen, cMax.y - 2),
+                  ImColor(255, 255, 255, cornerAlpha), 1.8f);
+    draw->AddLine(ImVec2(cMax.x - 2, cMax.y - 2), ImVec2(cMax.x - 2, cMax.y - cornerLen),
+                  ImColor(255, 255, 255, cornerAlpha), 1.8f);
+
+    // ================================================================
+    // 5. 内容区域 - 根据状态
+    // ================================================================
+
+    // ---------- 状态1: 未进入对局 ----------
+    if (绘制.地址.世界地址 == 0) {
+        string text = "等待进入对局";
+        auto textSize = ImGui::CalcTextSize(text.c_str(), 0, numberFontSize);
         float textX = centerX - textSize.x / 2;
         float textY = topY + (capsuleHeight - textSize.y) / 2;
-        ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(textX - 1, textY - 1), ImColor(0, 0, 0, 255), text.c_str());
-        ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(textX + 1, textY + 1), ImColor(0, 0, 0, 255), text.c_str());
-        ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(textX, textY), ImColor(0, 255, 0, 255), text.c_str());
+
+        // 文字描边
+        draw->AddText(nullptr, numberFontSize, ImVec2(textX - 1, textY - 1), ImColor(0, 0, 0, 200), text.c_str());
+        draw->AddText(nullptr, numberFontSize, ImVec2(textX + 1, textY + 1), ImColor(0, 0, 0, 200), text.c_str());
+
+        // 主文字 - 蓝色呼吸
+        float blueBreathe = sinf(time * 2.0f) * 40.0f + 200.0f;
+        draw->AddText(nullptr, numberFontSize, ImVec2(textX, textY),
+                      ImColor((int)(blueBreathe * 0.7f), (int)(blueBreathe * 0.85f), (int)blueBreathe, 255), text.c_str());
+
+        // --- 加载动画点（三点跳跃式） ---
+        float dotSpacing = 10.0f;
+        float dotRadius = 3.5f;
+        float dotBaseX = centerX + textSize.x / 2 + 20.0f;
+        float dotY = topY + capsuleHeight / 2.0f;
+
+        for (int d = 0; d < 3; d++) {
+            // 每个点依次跳跃
+            float jumpPhase = fmod(time * 2.5f + d * 0.8f, 3.0f);
+            float jumpOffset = 0;
+            float alpha = 100;
+
+            if (jumpPhase < 1.0f) {
+                // 上升阶段
+                jumpOffset = -sinf(jumpPhase * 3.14159f) * 5.0f;
+                alpha = 180 + sinf(jumpPhase * 3.14159f) * 75;
+            } else {
+                alpha = 120;
+            }
+
+            draw->AddCircleFilled(
+                ImVec2(dotBaseX + d * dotSpacing, dotY + jumpOffset),
+                dotRadius, ImColor(100, 160, 255, (int)alpha));
+
+            // 小光晕
+            if (jumpPhase < 1.0f) {
+                float halo = sinf(jumpPhase * 3.14159f) * 4.0f;
+                draw->AddCircleFilled(
+                    ImVec2(dotBaseX + d * dotSpacing, dotY + jumpOffset),
+                    dotRadius + halo, ImColor(100, 160, 255, 20));
+            }
+        }
         return;
     }
 
-    // 分隔线
-    float lineX = centerX;
-    float lineY1 = topY + 10.0f;
-    float lineY2 = topY + capsuleHeight - 10.0f;
-    ImGui::GetForegroundDrawList()->AddLine(ImVec2(lineX, lineY1), ImVec2(lineX, lineY2), ImColor(150, 150, 150, 255), 2.0f);
+    // ---------- 状态2: 安全 ----------
+    if (totalPlayers == 0) {
+        string text = "✓ 安全区域";
+        auto textSize = ImGui::CalcTextSize(text.c_str(), 0, numberFontSize);
+        float textX = centerX - textSize.x / 2;
+        float textY = topY + (capsuleHeight - textSize.y) / 2;
 
-    // 真人
-    string realStr = std::to_string(真人);
-    auto realSize = ImGui::CalcTextSize(realStr.c_str(), 0, fontSize);
-    float realX = centerX - capsuleWidth / 4 - realSize.x / 2;
-    float realY = topY + (capsuleHeight - realSize.y) / 2;
-    ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(realX - 1, realY - 1), ImColor(0, 0, 0, 255), realStr.c_str());
-    ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(realX + 1, realY + 1), ImColor(0, 0, 0, 255), realStr.c_str());
-    ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(realX, realY), ImColor(255, 80, 80, 255), realStr.c_str());
+        draw->AddText(nullptr, numberFontSize, ImVec2(textX - 1, textY - 1), ImColor(0, 0, 0, 200), text.c_str());
+        draw->AddText(nullptr, numberFontSize, ImVec2(textX + 1, textY + 1), ImColor(0, 0, 0, 200), text.c_str());
 
-    // 人机
-    string botStr = std::to_string(人机);
-    auto botSize = ImGui::CalcTextSize(botStr.c_str(), 0, fontSize);
-    float botX = centerX + capsuleWidth / 4 - botSize.x / 2;
-    float botY = topY + (capsuleHeight - botSize.y) / 2;
-    ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(botX - 1, botY - 1), ImColor(0, 0, 0, 255), botStr.c_str());
-    ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(botX + 1, botY + 1), ImColor(0, 0, 0, 255), botStr.c_str());
-    ImGui::GetForegroundDrawList()->AddText(nullptr, fontSize, ImVec2(botX, botY), ImColor(255, 255, 255, 255), botStr.c_str());
+        // 绿色呼吸文字
+        float greenBreathe = sinf(time * 1.8f) * 35.0f + 220.0f;
+        draw->AddText(nullptr, numberFontSize, ImVec2(textX, textY),
+                      ImColor(0, (int)greenBreathe, 100, 255), text.c_str());
+
+        // --- 安全盾牌图标（带脉冲光环） ---
+        float iconCX = textX - 18.0f;
+        float iconCY = topY + capsuleHeight / 2.0f;
+        float shieldSize = 14.0f;
+
+        // 外圈脉冲光晕
+        float shieldPulse = sinf(time * 2.0f) * 0.3f + 0.7f;
+        draw->AddCircleFilled(ImVec2(iconCX, iconCY), shieldSize + 4.0f + shieldPulse * 3.0f,
+                              ImColor(0, 255, 120, (int)(20 * shieldPulse)));
+
+        // 盾牌主体（用圆角矩形+三角模拟）
+        draw->AddRectFilled(
+            ImVec2(iconCX - shieldSize / 2, iconCY - shieldSize / 2),
+            ImVec2(iconCX + shieldSize / 2, iconCY + shieldSize / 2),
+            ImColor(0, 255, 120, 40), 3.0f);
+        draw->AddRect(
+            ImVec2(iconCX - shieldSize / 2, iconCY - shieldSize / 2),
+            ImVec2(iconCX + shieldSize / 2, iconCY + shieldSize / 2),
+            ImColor(0, 255, 120, (int)(150 * shieldPulse)), 3.0f, 0, 1.5f);
+
+        // 中间勾号(用两个小线)
+        draw->AddLine(ImVec2(iconCX - 3, iconCY), ImVec2(iconCX - 1, iconCY + 3),
+                      ImColor(0, 255, 120, 200), 2.0f);
+        draw->AddLine(ImVec2(iconCX - 1, iconCY + 3), ImVec2(iconCX + 4, iconCY - 2),
+                      ImColor(0, 255, 120, 200), 2.0f);
+
+        return;
+    }
+
+    // ================================================================
+    // ---------- 状态3: 正常显示人数（核心界面） ----------
+    // ================================================================
+
+    // --- 中心动态雷达环 ---
+    float ringPulse = sinf(time * 2.2f) * 0.3f + 0.7f;
+    float ringMaxR = 16.0f + ringPulse * 8.0f;
+
+    // 外圈扩散环（逐渐扩散消失）
+    for (int ri = 0; ri < 3; ri++) {
+        float ringPhase = fmod(time * 1.5f + ri * 0.6f, 1.0f);
+        float ringR = ringPhase * ringMaxR;
+        int ringA = (int)((1.0f - ringPhase) * 40);
+        ImColor ringColor = (真人 > 0) ? ImColor(255, 60, 60, ringA) : ImColor(255, 200, 30, ringA);
+        draw->AddCircle(ImVec2(centerX, topY + capsuleHeight / 2), ringR, ringColor, 0, 1.5f);
+    }
+
+    // 中心小圆点(带脉冲)
+    float dotCenterR = 4.0f + sinf(time * 3.0f) * 0.5f;
+    ImColor dotColor = (真人 > 0) ? ImColor(255, 80, 80, 230) : ImColor(255, 200, 50, 230);
+    draw->AddCircleFilled(ImVec2(centerX, topY + capsuleHeight / 2), dotCenterR, dotColor);
+
+    // 中心圆点内层高光
+    draw->AddCircleFilled(ImVec2(centerX - 1, topY + capsuleHeight / 2 - 1), dotCenterR * 0.4f,
+                          ImColor(255, 255, 255, 60));
+
+    // 中心圆点外圈稳定光晕
+    draw->AddCircleFilled(ImVec2(centerX, topY + capsuleHeight / 2), dotCenterR + 6.0f,
+                          ImColor(dotColor.Value.x, dotColor.Value.y, dotColor.Value.z, 30.0f));
+
+    // 中心装饰短横线（两侧带呼吸）
+    float dashLen = 22.0f + sinf(time * 1.5f) * 3.0f;
+    int dashAlpha = (int)(sinf(time * 1.2f) * 20 + 50);
+    draw->AddLine(ImVec2(centerX - dotCenterR - 5, topY + capsuleHeight / 2),
+                  ImVec2(centerX - dashLen, topY + capsuleHeight / 2),
+                  ImColor(255, 255, 255, dashAlpha), 1.2f);
+    draw->AddLine(ImVec2(centerX + dotCenterR + 5, topY + capsuleHeight / 2),
+                  ImVec2(centerX + dashLen, topY + capsuleHeight / 2),
+                  ImColor(255, 255, 255, dashAlpha), 1.2f);
+
+    // --- 左侧：真人 ---
+    {
+        string numStr = std::to_string(真人);
+        auto numSize = ImGui::CalcTextSize(numStr.c_str(), 0, numberFontSize);
+        string labelStr = "真人";
+        auto labelSize = ImGui::CalcTextSize(labelStr.c_str(), 0, labelFontSize);
+
+        float leftCenterX = centerX - capsuleWidth / 4;
+
+        float numX = leftCenterX - numSize.x / 2;
+        float numY = topY + 7.0f;
+
+        float labelX = leftCenterX - labelSize.x / 2;
+        float labelY = numY + numSize.y - 2.0f;
+
+        // 数字描边
+        draw->AddText(nullptr, numberFontSize, ImVec2(numX - 1, numY - 1), ImColor(0, 0, 0, 180), numStr.c_str());
+        draw->AddText(nullptr, numberFontSize, ImVec2(numX + 1, numY + 1), ImColor(0, 0, 0, 180), numStr.c_str());
+
+        // 数字颜色 - 如果数量>0则红色脉冲
+        float redPulse = 1.0f;
+        if (真人 > 0) {
+            redPulse = sinf(time * 2.8f) * 0.15f + 0.85f;
+        }
+        int rVal = (int)(200 * redPulse) + (真人 > 0 ? 55 : 0);
+        int gVal = (int)(50 * redPulse);
+        int bVal = (int)(50 * redPulse);
+        draw->AddText(nullptr, numberFontSize, ImVec2(numX, numY),
+                      ImColor(rVal, gVal, bVal, 255), numStr.c_str());
+
+        // 标签文字
+        draw->AddText(nullptr, labelFontSize, ImVec2(labelX, labelY),
+                      ImColor(200, 120, 120, 200), labelStr.c_str());
+
+        // 左侧状态指示点（真人图标）
+        if (真人 > 0) {
+            float iconX = leftCenterX + numSize.x / 2 + 14.0f;
+            float iconY = numY + numSize.y / 2 - 2;
+            // 主圆点 + 脉冲
+            draw->AddCircleFilled(ImVec2(iconX, iconY), 4.5f, ImColor(255, 60, 60, 220));
+            draw->AddCircleFilled(ImVec2(iconX, iconY), 7.0f + sinf(time * 2.5f) * 2.0f,
+                                  ImColor(255, 60, 60, 25));
+        } else {
+            float iconX = leftCenterX + numSize.x / 2 + 14.0f;
+            float iconY = numY + numSize.y / 2 - 2;
+            draw->AddCircleFilled(ImVec2(iconX, iconY), 3.0f, ImColor(100, 100, 100, 150));
+        }
+    }
+
+    // --- 右侧：人机 ---
+    {
+        string numStr = std::to_string(人机);
+        auto numSize = ImGui::CalcTextSize(numStr.c_str(), 0, numberFontSize);
+        string labelStr = "人机";
+        auto labelSize = ImGui::CalcTextSize(labelStr.c_str(), 0, labelFontSize);
+
+        float rightCenterX = centerX + capsuleWidth / 4;
+
+        float numX = rightCenterX - numSize.x / 2;
+        float numY = topY + 7.0f;
+
+        float labelX = rightCenterX - labelSize.x / 2;
+        float labelY = numY + numSize.y - 2.0f;
+
+        // 数字描边
+        draw->AddText(nullptr, numberFontSize, ImVec2(numX - 1, numY - 1), ImColor(0, 0, 0, 180), numStr.c_str());
+        draw->AddText(nullptr, numberFontSize, ImVec2(numX + 1, numY + 1), ImColor(0, 0, 0, 180), numStr.c_str());
+
+        // 数字颜色 - 蓝白呼吸
+        float bluePulse = sinf(time * 1.5f) * 20.0f + 220.0f;
+        draw->AddText(nullptr, numberFontSize, ImVec2(numX, numY),
+                      ImColor((int)(bluePulse * 0.85f), (int)bluePulse, 255, 255), numStr.c_str());
+
+        // 标签
+        draw->AddText(nullptr, labelFontSize, ImVec2(labelX, labelY),
+                      ImColor(140, 170, 210, 200), labelStr.c_str());
+
+        // 右侧状态点
+        if (人机 > 0) {
+            float iconX = rightCenterX + numSize.x / 2 + 14.0f;
+            float iconY = numY + numSize.y / 2 - 2;
+            draw->AddCircleFilled(ImVec2(iconX, iconY), 4.0f, ImColor(120, 180, 255, 200));
+            draw->AddCircleFilled(ImVec2(iconX, iconY), 6.0f + sinf(time * 2.0f) * 1.5f,
+                                  ImColor(120, 180, 255, 20));
+        } else {
+            float iconX = rightCenterX + numSize.x / 2 + 14.0f;
+            float iconY = numY + numSize.y / 2 - 2;
+            draw->AddCircleFilled(ImVec2(iconX, iconY), 3.0f, ImColor(100, 100, 100, 150));
+        }
+    }
+
+    // ================================================================
+    // 6. 顶部呼吸灯 - 带能量环效果
+    // ================================================================
+    float breather = sinf(time * 1.5f) * 0.3f + 0.7f;
+    int breathAlpha = (int)(breather * 70);
+
+    float topDotY = topY - 10.0f;
+
+    // 外圈光晕
+    if (真人 > 0) {
+        draw->AddCircleFilled(ImVec2(centerX, topDotY), 5.0f + breather * 3.0f,
+                              ImColor(255, 60, 60, (int)(breather * 25)));
+        draw->AddCircleFilled(ImVec2(centerX, topDotY), 3.0f,
+                              ImColor(255, 60, 60, breathAlpha));
+    } else if (totalPlayers > 0) {
+        draw->AddCircleFilled(ImVec2(centerX, topDotY), 5.0f + breather * 3.0f,
+                              ImColor(255, 200, 50, (int)(breather * 25)));
+        draw->AddCircleFilled(ImVec2(centerX, topDotY), 3.0f,
+                              ImColor(255, 200, 50, breathAlpha));
+    }
+
+    // ================================================================
+    // 7. 底部流光小尾巴（动态装饰线）
+    // ================================================================
+    float tailPhase = fmod(time * 1.2f, 1.0f);
+    float tailX = cMin.x + 10.0f + tailPhase * (capsuleWidth - 20.0f);
+    float tailLen = 30.0f;
+
+    ImColor tailColor = (真人 > 0) ? ImColor(255, 60, 60, 60) : ImColor(255, 200, 50, 50);
+    draw->AddLine(ImVec2(tailX - tailLen / 2, cMax.y - 2),
+                  ImVec2(tailX + tailLen / 2, cMax.y - 2),
+                  tailColor, 1.2f);
+
+    // ================================================================
+    // 8. 浮动粒子 (环绕灵动岛的小光点)
+    // ================================================================
+    for (int p = 0; p < 4; p++) {
+        float pAngle = time * 0.6f + p * 1.57f;
+        float pRadius = capsuleWidth / 2 + 12.0f + sinf(time * 0.8f + p) * 4.0f;
+        float px = centerX + cosf(pAngle) * pRadius;
+        float py = topY + capsuleHeight / 2 + sinf(pAngle) * (capsuleHeight / 2 + 8.0f);
+        float pSize = 1.5f + sinf(time * 1.3f + p * 2.0f) * 0.8f;
+        int pAlpha = (int)(sinf(time * 1.1f + p * 1.7f) * 30 + 50);
+
+        if (px >= cMin.x - 10 && px <= cMax.x + 10 &&
+            py >= cMin.y - 10 && py <= cMax.y + 10) {
+            continue; // 不在岛内显示
+        }
+
+        draw->AddCircleFilled(ImVec2(px, py), pSize,
+                              ImColor(255, 255, 255, pAlpha));
+    }
+
+    // ================================================================
+    // 9. 总人数角标（右上角小气泡）
+    // ================================================================
+    {
+        string totalStr = std::to_string(totalPlayers);
+        auto totalSize = ImGui::CalcTextSize(totalStr.c_str(), 0, 10.0f);
+        float badgeW = totalSize.x + 10.0f;
+        float badgeH = 16.0f;
+        float badgeX = cMax.x - badgeW - 4.0f;
+        float badgeY = topY - badgeH - 2.0f;
+
+        // 小气泡背景
+        draw->AddRectFilled(
+            ImVec2(badgeX, badgeY),
+            ImVec2(badgeX + badgeW, badgeY + badgeH),
+            ImColor(0, 0, 0, 160), 8.0f);
+
+        // 边框
+        draw->AddRect(
+            ImVec2(badgeX, badgeY),
+            ImVec2(badgeX + badgeW, badgeY + badgeH),
+            ImColor(255, 255, 255, 30), 8.0f, 0, 0.8f);
+
+        // 文字
+        draw->AddText(nullptr, 10.0f,
+                      ImVec2(badgeX + badgeW / 2 - totalSize.x / 2, badgeY + (badgeH - totalSize.y) / 2),
+                      ImColor(180, 180, 180, 180), totalStr.c_str());
+    }
 }
+
 
 void 绘图::绘制距离(int 距离, int 队伍)
 {
     string 距离文本 = to_string((int)距离) + "M";
     auto Size = ImGui::CalcTextSize(距离文本.c_str(), 0, 绘制.距离字体大小);
-    
+
     // ============== 修复：读取配置中的距离颜色 ==============
     // 根据人机/真人获取对应颜色配置
-    float* 距离颜色配置 = 绘制.Colorset[(int)绘制.对象信息.敌人信息.isboot].距离颜色;
+    float *距离颜色配置 = 绘制.Colorset[(int)绘制.对象信息.敌人信息.isboot].距离颜色;
     ImVec4 距离颜色 = ImVec4(距离颜色配置[0], 距离颜色配置[1], 距离颜色配置[2], 距离颜色配置[3]);
-    
+
     // 替换原来的 颜色.白色 为配置颜色
     绘制字体描边(绘制.距离字体大小, MIDDLE - (Size.x / 4), bottom, 距离颜色, 距离文本.c_str());
 }
