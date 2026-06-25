@@ -1415,7 +1415,7 @@ void 绘制::更新对象数据()
             smoothCache.erase(对象地址.敌人地址); // 清理残留缓存
         }
 
-        constexpr float kSmooth = 0.35f;
+        constexpr float kSmooth = 1.00f;
         auto &cached = smoothCache[对象地址.敌人地址];
         // 首次出现且有效时直接赋值，无效时填 0 确保后续 t_屏幕坐标.W < 0
         if (cached.fx == 0 && cached.fy == 0 && cached.hz == 0)
