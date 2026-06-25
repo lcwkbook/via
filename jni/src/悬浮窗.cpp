@@ -2428,6 +2428,7 @@ void DrawColorPage()
         color[0] = presetColors[currentIndex].x;
         color[1] = presetColors[currentIndex].y;
         color[2] = presetColors[currentIndex].z;
+        color[3] = presetColors[currentIndex].w;
         绘制.保存配置();
     };
 
