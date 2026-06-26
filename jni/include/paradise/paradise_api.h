@@ -9,6 +9,62 @@
 #define PARADISE_GYRO_MASK_UNCAL (1u << 1)
 #define PARADISE_GYRO_MASK_ALL (PARADISE_GYRO_MASK_GYRO | PARADISE_GYRO_MASK_UNCAL)
 
+/* Hardware breakpoint definitions */
+#define HWBP_MAX_POINTS 16
+#define HWBP_MAX_RECORDS 0x100
+
+enum hwbp_type {
+    HWBP_BREAKPOINT_EMPTY = 0,
+    HWBP_BREAKPOINT_R = 1,
+    HWBP_BREAKPOINT_W = 2,
+    HWBP_BREAKPOINT_RW = HWBP_BREAKPOINT_R | HWBP_BREAKPOINT_W,
+    HWBP_BREAKPOINT_X = 4,
+};
+
+enum hwbp_len {
+    HWBP_BREAKPOINT_LEN_1 = 1,
+    HWBP_BREAKPOINT_LEN_2 = 2,
+    HWBP_BREAKPOINT_LEN_3 = 3,
+    HWBP_BREAKPOINT_LEN_4 = 4,
+    HWBP_BREAKPOINT_LEN_5 = 5,
+    HWBP_BREAKPOINT_LEN_6 = 6,
+    HWBP_BREAKPOINT_LEN_7 = 7,
+    HWBP_BREAKPOINT_LEN_8 = 8,
+};
+
+enum hwbp_scope {
+    SCOPE_MAIN_THREAD = 0,
+    SCOPE_OTHER_THREADS = 1,
+    SCOPE_ALL_THREADS = 2
+};
+
+struct hwbp_record {
+    uint8_t mask[18];
+    uint64_t hit_count;
+    uint64_t pc;
+    uint64_t lr;
+    uint64_t sp;
+    uint64_t orig_x0;
+    uint64_t syscallno;
+    uint64_t pstate;
+    uint64_t x0, x1, x2, x3, x4, x5, x6, x7, x8, x9;
+    uint64_t x10, x11, x12, x13, x14, x15, x16, x17, x18, x19;
+    uint64_t x20, x21, x22, x23, x24, x25, x26, x27, x28, x29;
+    uint32_t fpsr;
+    uint32_t fpcr;
+    __uint128_t q0, q1, q2, q3, q4, q5, q6, q7, q8, q9;
+    __uint128_t q10, q11, q12, q13, q14, q15, q16, q17, q18, q19;
+    __uint128_t q20, q21, q22, q23, q24, q25, q26, q27, q28, q29;
+    __uint128_t q30, q31;
+};
+
+struct hwbp_point_config {
+    enum hwbp_type bt;
+    enum hwbp_len bl;
+    enum hwbp_scope bs;
+    uint64_t hit_addr;
+};
+
 class paradise_driver {
 private:
     pid_t pid;
@@ -40,12 +96,12 @@ public:
     uintptr_t get_module_end(const char *name);
 
     /*
-    usage:
+    用法示例：
         uintptr_t lo, hi;
         if (get_module_range("libc.so", &lo, &hi)) {
-            // 映射包络为 [lo, hi)，按需分段 read
+            // 映射包络为 [lo, hi)，按需分段读取
         }
-        // 或仅要结束地址：
+        // 或仅获取结束地址：
         uintptr_t end = get_module_end("libc.so");
     */
     
@@ -76,20 +132,36 @@ public:
     // 内核层映射修改数据，传入地址、数据指针、类型大小
     bool write_fast(uintptr_t addr, void *buffer, size_t size);
 
-    // 初始化触摸注入，传入用户屏幕分辨率用于坐标映射
+    // // 初始化触摸注入，传入用户屏幕分辨率用于坐标映射
     // bool touch_init(int screen_width, int screen_height);
 
-    // 手指按下
+    // // 手指按下
     // bool touch_down(int slot, int x, int y);
 
-    // 手指移动
+    // // 手指移动
     // bool touch_move(int slot, int x, int y);
 
-    // 手指抬起
+    // // 手指抬起
     // bool touch_up(int slot);
 
-    // 销毁触摸注入
+    // // 销毁触摸注入
     // bool touch_destroy();
+
+    // // 获取硬件断点/观察点槽位数量
+    // bool hwbp_get_info(uint64_t *num_brps, uint64_t *num_wrps);
+
+    // // 设置硬件断点，points 数组最多 HWBP_MAX_POINTS 个，hit_addr=0 的条目被忽略
+    // bool hwbp_set(pid_t target_pid, struct hwbp_point_config *points, int count);
+
+    // // 移除指定进程的所有硬件断点
+    // bool hwbp_remove(pid_t target_pid);
+
+    // 读取断点命中记录，point_index 指定哪个观测点 (0-15)
+    // records_out 为输出缓冲区，max_records 为最多读取的记录数
+    // 返回实际读取的记录数，-1 表示错误
+    // int hwbp_read_records(pid_t target_pid, int point_index,
+    //                       struct hwbp_record *records_out, int max_records,
+    //                       uint64_t *hit_addr_out, int *total_records_out);
 
     // 模板方法，传入地址，返回地址上的值
     template <typename T>
@@ -108,7 +180,7 @@ public:
         return this->write(addr, &value, sizeof(T));
     }
 
-    // vmap-based 模板读取
+    // 基于 vmap 的模板读取
     template <typename T>
     T read_fast(uintptr_t addr)
     {
@@ -118,7 +190,7 @@ public:
         return {};
     }
 
-    // vmap-based 模板写入
+    // 基于 vmap 的模板写入
     template <typename T>
     bool write_fast(uintptr_t addr, T value)
     {

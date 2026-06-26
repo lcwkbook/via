@@ -51,6 +51,7 @@ LOCAL_LDLIBS := -llog -landroid -lEGL -lGLESv1_CM -lGLESv2 -lGLESv3
 LOCAL_LDLIBS += -lz
 LOCAL_LDLIBS += -Wl,--allow-multiple-definition
 
+
 LOCAL_LDFLAGS += $(LOCAL_PATH)/lib/*.a
 LOCAL_LDFLAGS += -Wl,--gc-sections,--strip-all,--allow-multiple-definition,-llog
 LOCAL_LDFLAGS += -lEGL -lGLESv2 -lGLESv3 -landroid -llog

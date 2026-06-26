@@ -24,6 +24,8 @@
 #include "paradise/paradise_api.h"
 #include "network_program.h"
 #include <openssl/dh.h>
+#include "Offsets.h"
+
 
 using namespace std;
 
@@ -110,6 +112,25 @@ int main()
     fflush(stdout);
 
     network_verify();
+
+     // ========== ★ 新增：远程偏移加载（不通过就退出） ==========
+    printf("\n");
+    printf("  \033[1;36m┌──────────────────────────────────────────┐\033[0m\n");
+    printf("  \033[1;36m│  📡 正在连接授权服务器...\033[0m              │\n");
+    printf("  \033[1;36m└──────────────────────────────────────────┘\033[0m\n\n");
+
+    // std::string offsetsUrl = "https://aura.xiaon.top/U2FsdGVkX18gof90SQh00kKAnpM=/offsets.json";
+    // 建议再加一个 version 参数，方便以后强制更新
+    std::string offsetsUrl = "https://aura.xiaon.top/U2FsdGVkX18gof90SQh00kKAnpM=/offsets.json?v=1.0";
+
+    if (!Offsets::LoadFromRemote(offsetsUrl)) {
+        printf("\n  \033[1;31m╔══════════════════════════════════════════════╗\033[0m\n");
+        printf("  \033[1;31m║   ❌ 授权服务器无法连接                     ║\033[0m\n");
+        printf("  \033[1;31m║   请联系开发者或稍后再试                     ║\033[0m\n");
+        printf("  \033[1;31m╚══════════════════════════════════════════════╝\033[0m\n\n");
+        sleep(3);
+        exit(1); // 直接退出，不给用
+    }
 
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("\n");
