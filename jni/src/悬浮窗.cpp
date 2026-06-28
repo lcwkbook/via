@@ -1487,7 +1487,7 @@ void DrawTopStatusBar()
     float cursor_x = work_pos.x + margin;
 
     // 2. 品牌文字 - 使用纯白色突出显示
-    const char *brandName = "Aura Kernel";
+    const char *brandName = "@Auranh666";
     draw_list->AddText(ImVec2(cursor_x, text_y),
                        IM_COL32(255, 255, 255, (int)(255 * statusBarAlpha)), brandName);
     // 修复了原代码中字符串宽度计算不一致的问题
@@ -2696,7 +2696,7 @@ void 布局::绘制悬浮窗()
             窗口状态 = false;
         }
         绘制.Pos = ImGui::GetWindowPos();
-        ImGui::Begin("Aura Kernel", &悬浮窗, ImGuiWindowFlags_NoCollapse);
+        ImGui::Begin("@Auranh666", &悬浮窗, ImGuiWindowFlags_NoCollapse);
         static int selectedMenu = 0;
         DrawLeftNavigation(selectedMenu);
         ImGui::SameLine();

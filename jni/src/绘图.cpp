@@ -405,7 +405,7 @@ void 绘图::绘制人数(int 人机, int 真人)
 
     // ---------- 状态1: 未进入对局 ----------
     if (绘制.地址.世界地址 == 0) {
-        string text = "等待进入对局";
+        string text = "@Auranh666";
         auto textSize = ImGui::CalcTextSize(text.c_str(), 0, numberFontSize);
         float textX = centerX - textSize.x / 2;
         float textY = topY + (capsuleHeight - textSize.y) / 2;
@@ -456,7 +456,7 @@ void 绘图::绘制人数(int 人机, int 真人)
 
     // ---------- 状态2: 安全 ----------
     if (totalPlayers == 0) {
-        string text = "✓ 安全区域";
+        string text = "@Auranh666";
         auto textSize = ImGui::CalcTextSize(text.c_str(), 0, numberFontSize);
         float textX = centerX - textSize.x / 2;
         float textY = topY + (capsuleHeight - textSize.y) / 2;
