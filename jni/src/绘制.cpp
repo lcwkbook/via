@@ -485,6 +485,10 @@ void 绘制::保存配置()
 {
     // 保存基础配置
     nlohmann::json base_config;
+    base_config["悬浮窗X"] = this->按钮.悬浮窗X;
+    base_config["悬浮窗Y"] = this->按钮.悬浮窗Y;
+    base_config["悬浮窗W"] = this->按钮.悬浮窗W;
+    base_config["悬浮窗H"] = this->按钮.悬浮窗H;
 
     // 按钮配置
     base_config["按钮"] = {
@@ -636,6 +640,12 @@ void 绘制::读取配置()
     if (base_file.is_open())
     {
         nlohmann::json base_config = nlohmann::json::parse(base_file);
+        // 在保存配置函数中加入
+        this->按钮.悬浮窗X = base_config.value("悬浮窗X", 50.0f);
+        this->按钮.悬浮窗Y = base_config.value("悬浮窗Y", 50.0f);
+        this->按钮.悬浮窗W = base_config.value("悬浮窗W", 1150.0f);
+        this->按钮.悬浮窗H = base_config.value("悬浮窗H", 800.0f);
+
 
         // 读取按钮配置
         if (base_config.contains("按钮"))
@@ -951,7 +961,7 @@ void 绘制::初始化绘制(string 包名, int 真实X, int 真实Y)
         this->PY = 真实X / 2;
     }
     地址.libue4 = 读写.get_module_base((char *)"libUE4.so");
-    printf("[调试] libUE4 基址: 0x%lX\n", 地址.libue4);  // ← 加上这行
+    printf("[调试] libUE4 基址: 0x%lX\n", 地址.libue4); // ← 加上这行
 
     // 设置启动时间
     启动时间 = std::chrono::steady_clock::now();
@@ -1597,7 +1607,7 @@ void 绘制::更新对象数据()
                 }
             }
             float Mlline = calculateDistance(PX, PY, t_屏幕坐标.X, t_屏幕坐标.Y);
-            if (按钮.车辆)
+            if (按钮.车辆 && !按钮.漏手模式)
             {
                 long long VehicleData = 读写.getPtr64(对象地址.敌人地址 + Offsets::Vehicle_CommonData);
                 float 载具血量 = 读写.getFloat(VehicleData + Offsets::Vehicle_CurrentHP) / 读写.getFloat(VehicleData + Offsets::Vehicle_MaxHP) * 100;
@@ -1700,7 +1710,7 @@ void 绘制::更新对象数据()
                 }
             }
 
-            if (按钮.物资总开关)
+            if (按钮.物资总开关 && !按钮.漏手模式)
             {
                 int MaterialID = 读写.getDword(对象地址.敌人地址 + Offsets::Box_Open);
                 std::string name = getBoxName(MaterialID);
@@ -2824,7 +2834,7 @@ void 绘制::更新对象数据()
             //     D3DVector origin(自身数据.坐标.X, 自身数据.坐标.Y, 自身数据.坐标.Z);
             //     D3DVector target(对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z);
             //     LineOfSightToTab[0] = LinePosition(origin, target);
-            //     printf("[调试] LinePosition 返回: %d\n", LineOfSightToTab[0]); 
+            //     printf("[调试] LinePosition 返回: %d\n", LineOfSightToTab[0]);
             // }
             // else
             // {
@@ -3036,40 +3046,48 @@ void 绘制::更新对象数据()
                             对象信息.敌人信息.名字 += '[' + a + ']';
                     }
                 }
-
-                if (按钮.方框)
-                    绘图.绘制方框(LineOfSightToTab[0], 对象信息.敌人信息.isboot);
-
-                if (按钮.射线)
-                    绘图.绘制射线(LineOfSightToTab[0], t_骨骼数据);
+                // ========== 漏手模式判断：开启时隐藏所有其他绘制 ==========
                 if (按钮.漏手模式)
                 {
+                    // 漏手模式开启时，只画小圆点，跳过其他所有绘制
                     绘图.漏手模式();
                 }
-                if (按钮.距离)
-                    绘图.绘制距离(对象信息.敌人信息.距离, 对象信息.敌人信息.队伍);
-                if (按钮.血量)
-                    绘图.绘制血量(对象信息.敌人信息.最大血量, 对象信息.敌人信息.当前血量, 对象信息.敌人信息.isboot);
-                if (按钮.名字)
+                else
                 {
-                    float 计时_eroc = 7 - (计时器.getTimerSeconds(计算地址) / 7 * (60 / ImGui::GetIO().Framerate * 0.115));
-                    绘图.绘制名字(对象信息.敌人信息.名字, 对象信息.敌人信息.isboot, 计时_eroc, 是否掐雷, ClassName, 对象信息.敌人信息.队伍, Bonecount, false, 对象信息.敌人信息.高级人机);
+                    // 正常绘制模式：按原有开关绘制所有内容
+                    if (按钮.方框)
+                        绘图.绘制方框(LineOfSightToTab[0], 对象信息.敌人信息.isboot);
+
+                    if (按钮.射线)
+                        绘图.绘制射线(LineOfSightToTab[0], t_骨骼数据);
+
+                    if (按钮.距离)
+                        绘图.绘制距离(对象信息.敌人信息.距离, 对象信息.敌人信息.队伍);
+
+                    if (按钮.血量)
+                        绘图.绘制血量(对象信息.敌人信息.最大血量, 对象信息.敌人信息.当前血量, 对象信息.敌人信息.isboot);
+
+                    if (按钮.名字)
+                    {
+                        float 计时_eroc = 7 - (计时器.getTimerSeconds(计算地址) / 7 * (60 / ImGui::GetIO().Framerate * 0.115));
+                        绘图.绘制名字(对象信息.敌人信息.名字, 对象信息.敌人信息.isboot, 计时_eroc, 是否掐雷, ClassName, 对象信息.敌人信息.队伍, Bonecount, false, 对象信息.敌人信息.高级人机);
+                    }
+
+                    if (按钮.瞬爆雷预测)
+                    {
+                        float 计时_eroc = 7 - (计时器.getTimerSeconds("self") / 7 * (60 / ImGui::GetIO().Framerate * 0.115));
+                        绘图.瞬爆雷预测(对象信息.敌人信息.距离, 计时_eroc, 自身是否掐雷);
+                    }
+
+                    if (按钮.骨骼)
+                        绘图.绘制骨骼(t_骨骼数据, t_屏幕坐标, LineOfSightToTab, 对象信息.敌人信息.距离, Bonecount);
+
+                    if (按钮.动作 && !是否掐雷)
+                        绘图.绘制动作(对象信息.敌人信息.状态);
+
+                    if ((按钮.手持 || 按钮.手持2) && !是否掐雷)
+                        绘图.绘制手持(对象信息.敌人信息.手持, 对象信息.敌人信息.状态, 对象信息.敌人信息.子弹数量, 对象信息.敌人信息.子弹最大数量);
                 }
-                if (按钮.瞬爆雷预测)
-                {
-                    float 计时_eroc = 7 - (计时器.getTimerSeconds("self") / 7 * (60 / ImGui::GetIO().Framerate * 0.115));
-                    绘图.瞬爆雷预测(对象信息.敌人信息.距离, 计时_eroc, 自身是否掐雷);
-                }
-                if (按钮.骨骼)
-                {
-                    绘图.绘制骨骼(t_骨骼数据, t_屏幕坐标, LineOfSightToTab, 对象信息.敌人信息.距离, Bonecount);
-                }
-                if (按钮.动作 && !是否掐雷)
-                {
-                    绘图.绘制动作(对象信息.敌人信息.状态);
-                }
-                if ((按钮.手持 || 按钮.手持2) && !是否掐雷)
-                    绘图.绘制手持(对象信息.敌人信息.手持, 对象信息.敌人信息.状态, 对象信息.敌人信息.子弹数量, 对象信息.敌人信息.子弹最大数量);
             }
         }
     }
@@ -3088,9 +3106,9 @@ void 绘制::更新对象数据()
     {
         ImGui::GetForegroundDrawList()->AddLine(ImVec2(PX, PY), ImVec2(自瞄函数[自瞄.瞄准目标].对象骨骼.X, 自瞄函数[自瞄.瞄准目标].对象骨骼.Y), ImColor(255, 255, 255, 255), 2.1);
     }
-    if (按钮.被瞄预警)
+    if (按钮.被瞄预警 && !按钮.漏手模式)
         绘图.绘制瞄准信息();
-    if (按钮.人数)
+    if (按钮.人数 && !按钮.漏手模式)
         绘图.绘制人数(绘制人机, 绘制真人);
     自瞄.瞄准总数量 = 自瞄.瞄准对象数量;
 }

@@ -257,6 +257,12 @@ struct 开关
     bool 头甲包显示2 = false;
     bool 隐藏已开启 = false;
 
+    // 悬浮窗状态记忆
+    float 悬浮窗X = 50.0f;
+    float 悬浮窗Y = 50.0f;
+    float 悬浮窗W = 1150.0f;
+    float 悬浮窗H = 800.0f;
+
     bool 显示对局信息 = false;
     float 雷达X = 300;
     float 雷达Y = 400;

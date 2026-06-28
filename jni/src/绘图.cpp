@@ -748,13 +748,40 @@ void 绘图::绘制射线(bool 是否可见, 骨骼数据 &骨骼)
 }
 void 绘图::漏手模式()
 {
-    // 绘制半透明深灰色圆点 (RGBA: 0.2, 0.2, 0.2, 0.5)
-    ImGui::GetForegroundDrawList()->AddCircleFilled(
+    // ===== 增强版漏手模式：敌人身上的醒目小圆点 =====
+    ImDrawList *draw = ImGui::GetForegroundDrawList();
+
+    // 外圈发光效果（半透明大圈）
+    draw->AddCircleFilled(
         {MIDDLE, top},
-        10.0f,                          // 半径
-        ImColor(0.2f, 0.2f, 0.2f, 0.5f) // 深灰色半透明
+        18.0f,                           // 外圈半径
+        ImColor(1.0f, 0.3f, 0.3f, 0.15f) // 淡红色半透明光晕
+    );
+
+    // 中间实心圆点（亮红色，醒目）
+    draw->AddCircleFilled(
+        {MIDDLE, top},
+        8.0f,                          // 内圈半径
+        ImColor(1.0f, 0.2f, 0.2f, 0.9f) // 亮红色，不透明
+    );
+
+    // 白色小高光点（让圆点有立体感）
+    draw->AddCircleFilled(
+        {MIDDLE - 2.0f, top - 2.0f},
+        3.0f,
+        ImColor(1.0f, 1.0f, 1.0f, 0.7f) // 白色高光
+    );
+
+    // 白色边框（让圆点更清晰）
+    draw->AddCircle(
+        {MIDDLE, top},
+        8.0f,
+        ImColor(1.0f, 1.0f, 1.0f, 0.5f), // 白色半透明边框
+        0,                                // 分段数(0=自动)
+        2.0f                              // 线宽
     );
 }
+
 
 void 绘图::绘制自救(float 自救倒计时)
 {

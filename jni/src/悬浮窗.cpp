@@ -1954,15 +1954,20 @@ void DrawCharacterPage()
         {"人物血条", &绘制.按钮.血量},
         {"人物距离", &绘制.按钮.距离},
         {"人物名字", &绘制.按钮.名字},
+        {"绘制车辆", &绘制.按钮.车辆},
+        {"绘制雷达", &绘制.按钮.雷达},
+        {"敌人动作", &绘制.按钮.动作},
+        {"盒子", &绘制.按钮.盒子},
+        {"盒内物资", &绘制.按钮.盒子物资},
         {"被瞄预警", &绘制.按钮.被瞄预警},
         {"背敌预警", &绘制.按钮.背敌预警},
-        {"绘制车辆", &绘制.按钮.车辆},
+        {"头甲耐久", &绘制.按钮.头甲包显示},
         {"手雷预警", &绘制.按钮.手雷预警},
-        {"绘制雷达", &绘制.按钮.雷达},
+        {"瞬爆雷预测", &绘制.按钮.瞬爆雷预测},
         {"忽略人机", &绘制.按钮.忽略人机},
         {"全图人数", &绘制.按钮.全图人数},
-        {"敌人动作", &绘制.按钮.动作},
-        {"盒内物资", &绘制.按钮.盒子物资},
+        {"自救倒计时", &绘制.按钮.自救倒计时},
+        {"漏手模式", &绘制.按钮.漏手模式},
     };
 
     const int total = IM_ARRAYSIZE(options);
@@ -2115,7 +2120,6 @@ void DrawItemsPage()
             {"宝箱", &绘制.按钮.绘制宝箱},
             {"超级物资箱", &绘制.按钮.超级物资箱},
             {"武器箱", &绘制.按钮.绘制武器箱},
-            {"盒子", &绘制.按钮.盒子},
             {"自救器", &绘制.按钮.显示自救器},
             {"飞索", &绘制.按钮.显示飞索},
             {"密室钥匙", &绘制.按钮.密室钥匙},
@@ -2687,8 +2691,8 @@ void 布局::绘制悬浮窗()
     }
     if (悬浮窗)
     {
-        ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2(1150, 800), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowPos(ImVec2(绘制.按钮.悬浮窗X, 绘制.按钮.悬浮窗Y), ImGuiCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(绘制.按钮.悬浮窗W, 绘制.按钮.悬浮窗H), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSizeConstraints(ImVec2(1100, 700), ImVec2(FLT_MAX, FLT_MAX));
         if (窗口状态)
         {
@@ -2728,6 +2732,14 @@ void 布局::绘制悬浮窗()
         绘制.winWidth = ImGui::GetWindowWidth();
         绘制.winHeith = ImGui::GetWindowHeight();
         g_window = ImGui::GetCurrentWindow();
+        // 实时记录窗口位置和大小
+        ImVec2 winPos = ImGui::GetWindowPos();
+        ImVec2 winSize = ImGui::GetWindowSize();
+        绘制.按钮.悬浮窗X = winPos.x;
+        绘制.按钮.悬浮窗Y = winPos.y;
+        绘制.按钮.悬浮窗W = winSize.x;
+        绘制.按钮.悬浮窗H = winSize.y;
+
         ImGui::End();
     }
     drawEnd();
