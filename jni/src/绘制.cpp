@@ -2442,97 +2442,89 @@ void 绘制::更新对象数据()
             float boxMaxDist = isAirDrop ? 600.0f : 100.0f;
             float aimThreshold = isAirDrop ? 200.0f : 100.0f; // 准星对准范围也可以适当放宽
 
-            if (按钮.盒子物资 && isBoxLike && 对象信息.敌人信息.距离 <= boxMaxDist)
+                        if (按钮.盒子物资 && isBoxLike && 对象信息.敌人信息.距离 <= boxMaxDist)
             {
                 float aimDistance = sqrtf(powf(PX - r_x, 2.0f) + powf(PY - r_y, 2.0f));
                 if (aimDistance < aimThreshold && 自瞄.瞄准目标 == -1)
                 {
-                    // 读取物资列表（偏移 0xD98）
-                    uintptr_t listBase = 读写.getPtr64(对象地址.敌人地址 + Offsets::BoxPickUpDataList); // 0xD98
+                    // ★ 新版：先读盒子组件，再读物资列表
+                    uintptr_t boxComp = 读写.getPtr64(对象地址.敌人地址 + Offsets::BoxPickUpDataList); // 0x7F0
                     int 盒内物资数量 = 0;
 
-                    int countField = 读写.getDword(对象地址.敌人地址 + Offsets::BoxPickUpDataList + 0x8);
-                    if (countField > 0 && countField < 1000)
-                        盒内物资数量 = countField;
-                    else
+                    if (boxComp != 0)
                     {
-                        int countHeader = 读写.getDword(listBase);
-                        if (countHeader > 0 && countHeader < 1000)
-                            盒内物资数量 = countHeader;
-                    }
+                        uintptr_t listBase = 读写.getPtr64(boxComp + Offsets::PickUpDataList); // 0xDB8
+                        int countField = 读写.getDword(boxComp + Offsets::PickUpDataList + 0x8);
 
-                    if (listBase != 0 && 盒内物资数量 > 0)
-                    {
-                        uintptr_t 物资数组 = listBase + 0x4;
-                        int 文本高度 = 50;
-                        for (int i = 0; i < 盒内物资数量; i++)
+                        if (countField > 0 && countField < 1000)
+                            盒内物资数量 = countField;
+                        else
                         {
-                            int 物资地址ID = 读写.getDword(物资数组 + 0x38 * i);
-                            int 物资地址数量 = 读写.getDword((物资数组 + 0x38 * i) + 0x14);
-                            std::string name = getBoxName1(物资地址ID);
-                            if (name != "NULL" && name != "Error")
+                            int countHeader = 读写.getDword(listBase);
+                            if (countHeader > 0 && countHeader < 1000)
+                                盒内物资数量 = countHeader;
+                        }
+
+                        if (listBase != 0 && 盒内物资数量 > 0)
+                        {
+                            uintptr_t 物资数组 = listBase + 0x4;
+                            int 文本高度 = 50;
+                            for (int i = 0; i < 盒内物资数量; i++)
                             {
-                                name += "[" + std::to_string(物资地址数量) + "]";
-
-                                // ====================== 核心修改：密钥突出显示（复用显示密钥颜色） ======================
-                                ImColor 文字颜色;
-                                ImColor 描边颜色 = ImColor(0, 0, 0, 255); // 默认黑色描边
-                                float 文字字号 = 30.0f;                   // 默认普通物资字号
-
-                                // 匹配8个密钥ID，绑定专属颜色+放大字号
-                                switch (物资地址ID)
+                                int 物资地址ID = 读写.getDword(物资数组 + 0x38 * i);
+                                int 物资地址数量 = 读写.getDword((物资数组 + 0x38 * i) + 0x14);
+                                std::string name = getBoxName1(物资地址ID);
+                                if (name != "NULL" && name != "Error")
                                 {
-                                // 侦察兵密钥
-                                case 604171:
-                                case 9826010:
-                                    文字颜色 = ImColor(208, 138, 71, 255); // 铜色
-                                    描边颜色 = ImColor(0, 255, 0, 255);    // 绿色描边
-                                    文字字号 = 42.0f;                      // 密钥放大字号
-                                    break;
-                                // 突击兵密钥
-                                case 604172:
-                                case 9826011:
-                                    文字颜色 = ImColor(192, 192, 192, 255); // 银色
-                                    描边颜色 = ImColor(0, 150, 255, 255);   // 蓝色描边
-                                    文字字号 = 42.0f;
-                                    break;
-                                // 特种兵密钥
-                                case 604173:
-                                case 9826012:
-                                    文字颜色 = ImColor(220, 220, 255, 255); // 高亮银
-                                    描边颜色 = ImColor(255, 215, 0, 255);   // 金色描边
-                                    文字字号 = 42.0f;
-                                    break;
-                                // 指挥官密钥
-                                case 604174:
-                                case 9826013:
-                                    文字颜色 = ImColor(255, 215, 0, 255);   // 亮金色
-                                    描边颜色 = ImColor(185, 242, 255, 255); // 钻石蓝描边
-                                    文字字号 = 42.0f;
-                                    break;
-                                // 普通物资：随机颜色+默认字号
-                                default:
-                                    文字颜色 = GetRandomColorById(物资地址ID);
-                                    文字字号 = 30.0f;
-                                    break;
+                                    name += "[" + std::to_string(物资地址数量) + "]";
+
+                                    // ... 密钥高亮、绘制代码保持不变 ...
+                                    ImColor 文字颜色;
+                                    ImColor 描边颜色 = ImColor(0, 0, 0, 255);
+                                    float 文字字号 = 30.0f;
+
+                                    switch (物资地址ID)
+                                    {
+                                    case 604171: case 9826010:
+                                        文字颜色 = ImColor(208, 138, 71, 255);
+                                        描边颜色 = ImColor(0, 255, 0, 255);
+                                        文字字号 = 42.0f;
+                                        break;
+                                    case 604172: case 9826011:
+                                        文字颜色 = ImColor(192, 192, 192, 255);
+                                        描边颜色 = ImColor(0, 150, 255, 255);
+                                        文字字号 = 42.0f;
+                                        break;
+                                    case 604173: case 9826012:
+                                        文字颜色 = ImColor(220, 220, 255, 255);
+                                        描边颜色 = ImColor(255, 215, 0, 255);
+                                        文字字号 = 42.0f;
+                                        break;
+                                    case 604174: case 9826013:
+                                        文字颜色 = ImColor(255, 215, 0, 255);
+                                        描边颜色 = ImColor(185, 242, 255, 255);
+                                        文字字号 = 42.0f;
+                                        break;
+                                    default:
+                                        文字颜色 = GetRandomColorById(物资地址ID);
+                                        文字字号 = 30.0f;
+                                        break;
+                                    }
+
+                                    auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 文字字号);
+                                    文本高度 += (文字字号 > 30.0f) ? 35 : 25;
+                                    ImVec2 textPos = {r_x - (textSize.x / 2), r_y - 文本高度};
+
+                                    ImGui::GetBackgroundDrawList()->AddText(NULL, 文字字号, {textPos.x - 1, textPos.y - 1}, 描边颜色, name.c_str());
+                                    ImGui::GetBackgroundDrawList()->AddText(NULL, 文字字号, {textPos.x + 1, textPos.y + 1}, 描边颜色, name.c_str());
+                                    ImGui::GetForegroundDrawList()->AddText(NULL, 文字字号, textPos, 文字颜色, name.c_str());
                                 }
-
-                                // 计算文本尺寸 + 动态行间距（字号大则间距大）
-                                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 文字字号);
-                                文本高度 += (文字字号 > 30.0f) ? 35 : 25;
-                                ImVec2 textPos = {r_x - (textSize.x / 2), r_y - 文本高度};
-
-                                // 绘制描边（密钥用专属描边，普通物资黑色描边）
-                                ImGui::GetBackgroundDrawList()->AddText(NULL, 文字字号, {textPos.x - 1, textPos.y - 1}, 描边颜色, name.c_str());
-                                ImGui::GetBackgroundDrawList()->AddText(NULL, 文字字号, {textPos.x + 1, textPos.y + 1}, 描边颜色, name.c_str());
-                                // 绘制主体文字
-                                ImGui::GetForegroundDrawList()->AddText(NULL, 文字字号, textPos, 文字颜色, name.c_str());
-                                // ==================================================================================
                             }
                         }
                     }
                 }
             }
+
 
             // if (按钮.盒子物资 && isBoxLike && 对象信息.敌人信息.距离 <= boxMaxDist)
             // {
