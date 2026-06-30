@@ -2690,7 +2690,7 @@ void 绘制::更新对象数据()
             对象信息.敌人信息.实体列表地址 = 读写.getPtr64(对象信息.敌人信息.角色实体 + 0x818) + 0x8;
             对象信息.敌人信息.实体数量 = 读写.getDword(对象信息.敌人信息.角色实体 + 0x818 + 0x8);
             long int MeshOffset = 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_Mesh);
-            int Bonecount = 读写.getPtr64(MeshOffset + Offsets::Mesh_BoneArray + Offsets::Mesh_BoneCountOffset);
+            int Bonecount = 读写.getDword(MeshOffset + Offsets::Mesh_BoneArray + 8);
             D3DVector tempBones[17];
             骨骼->更新骨骼数据(
                 MeshOffset + Offsets::Mesh_ComponentToWorld,

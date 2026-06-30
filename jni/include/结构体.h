@@ -398,6 +398,7 @@ struct FTransform
     D3DVector Translation;
     float chunk;
     D3DVector Scale3D;
+    float chunk2;
 };
 
 struct 备份
