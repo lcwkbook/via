@@ -646,7 +646,6 @@ void 绘制::读取配置()
         this->按钮.悬浮窗W = base_config.value("悬浮窗W", 1150.0f);
         this->按钮.悬浮窗H = base_config.value("悬浮窗H", 800.0f);
 
-
         // 读取按钮配置
         if (base_config.contains("按钮"))
         {
@@ -1083,7 +1082,7 @@ void 绘制::更新地址数据()
 {
     // ========== 基础地址 (使用新偏移) ==========
     地址.世界地址 = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::GWorld_PersistentLevel);
-    地址.自身地址 = 读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::GWorld_ActorsCountDec) + 0x88) + 0x30) + 0x3478);
+    地址.自身地址 = 读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + 0xC0) + 0x88) + 0x30) + 0x34A0);
 
     // 静态视图矩阵链（不依赖玩家 Actor，死亡后依然有效）
     地址.矩阵地址 = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::MatrixChain1) + 0x20) + Offsets::Matrix_ViewMatrix;
@@ -1116,11 +1115,20 @@ void 绘制::更新地址数据()
     自身数据.开火 = 读写.getDword(地址.自身地址 + Offsets::Actor_bIsWeaponFiring);
 
     // ========== 手持武器信息 ==========
-    uintptr_t weaponPtr = 读写.getPtr64(地址.自身地址 + Offsets::Actor_CurrentWeapon);
-    if (weaponPtr != 0)
+    uintptr_t weaponEntity = 读写.getPtr64(地址.自身地址 + 0x1158); // Actor_WeaponEntity
+    if (weaponEntity != 0)
     {
-        自身数据.手持id = 读写.getDword(weaponPtr + Offsets::Weapon_RepID);
+        // 手持ID (新数据用 getPtr64 不是 getDword!)
+        自身数据.手持id = 读写.getPtr64(weaponEntity + 0xDB8); // Weapon_RepID
         自身数据.手持 = heldconversion(自身数据.手持id);
+
+        // 武器组件 → 子弹速度 + 后坐力
+        uintptr_t weaponComp = 读写.getPtr64(weaponEntity + 0xC78); // Weapon_EntityComp
+        if (weaponComp != 0)
+        {
+            自身数据.子弹速度 = 读写.getFloat(weaponComp + 0x15D4);   // Weapon_BulletSpeed
+            自身数据.后坐力数据 = 读写.getFloat(weaponComp + 0x1EC8); // Weapon_RecoilFactor
+        }
     }
 
     // 从静态矩阵链直接读取 4x4 视图矩阵（死亡后依然有效）
@@ -1141,7 +1149,10 @@ void 绘制::更新地址数据()
         // 在 camManager 那段代码中添加视角读取
         if (camManager != 0)
         {
-            自身数据.Fov = 读写.getFloat(camManager + Offsets::CameraManager_FOV);
+            {
+                uintptr_t fovPtr = 读写.getPtr64(camManager + Offsets::CameraManager_FOV);
+                自身数据.Fov = 读写.getFloat(fovPtr + 0x688);
+            }
             // 新增：读取相机坐标
             读写.readv(camManager + Offsets::CameraManager_CameraPos, &自身数据.相机坐标, sizeof(自身数据.相机坐标));
             // 新增：读取相机旋转
@@ -1152,18 +1163,7 @@ void 绘制::更新地址数据()
     }
 
     // ========== 人物高度 ==========
-    自身数据.人物高度 = 读写.getFloat(地址.自身地址 + Offsets::Actor_SpeedValue);
-
-    // ========== 手持握把 ==========
-    uintptr_t weaponEntity = 读写.getPtr64(地址.自身地址 + Offsets::Actor_WeaponEntity);
-    if (weaponEntity != 0)
-    {
-        uintptr_t weaponComp = 读写.getPtr64(weaponEntity + 0xBB8);
-        if (weaponComp != 0)
-        {
-            自身数据.手持握把 = 读写.getDword(weaponComp + Offsets::Weapon_GripID);
-        }
-    }
+    自身数据.人物高度 = 读写.getFloat(地址.自身地址 + 0xFF8);
 
     // ========== 全图人数统计 ==========
     自身数据.全图数量 = 读写.getDword(
@@ -2684,9 +2684,16 @@ void 绘制::更新对象数据()
             对象信息.敌人信息.当前血量 = 读写.getFloat(对象地址.敌人地址 + Offsets::Actor_Health);
             对象信息.敌人信息.最大血量 = 读写.getFloat(对象地址.敌人地址 + Offsets::Actor_HealthMax);
             对象信息.敌人信息.乘坐载具 = 读写.getDword(对象地址.敌人地址 + Offsets::Actor_Vehicle) != 0;
-            对象信息.敌人信息.手持 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_CurrentWeapon) + Offsets::Weapon_RepID);
-            对象信息.敌人信息.子弹数量 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_CurrentWeapon) + Offsets::Weapon_ClipAmmo);
-            对象信息.敌人信息.子弹最大数量 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_CurrentWeapon) + Offsets::Weapon_ClipMaxAmmo);
+            {
+                uintptr_t enemyWeaponEntity = 读写.getPtr64(对象地址.敌人地址 + 0x1158); // Actor_CurrentWeapon/WeaponEntity
+                if (enemyWeaponEntity != 0)
+                {
+                    对象信息.敌人信息.手持 = 读写.getDword(enemyWeaponEntity + 0xDB8);          // Weapon_RepID
+                    对象信息.敌人信息.子弹数量 = 读写.getDword(enemyWeaponEntity + 0x2010);     // Weapon_ClipAmmo
+                    对象信息.敌人信息.子弹最大数量 = 读写.getDword(enemyWeaponEntity + 0x2014); // Weapon_ClipMaxAmmo
+                }
+            }
+
             对象信息.敌人信息.角色实体 = 读写.getPtr64(对象地址.敌人地址 + 0x39b0);
             对象信息.敌人信息.实体列表地址 = 读写.getPtr64(对象信息.敌人信息.角色实体 + 0x818) + 0x8;
             对象信息.敌人信息.实体数量 = 读写.getDword(对象信息.敌人信息.角色实体 + 0x818 + 0x8);
