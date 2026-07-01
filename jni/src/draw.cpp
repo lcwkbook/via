@@ -260,7 +260,7 @@ void drawBegin()
         wd->FrameIndex = 0;
 
         g_SwapChainRebuild = false;
-        printf("[调试] Vulkan Swapchain 重建完成\n");
+        printf("息屏进程自动结束，若继续运行请重新启动内核\n");
     }
 
     if (g_SwapChainRebuild)

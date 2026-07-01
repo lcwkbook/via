@@ -1,5 +1,4 @@
 #include "辅助类.h"
-#include "辅助类.h"
 #include "map"
 
 class 骨骼
@@ -12,11 +11,28 @@ public:
   骨骼(Kernel *读写) : 读写(读写)
   {
     BossName = {
+        {"FemaleGeneral", "女将军"},
+        {"Rage", "雷斯"},
+        {"Bernard", "伯纳德"},
+        {"Jason", "杰森"},
+        {"Vulcan", "狂火·维列"},
+        {"Tlaus", "特劳斯"},
+        {"Freezing", "Freezing"},
+        {"ShotgunmanBoss", "红发奎尔"},
+        {"Shield", "哈顿"},
+        {"SnowRanger", "雪原巡猎者"},
+        {"Mecha", "Mecha"},
+        {"Vladi", "弗拉迪"},
+        {"Spencer", "斯宾塞"},
+        {"Louis", "路易斯"},
+        {"MachinegunmanBoss", "MachinegunmanBoss"},
         {"Pawn_Escape_RD_Grenade_C", "巡卫长·玄铁"},
         {"Pawn_Escape_RD_RoyalGuards_C", "影卫·银星"},
         {"Pawn_Escape_Boss_Robocop_C", "V-34机械警"},
         {"Pawn_Escape_BOSS_Claws_C", "钢爪·安德烈"},
         {"Pawn_Escape_RD_SupplyBoss_C", "辎重使·墨守"},
+        {"GT_FakeAICharacter_C", "特训岛·人机"},
+        {"BPPawn_Escape_ShootingRange_Human_C", "地铁训练场靶子"},
     };
   }
 
@@ -190,7 +206,7 @@ public:
   D2DVector getPointingAngle(long int SelfAddress, float object_x, float object_y, float object_z, float Self_x, float Self_y, float Self_z, D3DVector Movement, float distance, float 预判力度)
   {
     D2DVector PointingAngle;
-    float bulletVelocity = 读写->getFloat(读写->getPtr64(读写->getPtr64(SelfAddress + 0x10c8) + 0xb60) + 0x158c); // 子弹速度
+    float bulletVelocity = 读写->getFloat(读写->getPtr64(读写->getPtr64(SelfAddress + 0xf18) + 0x9b8) + 0x1334); // 子弹速度
     float FlyTime = distance / (bulletVelocity * 0.01f) * 预判力度;
 
     // float FlyTime = (distance >= 60) ? (distance / (bulletVelocity * 0.01f) * 预判力度) : (distance / (bulletVelocity * 0.0055f) * 预判力度);
@@ -205,325 +221,107 @@ public:
     return PointingAngle;
   }
 
-  // ============================================================
-  // 自动识别骨骼索引（终极版）
-  // 根据15个骨骼的世界坐标位置分布，自动识别出正确的索引
-  // 无需任何硬编码，兼容所有角色模型
-  // ============================================================
-  std::vector<int> 自动识别骨骼索引(D3DVector *所有骨骼位置, int 骨骼数量)
+  void 更新骨骼数据(uintptr_t MeshAddress, uintptr_t Bone, D3DVector (&骨骼坐标)[17], int Bonecount, int Team, char *类名)
   {
-    // 输出: [0头,1胸,2盆骨,3左肩,4右肩,5左肘,6右肘,7左腕,8右腕,
-    //        9左大腿,10右大腿,11左膝,12右膝,13左踝,14右踝]
-    std::vector<int> 结果(15, -1);
-
-    // ===== 第一阶段：过滤无效骨骼 =====
-    // 找出最高点（头的位置）
-    float 最高Z = -99999.0f;
-    for (int i = 0; i < 骨骼数量; i++)
-      if (所有骨骼位置[i].Z > 最高Z)
-        最高Z = 所有骨骼位置[i].Z;
-
-    // 收集有效骨骼（在角色高度范围内的）
-    struct 骨骼信息
-    {
-      int 索引;
-      D3DVector 位置;
-      float 距中心距离;
-    };
-    std::vector<骨骼信息> 有效骨骼;
-    for (int i = 0; i < 骨骼数量; i++)
-    {
-      // 跳过无效骨骼（在地面附近的）
-      if ((最高Z - 所有骨骼位置[i].Z) > 280.0f)
-        continue;
-      // 跳过原点附近的
-      if (fabs(所有骨骼位置[i].X) < 0.5f && fabs(所有骨骼位置[i].Y) < 0.5f)
-        continue;
-      有效骨骼.push_back({i, 所有骨骼位置[i], 0});
-    }
-    if (有效骨骼.size() < 15)
-    { // 过滤太狠了就放宽
-      有效骨骼.clear();
-      for (int i = 0; i < 骨骼数量; i++)
-        有效骨骼.push_back({i, 所有骨骼位置[i], 0});
-    }
-
-    // ===== 第二阶段：计算中心点 =====
-    float 中心X = 0, 中心Y = 0;
-    for (auto &b : 有效骨骼)
-    {
-      中心X += b.位置.X;
-      中心Y += b.位置.Y;
-    }
-    中心X /= 有效骨骼.size();
-    中心Y /= 有效骨骼.size();
-
-    // 计算每个骨骼到中心的距离
-    for (auto &b : 有效骨骼)
-      b.距中心距离 = sqrtf(powf(b.位置.X - 中心X, 2) + powf(b.位置.Y - 中心Y, 2));
-
-    // ===== 第三阶段：按Z高度从高到低排序 =====
-    std::sort(有效骨骼.begin(), 有效骨骼.end(), [](auto &a, auto &b)
-              { return a.位置.Z > b.位置.Z; });
-
-    float 最高 = 有效骨骼[0].位置.Z;
-    float 最低 = 有效骨骼.back().位置.Z;
-    float 范围 = 最高 - 最低;
-    if (范围 < 50.0f)
-      return 结果; // 高度范围太小，不可能是一个站立人物
-
-    // ===== 第四阶段：识别各个身体部位 =====
-
-    // --- 4.1 头：全局最高点 ---
-    结果[0] = 有效骨骼[0].索引;
-
-    // --- 4.2 胸：靠近顶部且在中心的骨骼 ---
-    float 胸高度上限 = 最高;
-    float 胸高度下限 = 最高 - 范围 * 0.20f;
-    float 最小距离 = 99999.0f;
-    for (auto &b : 有效骨骼)
-    {
-      if (b.索引 == 结果[0])
-        continue;
-      if (b.位置.Z < 胸高度下限)
-        break;
-      if (b.距中心距离 < 最小距离)
-      {
-        最小距离 = b.距中心距离;
-        结果[1] = b.索引;
-      }
-    }
-    if (结果[1] == -1)
-    { // 兜底：用第二高的
-      for (auto &b : 有效骨骼)
-      {
-        if (b.索引 != 结果[0])
-        {
-          结果[1] = b.索引;
-          break;
-        }
-      }
-    }
-
-    // --- 4.3 盆骨：中间高度的中心骨骼 ---
-    float 盆骨目标高 = 最高 - 范围 * 0.45f;
-    最小距离 = 99999.0f;
-    for (auto &b : 有效骨骼)
-    {
-      if (b.索引 == 结果[0] || b.索引 == 结果[1])
-        continue;
-      float 离目标 = fabs(b.位置.Z - 盆骨目标高);
-      float 评分 = 离目标 * 0.6f + b.距中心距离 * 0.4f;
-      if (评分 < 最小距离)
-      {
-        最小距离 = 评分;
-        结果[2] = b.索引;
-      }
-    }
-
-    // --- 4.4 左肩(3)、右肩(4)、左肘(5)、右肘(6)、左腕(7)、右腕(8) ---
-    float 盆骨Z = 所有骨骼位置[结果[2]].Z;
-
-    // 收集上半身骨骼（胸以下、盆骨以上的区域内，排除已识别的中心骨骼）
-    std::vector<骨骼信息> 上半身;
-    float 胸Z = 所有骨骼位置[结果[1]].Z;
-    for (auto &b : 有效骨骼)
-    {
-      if (b.索引 == 结果[0] || b.索引 == 结果[1] || b.索引 == 结果[2])
-        continue;
-      // 上半身范围：从胸稍下到盆骨稍上
-      if (b.位置.Z < 胸Z + 范围 * 0.05f && b.位置.Z > 盆骨Z - 范围 * 0.05f)
-        上半身.push_back(b);
-    }
-
-    // 如果上半身骨骼不够，放宽范围
-    if (上半身.size() < 6)
-    {
-      上半身.clear();
-      for (auto &b : 有效骨骼)
-      {
-        if (b.索引 == 结果[0] || b.索引 == 结果[1] || b.索引 == 结果[2])
-          continue;
-        if (b.位置.Z < 最高 - 范围 * 0.1f && b.位置.Z > 盆骨Z - 范围 * 0.1f)
-          上半身.push_back(b);
-      }
-    }
-
-    // 上半身按距中心距离从远到近排序（远的是手，近的是肩膀）
-    std::sort(上半身.begin(), 上半身.end(), [](auto &a, auto &b)
-              { return a.距中心距离 > b.距中心距离; });
-
-    // 从远到近分配：手腕(最远2个)→手肘(次远2个)→肩膀(最近2个)
-    // 左右区分：X < 中心X = 左，X >= 中心X = 右
-    for (size_t i = 0; i < 上半身.size() && i < 6; i++)
-    {
-      int &目标索引 = (i < 2) ? (上半身[i].位置.X < 中心X ? 结果[7] : 结果[8]) : // 手腕
-                          (i < 4) ? (上半身[i].位置.X < 中心X ? 结果[5] : 结果[6])
-                                  :                                       // 手肘
-                          (上半身[i].位置.X < 中心X ? 结果[3] : 结果[4]); // 肩膀
-      if (目标索引 == -1)
-        目标索引 = 上半身[i].索引;
-    }
-
-    // --- 4.5 下半身：左大腿(9)、右大腿(10)、左膝(11)、右膝(12)、左踝(13)、右踝(14) ---
-    std::vector<骨骼信息> 下半身;
-    for (auto &b : 有效骨骼)
-    {
-      bool 已用 = false;
-      for (int j = 0; j < 9; j++)
-        if (b.索引 == 结果[j])
-        {
-          已用 = true;
-          break;
-        }
-      if (已用)
-        continue;
-      if (b.位置.Z <= 盆骨Z + 范围 * 0.1f)
-        下半身.push_back(b);
-    }
-
-    if (下半身.size() >= 6)
-    {
-      // 按距中心距离从近到远排序（腿靠近中心，脚踝略远）
-      std::sort(下半身.begin(), 下半身.end(), [](auto &a, auto &b)
-                { return a.距中心距离 < b.距中心距离; });
-
-      // 靠近中心的=大腿/膝盖区域，按Z从高到低分
-      std::sort(下半身.begin(), 下半身.end(), [](auto &a, auto &b)
-                { return a.位置.Z > b.位置.Z; });
-
-      int n = 下半身.size();
-      int 每段 = n / 3;
-      if (每段 < 2)
-        每段 = 2;
-
-      for (int i = 0; i < n; i++)
-      {
-        int 段 = (i < 每段) ? 0 : (i < 每段 * 2) ? 1
-                                                 : 2;
-        int &目标 = (段 == 0) ? (下半身[i].位置.X < 中心X ? 结果[9] : 结果[10]) : // 大腿
-                        (段 == 1) ? (下半身[i].位置.X < 中心X ? 结果[11] : 结果[12])
-                                  :                                       // 膝盖
-                        (下半身[i].位置.X < 中心X ? 结果[13] : 结果[14]); // 脚踝
-        if (目标 == -1)
-          目标 = 下半身[i].索引;
-      }
-    }
-    else if (下半身.size() >= 4)
-    {
-      // 少一些骨骼的情况，分为2段
-      std::sort(下半身.begin(), 下半身.end(), [](auto &a, auto &b)
-                { return a.位置.Z > b.位置.Z; });
-      int n = 下半身.size();
-      int 每段 = n / 2;
-      for (int i = 0; i < n; i++)
-      {
-        int 段 = (i < 每段) ? 0 : 1;
-        int &目标 = (段 == 0) ? (下半身[i].位置.X < 中心X ? 结果[9] : 结果[10]) : (下半身[i].位置.X < 中心X ? 结果[13] : 结果[14]);
-        if (目标 == -1)
-          目标 = 下半身[i].索引;
-      }
-    }
-
-    return 结果;
-  }
-
-  void 更新骨骼数据(uintptr_t MeshAddress, uintptr_t Bone, D3DVector (&骨骼坐标)[17],
-                    int Bonecount, int Team, char *类名)
-  {
-    // ★★★ 安全防护 ★★★
-    if (Bonecount <= 5 || Bonecount > 200)
-    {
-      memset(骨骼坐标, 0, sizeof(D3DVector) * 17);
-      return;
-    }
-
     FTransform meshtrans = getBone(MeshAddress);
     FMatrix c2wMatrix = TransformToMatrix(meshtrans);
+    // std::vector<int> boneIndices = {5, 4, 1, 11, (Bonecount == 68) ? 33 : 32, 12, (Bonecount == 68) ? 34 : 33, (Bonecount == 68) ? 13 : 63, (Bonecount == 68) ? 35 : 62, (Bonecount == 68) ? 55 : 53, (Bonecount == 68) ? 59 : 56, (Bonecount == 68) ? 56 : 53, (Bonecount == 68) ? 60 : 57, (Bonecount == 68) ? 57 : 54, (Bonecount == 68) ? 61 : 58};
 
-    // 一次性读取所有骨骼位置（仅用于调试/识别新模型）
-    // 正式使用时去掉这个循环，只读需要的15个
     std::vector<int> boneIndices;
     bool isboss = isBoss(*类名);
-
     if (!isboss)
     {
-      if (Bonecount == 68 || Bonecount == 69)
+
+      if (Bonecount == 68)
       {
         boneIndices = {5, 4, 1, 11, 33, 12, 34, 13, 35, 55, 59, 56, 60, 57, 61};
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
       else if (Bonecount == 70)
       {
-        // BP_TrainPlayerPawn_C 特殊布局：头在29/30，胸在5，盆骨在0
-        boneIndices = {30, 5, 0, 31, 33, 7, 34, 8, 35, 55, 59, 56, 60, 57, 61};
-      }
-      else if (Bonecount == 71)
-      {
         boneIndices = {5, 4, 1, 6, 34, 7, 35, 8, 36, 55, 59, 56, 60, 57, 61};
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
-      else if (Bonecount == 73)
+      else if (Bonecount == 72)
       {
         boneIndices = {5, 4, 1, 12, 34, 13, 35, 14, 36, 57, 61, 58, 62, 59, 63};
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
-      // ... 你的其他分支 ...
-      else if (Bonecount == 65)
+      else if (strstr(类名, "BPPawn_Escape_BOSS_Claws") != 0 && Bonecount == 65)
       {
-        // 基于数据：头=7(2330.6), 胸=4(2307.5), 盆骨=0(2255.7)
-        // 但需要更多数据来确认肩膀/手肘/手腕/腿的索引
-        boneIndices = {7, 4, 0, 31, 33, 11, 34, 13, 35, 53, 55, 53, 54, 57, 58};
+        boneIndices = {5, 4, 0, 6, 27, 7, 28, 8, 29, 50, 57, 51, 58, 52, 59};
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
       else if (Bonecount == 63)
       {
         boneIndices = {5, 4, 0, 8, 30, 9, 31, 10, 32, 50, 54, 51, 55, 52, 56};
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
       else if (Bonecount == 64)
       {
         boneIndices = {5, 4, 0, 7, 29, 8, 30, 9, 31, 51, 57, 52, 58, 53, 59};
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
       else if (Bonecount == 38)
       {
         boneIndices = {5, 4, 0, 7, 17, 9, 19, 11, 21, 27, 34, 28, 35, 30, 36};
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
       else if (Bonecount == 30)
       {
         boneIndices = {5, 4, 0, 9, 14, 10, 15, 11, 16, 18, 22, 19, 23, 20, 24};
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
       else if (Bonecount == 26)
       {
         boneIndices = {5, 4, 0, 13, 6, 14, 7, 15, 8, 21, 18, 22, 19, 23, 20};
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
       else if (Bonecount == 27)
       {
         boneIndices = {5, 4, 0, 7, 10, 8, 11, 9, 12, 14, 18, 15, 19, 16, 20};
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
       else if (Bonecount == 46)
       {
         boneIndices = {5, 4, 0, 21, 8, 22, 9, 23, 10, 35, 40, 36, 41, 38, 44};
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
       else if (Bonecount == 42)
       {
         boneIndices = {16, 15, 0, 20, 31, 21, 32, 22, 33, 3, 8, 4, 9, 5, 10};
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
       else if (Bonecount == 76)
       {
         boneIndices = {5, 4, 0, 7, 27, 8, 28, 9, 29, 48, 52, 49, 53, 50, 54};
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
       else if (Bonecount == 61)
       {
         boneIndices = {5, 4, 0, 6, 27, 7, 28, 8, 29, 48, 52, 49, 53, 50, 54};
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
+      else if (Bonecount == 73)
+     {
+    boneIndices = {5, 4, 1, 12, 34, 13, 35, 14, 36, 57, 61, 58, 62, 59, 63};
+    // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
+     }
+
+     else if (Bonecount == 71)
+     {
+    boneIndices = {5, 4, 1, 6, 34, 7, 35, 8, 36, 55, 59, 56, 60, 57, 61};
+    // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
+     }
+      else if (Bonecount == 69)
+     {
+    boneIndices = {5, 4, 1, 11, 33, 12, 34, 13, 35, 55, 59, 56, 60, 57, 61};
+    // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
+     }
+      
       else
       {
-        // ★ 安全默认值：保证不越界 ★
-        int safeIdx[] = {
-            min(5, Bonecount - 1), min(4, Bonecount - 1), min(1, Bonecount - 1),
-            min(11, Bonecount - 1), min(32, Bonecount - 1),
-            min(12, Bonecount - 1), min(33, Bonecount - 1),
-            min(13, Bonecount - 1), min(35, Bonecount - 1),
-            min(55, Bonecount - 1), min(59, Bonecount - 1),
-            min(56, Bonecount - 1), min(60, Bonecount - 1),
-            min(57, Bonecount - 1), min(61, Bonecount - 1)};
-        boneIndices.assign(safeIdx, safeIdx + 15);
+        boneIndices = {5, 4, 1, 11, 32, 12, 33, 63, 62, 53, 56, 53, 57, 54, 58};
       }
     }
     else
@@ -531,24 +329,44 @@ public:
       std::string name;
       getBossName(*类名, name);
       if (name == "钢爪·安德烈")
+      {
         boneIndices = {5, 4, 1, 28, 7, 29, 8, 30, 9, 57, 50, 58, 51, 59, 52};
-      else
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
+      } else if (name == "巡卫长·玄铁" || name == "V-34机械警" || name == "辎重使·墨守" || name == "影卫·银星" || name == "女将军" || name == "雷斯" || name == "伯纳德" || 
+                 name == "杰森" || name == "狂火·维列" || name == "特劳斯" ||
+                 name == "Freezing" || name == "红发奎尔" || name == "哈顿" ||
+                 name == "雪原巡猎者" || name == "Mecha" || name == "弗拉迪" ||
+                 name == "斯宾塞" || name == "路易斯" || name == "MachinegunmanBoss")
+      {//懒得全部找骨骼索引了
         boneIndices = {5, 4, 1, 28, 7, 29, 8, 30, 9, 52, 48, 53, 49, 54, 50};
+        // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
+      }
+      else if (name == "特训岛·人机") {
+            if (Bonecount == 70) {
+                boneIndices = {28, 4, 1, 6, 34, 7, 35, 8, 36, 55, 59, 56, 60, 57, 61};
+            } else {
+                boneIndices = {5, 4, 1, 11, 33, 12, 34, 13, 35, 55, 59, 56, 60, 57, 61};
+            }
+        }
+        else if (name == "地铁训练场靶子") {
+            if (Bonecount == 70) {
+                boneIndices = {28, 4, 1, 6, 34, 7, 35, 8, 36, 55, 59, 56, 60, 57, 61};
+            } else {
+                boneIndices = {5, 4, 1, 11, 33, 12, 34, 13, 35, 55, 59, 56, 60, 57, 61};
+            }
+        }
     }
 
-    // ==== 逐个读取15个骨骼坐标（不读全部骨骼，省内存！）====
-    for (size_t i = 0; i < boneIndices.size() && i < 15; i++)
+    for (size_t i = 0; i < boneIndices.size(); i++)
     {
-      int idx = boneIndices[i];
-      if (idx >= 0 && idx < Bonecount)
-      {
-        FTransform boneTrans = getBone(Bone + idx * 48);
-        FMatrix boneMatrix = TransformToMatrix(boneTrans);
-        骨骼坐标[i] = MarixToVector(MatrixMulti(boneMatrix, c2wMatrix));
-      }
+      FTransform boneTrans = getBone(Bone + boneIndices[i] * 48);
+      FMatrix boneMatrix = TransformToMatrix(boneTrans);
+      骨骼坐标[i] = MarixToVector(MatrixMulti(boneMatrix, c2wMatrix));
     }
-    骨骼坐标[0].Z += 7;
+    骨骼坐标[0].Z += 7; // 脖子长度
     if (骨骼坐标[13].Z < 骨骼坐标[14].Z)
+    {
       骨骼坐标[14].Z = 骨骼坐标[13].Z;
+    }
   }
 };
