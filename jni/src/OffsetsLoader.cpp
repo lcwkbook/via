@@ -13,7 +13,8 @@
 #include <openssl/err.h>
 
 // ==================== 定义变量（不初始化，加载失败就 exit） ====================
-namespace Offsets {
+namespace Offsets
+{
     uintptr_t GWorld;
     uintptr_t GName;
     uintptr_t MatrixChain1;
@@ -54,6 +55,10 @@ namespace Offsets {
     uintptr_t CameraManager_CameraPos;
     uintptr_t CameraManager_Rotation;
     uintptr_t CameraManager_FOV;
+
+    uintptr_t POV_Location;
+    uintptr_t POV_Rotation;
+    uintptr_t POV_FOV;
 
     uintptr_t Weapon_RepID;
     uintptr_t Weapon_EntityComp;
@@ -98,7 +103,8 @@ namespace Offsets {
 }
 
 // ---------- HTTPS GET (使用 OpenSSL) ----------
-static std::string httpsGet(const std::string& url, int timeoutSec = 8) {
+static std::string httpsGet(const std::string &url, int timeoutSec = 8)
+{
     std::string host, path = "/";
     int port = 443;
 
@@ -108,7 +114,8 @@ static std::string httpsGet(const std::string& url, int timeoutSec = 8) {
 
     // 判断是否 HTTPS
     bool isHttps = true;
-    if (schemePos != std::string::npos) {
+    if (schemePos != std::string::npos)
+    {
         std::string scheme = url.substr(0, schemePos);
         isHttps = (scheme == "https");
         port = isHttps ? 443 : 80;
@@ -117,13 +124,20 @@ static std::string httpsGet(const std::string& url, int timeoutSec = 8) {
     size_t colon = url.find(':', pos);
     size_t slash = url.find('/', pos);
 
-    if (colon != std::string::npos && (slash == std::string::npos || colon < slash)) {
+    if (colon != std::string::npos && (slash == std::string::npos || colon < slash))
+    {
         host = url.substr(pos, colon - pos);
-        if (isHttps) port = 443; // 忽略 URL 中的端口，强制 443
-        else port = std::stoi(url.substr(colon + 1, slash - colon - 1));
-    } else if (slash != std::string::npos) {
+        if (isHttps)
+            port = 443; // 忽略 URL 中的端口，强制 443
+        else
+            port = std::stoi(url.substr(colon + 1, slash - colon - 1));
+    }
+    else if (slash != std::string::npos)
+    {
         host = url.substr(pos, slash - pos);
-    } else {
+    }
+    else
+    {
         host = url.substr(pos);
     }
 
@@ -132,7 +146,8 @@ static std::string httpsGet(const std::string& url, int timeoutSec = 8) {
 
     // ---------- 建立 TCP 连接 ----------
     int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0) return "";
+    if (sock < 0)
+        return "";
 
     struct timeval tv;
     tv.tv_sec = timeoutSec;
@@ -140,8 +155,12 @@ static std::string httpsGet(const std::string& url, int timeoutSec = 8) {
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
 
-    struct hostent* server = gethostbyname(host.c_str());
-    if (!server) { close(sock); return ""; }
+    struct hostent *server = gethostbyname(host.c_str());
+    if (!server)
+    {
+        close(sock);
+        return "";
+    }
 
     struct sockaddr_in servAddr;
     memset(&servAddr, 0, sizeof(servAddr));
@@ -149,23 +168,34 @@ static std::string httpsGet(const std::string& url, int timeoutSec = 8) {
     memcpy(&servAddr.sin_addr.s_addr, server->h_addr, server->h_length);
     servAddr.sin_port = htons(port);
 
-    if (connect(sock, (struct sockaddr*)&servAddr, sizeof(servAddr)) < 0) {
+    if (connect(sock, (struct sockaddr *)&servAddr, sizeof(servAddr)) < 0)
+    {
         close(sock);
         return "";
     }
 
     // ---------- SSL 握手 ----------
-    SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
-    if (!ctx) { close(sock); return ""; }
-    
+    SSL_CTX *ctx = SSL_CTX_new(SSLv23_client_method());
+    if (!ctx)
+    {
+        close(sock);
+        return "";
+    }
+
     SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);
-    
-    SSL* ssl = SSL_new(ctx);
-    if (!ssl) { SSL_CTX_free(ctx); close(sock); return ""; }
-    
+
+    SSL *ssl = SSL_new(ctx);
+    if (!ssl)
+    {
+        SSL_CTX_free(ctx);
+        close(sock);
+        return "";
+    }
+
     SSL_set_fd(ssl, sock);
-    
-    if (SSL_connect(ssl) != 1) {
+
+    if (SSL_connect(ssl) != 1)
+    {
         SSL_free(ssl);
         SSL_CTX_free(ctx);
         close(sock);
@@ -174,10 +204,11 @@ static std::string httpsGet(const std::string& url, int timeoutSec = 8) {
 
     // ---------- 发送 HTTP GET 请求 ----------
     std::string request = "GET " + path + " HTTP/1.1\r\n"
-                          "Host: " + host + "\r\n"
-                          "Connection: close\r\n"
-                          "User-Agent: AuraKernel/1.0\r\n"
-                          "\r\n";
+                                          "Host: " +
+                          host + "\r\n"
+                                 "Connection: close\r\n"
+                                 "User-Agent: AuraKernel/1.0\r\n"
+                                 "\r\n";
 
     SSL_write(ssl, request.c_str(), request.size());
 
@@ -185,7 +216,8 @@ static std::string httpsGet(const std::string& url, int timeoutSec = 8) {
     std::string response;
     char buf[4096];
     int n;
-    while ((n = SSL_read(ssl, buf, sizeof(buf) - 1)) > 0) {
+    while ((n = SSL_read(ssl, buf, sizeof(buf) - 1)) > 0)
+    {
         buf[n] = '\0';
         response += buf;
     }
@@ -197,7 +229,8 @@ static std::string httpsGet(const std::string& url, int timeoutSec = 8) {
 
     // 提取 body（跳过 HTTP 头）
     size_t bodyStart = response.find("\r\n\r\n");
-    if (bodyStart != std::string::npos) {
+    if (bodyStart != std::string::npos)
+    {
         std::string body = response.substr(bodyStart + 4);
         // 调试：打印前200个字符
         // printf("  [调试] 服务器返回内容(前200字符): %s\n", body.substr(0, 200).c_str());
@@ -207,87 +240,110 @@ static std::string httpsGet(const std::string& url, int timeoutSec = 8) {
 }
 
 // ---------- 简易 JSON 解析 ----------
-static std::string trim(const std::string& s) {
+static std::string trim(const std::string &s)
+{
     size_t l = s.find_first_not_of(" \t\r\n\"");
     size_t r = s.find_last_not_of(" \t\r\n\"");
     return (l == std::string::npos) ? "" : s.substr(l, r - l + 1);
 }
 
-static uintptr_t parseHex(const std::string& s) {
+static uintptr_t parseHex(const std::string &s)
+{
     return strtoull(s.c_str(), nullptr, 16);
 }
 
-static float parseFloat(const std::string& s) {
+static float parseFloat(const std::string &s)
+{
     return strtof(s.c_str(), nullptr);
 }
 
-bool Offsets::LoadFromJson(const std::string& jsonStr) {
+bool Offsets::LoadFromJson(const std::string &jsonStr)
+{
     std::string s = jsonStr;
     size_t start = s.find('{');
     size_t end = s.rfind('}');
-    if (start == std::string::npos || end == std::string::npos) return false;
+    if (start == std::string::npos || end == std::string::npos)
+        return false;
     s = s.substr(start + 1, end - start - 1);
 
     std::unordered_map<std::string, std::string> kv;
-    
+
     // 改进的解析：按行处理
     size_t pos = 0;
-    while (pos < s.size()) {
+    while (pos < s.size())
+    {
         // 找下一个 key 的开始引号
         size_t quoteStart = s.find('"', pos);
-        if (quoteStart == std::string::npos) break;
-        
+        if (quoteStart == std::string::npos)
+            break;
+
         // 找 key 的结束引号
         size_t quoteEnd = s.find('"', quoteStart + 1);
-        if (quoteEnd == std::string::npos) break;
-        
+        if (quoteEnd == std::string::npos)
+            break;
+
         std::string key = s.substr(quoteStart + 1, quoteEnd - quoteStart - 1);
-        
+
         // 找冒号
         size_t colon = s.find(':', quoteEnd + 1);
-        if (colon == std::string::npos) break;
-        
+        if (colon == std::string::npos)
+            break;
+
         // 找值的开始
         size_t valStart = s.find_first_not_of(" \t\r\n", colon + 1);
-        if (valStart == std::string::npos) break;
-        
+        if (valStart == std::string::npos)
+            break;
+
         // 判断值类型：字符串（引号开头）还是数字
         std::string value;
-        if (s[valStart] == '"') {
+        if (s[valStart] == '"')
+        {
             // 字符串值，找结束引号
             size_t valEnd = s.find('"', valStart + 1);
-            if (valEnd == std::string::npos) break;
+            if (valEnd == std::string::npos)
+                break;
             value = s.substr(valStart + 1, valEnd - valStart - 1);
             pos = valEnd + 1;
-        } else {
+        }
+        else
+        {
             // 数值，找逗号或结束
             size_t comma = s.find(',', valStart);
             size_t brace = s.find('}', valStart);
             size_t valEnd = (comma != std::string::npos && comma < brace) ? comma : brace;
-            if (valEnd == std::string::npos) {
+            if (valEnd == std::string::npos)
+            {
                 // 可能是最后一个值，取到末尾
                 value = s.substr(valStart);
                 pos = s.size();
-            } else {
+            }
+            else
+            {
                 value = s.substr(valStart, valEnd - valStart);
                 pos = valEnd + 1;
             }
             // 去除多余空白
             value = trim(value);
         }
-        
+
         kv[key] = value;
     }
 
-#define SET_UINT(key, var) do { \
-    auto it = kv.find(key); \
-    if (it != kv.end() && !it->second.empty()) var = parseHex(it->second); \
-} while(0)
+#define SET_UINT(key, var)                         \
+    do                                             \
+    {                                              \
+        auto it = kv.find(key);                    \
+        if (it != kv.end() && !it->second.empty()) \
+            var = parseHex(it->second);            \
+    } while (0)
 
-#define SET_FLOAT(key, var) do { \
-    auto it = kv.find(key); \
-    if (it != kv.end() && !it->second.empty()) var = parseFloat(it->second); \
-} while(0)
+#define SET_FLOAT(key, var)                        \
+    do                                             \
+    {                                              \
+        auto it = kv.find(key);                    \
+        if (it != kv.end() && !it->second.empty()) \
+            var = parseFloat(it->second);          \
+    } while (0)
 
     SET_UINT("GWorld", GWorld);
     SET_UINT("GName", GName);
@@ -325,6 +381,9 @@ bool Offsets::LoadFromJson(const std::string& jsonStr) {
     SET_UINT("CameraManager_CameraPos", CameraManager_CameraPos);
     SET_UINT("CameraManager_Rotation", CameraManager_Rotation);
     SET_UINT("CameraManager_FOV", CameraManager_FOV);
+    SET_UINT("POV_Location", POV_Location);
+    SET_UINT("POV_Rotation", POV_Rotation);
+    SET_UINT("POV_FOV", POV_FOV);
     SET_UINT("Weapon_RepID", Weapon_RepID);
     SET_UINT("Weapon_EntityComp", Weapon_EntityComp);
     SET_UINT("Weapon_BulletSpeed", Weapon_BulletSpeed);
@@ -365,12 +424,14 @@ bool Offsets::LoadFromJson(const std::string& jsonStr) {
     return true;
 }
 
-bool Offsets::LoadFromRemote(const std::string& url) {
+bool Offsets::LoadFromRemote(const std::string &url)
+{
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
 
     std::string jsonStr = httpsGet(url, 8); // 8秒超时
-    if (jsonStr.empty()) {
+    if (jsonStr.empty())
+    {
         printf("  \033[1;31m  ✘ 服务器连接失败！\033[0m\n");
         printf("  \033[1;31m  ✘ 授权验证不通过，程序退出\033[0m\n");
         return false;
@@ -378,7 +439,8 @@ bool Offsets::LoadFromRemote(const std::string& url) {
 
     printf("  \033[1;32m  ✔ 服务器连接成功...\033[0m\n");
 
-    if (!LoadFromJson(jsonStr)) {
+    if (!LoadFromJson(jsonStr))
+    {
         printf("  \033[1;31m  ✘ 数据解析失败！\033[0m\n");
         printf("  \033[1;33m  [调试] 服务器返回(前300字符):\033[0m\n");
         printf("  \033[1;33m  ---BEGIN---\033[0m\n");

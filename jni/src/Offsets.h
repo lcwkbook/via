@@ -2,7 +2,8 @@
 #include <cstdint>
 #include <string>
 
-namespace Offsets {
+namespace Offsets
+{
     // ==================== libUE4.so 模块基址偏移 ====================
     extern uintptr_t GWorld;
     extern uintptr_t GName;
@@ -44,6 +45,10 @@ namespace Offsets {
     extern uintptr_t CameraManager_CameraPos;
     extern uintptr_t CameraManager_Rotation;
     extern uintptr_t CameraManager_FOV;
+    // ==================== POV 结构偏移（新） ====================
+    extern uintptr_t POV_Location;
+    extern uintptr_t POV_Rotation;
+    extern uintptr_t POV_FOV;
     // ==================== 武器偏移 ====================
     extern uintptr_t Weapon_RepID;
     extern uintptr_t Weapon_EntityComp;
@@ -87,6 +92,6 @@ namespace Offsets {
     extern float MaxDrawDistance;
 
     // ==================== 加载函数 ====================
-    bool LoadFromRemote(const std::string& url);
-    bool LoadFromJson(const std::string& jsonStr);
+    bool LoadFromRemote(const std::string &url);
+    bool LoadFromJson(const std::string &jsonStr);
 }

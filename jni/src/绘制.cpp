@@ -25,6 +25,9 @@
 // 添加ptrace过检测功能
 #include <sys/ptrace.h>
 #include "json.hpp"
+#define VEC3_DEFINED
+#define ROTATOR_DEFINED
+#define D3DVECTOR_DEFINED
 #include "TomieModel.h"
 
 // ========== 自定义物资全局变量 ==========
@@ -49,10 +52,10 @@ bool 线程开启状态 = false;
 extern bool showTopStatusBar;
 // 掩体函数
 // 全局内存读取函数（给 PhysX Pro 用）
-// bool MyPhysXReadv(uint64_t addr, void *buffer, size_t size)
-// {
-//     return 绘制.读写.readv(addr, buffer, size);
-// }
+bool MyPhysXReadv(uint64_t addr, void *buffer, size_t size)
+{
+    return 绘制.读写.readv(addr, buffer, size);
+}
 void 更新自救倒计时()
 {
     auto it = 自救Timers.begin();
@@ -979,18 +982,18 @@ void 绘制::初始化绘制(string 包名, int 真实X, int 真实Y)
     DebugAimedClassName.clear();
     bDebugAimedValid = false;
     // // ===== PhysX Pro 初始化 =====
-    // static bool physxInited = false;
-    // if (!physxInited && 地址.libue4 != 0)
-    // {
-    //     printf("[调试] 即将调用 InitPhysX, libUE4=0x%lX\n", 地址.libue4);
-    //     InitPhysX("5124768803969458", 地址.libue4, MyPhysXReadv, 0);
-    //     physxInited = true;
-    //     printf("[+] PhysX Pro 初始化成功\n");
-    // }
-    // else
-    // {
-    //     printf("[调试] 跳过 InitPhysX: physxInited=%d, libUE4=0x%lX\n", physxInited, 地址.libue4);  // ★ 新增
-    // }
+    static bool physxInited = false;
+    if (!physxInited && 地址.libue4 != 0)
+    {
+        printf("[调试] 即将调用 InitPhysX, libUE4=0x%lX\n", 地址.libue4);
+        InitPhysX("公益模型库582082238", 地址.libue4, MyPhysXReadv, 0);
+        physxInited = true;
+        printf("[+] PhysX Pro 初始化成功\n");
+    }
+    else
+    {
+        printf("[调试] 跳过 InitPhysX: physxInited=%d, libUE4=0x%lX\n", physxInited, 地址.libue4);
+    }
 }
 
 FVector2D 绘制::WorldToScreen(const FVector_class &WorldLocation)
@@ -1141,23 +1144,17 @@ void 绘制::更新地址数据()
         读写.readv(地址.矩阵地址_Tol, &自身数据.矩阵, sizeof(自身数据.矩阵));
     }
 
-    // FOV 和准星 Yaw 仍然尝试从 PlayerController 读取（自瞄可能需要，读不到也无妨）
     uintptr_t controller = 读写.getPtr64(地址.自身地址 + Offsets::Controller_Offset);
     if (controller != 0)
     {
-        uintptr_t camManager = 读写.getPtr64(controller + Offsets::Controller_CameraManager);
-        // 在 camManager 那段代码中添加视角读取
-        if (camManager != 0)
+        // ★ 读取相机坐标
+        uintptr_t povPtr = 读写.getPtr64(controller + Offsets::CameraManager_FOV); // 0x680
+        if (povPtr != 0)
         {
-            {
-                uintptr_t fovPtr = 读写.getPtr64(camManager + Offsets::CameraManager_FOV);
-                自身数据.Fov = 读写.getFloat(fovPtr + 0x688);
-            }
-            // 新增：读取相机坐标
-            读写.readv(camManager + Offsets::CameraManager_CameraPos, &自身数据.相机坐标, sizeof(自身数据.相机坐标));
-            // 新增：读取相机旋转
-            自身数据.视角.X = 读写.getFloat(camManager + Offsets::CameraManager_Rotation);     // Pitch
-            自身数据.视角.Y = 读写.getFloat(camManager + Offsets::CameraManager_Rotation + 4); // Yaw
+            读写.readv(povPtr + Offsets::POV_Location, &自身数据.相机坐标, sizeof(自身数据.相机坐标));
+            自身数据.视角.X = 读写.getFloat(povPtr + Offsets::POV_Rotation);     // 0x668
+            自身数据.视角.Y = 读写.getFloat(povPtr + Offsets::POV_Rotation + 4); // 0x66C
+            自身数据.Fov = 读写.getFloat(povPtr + Offsets::POV_FOV);             // 0x680
         }
         自身数据.准星Y = 读写.getFloat(controller + Offsets::Controller_AimYaw) - 90.0f;
     }
@@ -2442,7 +2439,7 @@ void 绘制::更新对象数据()
             float boxMaxDist = isAirDrop ? 600.0f : 100.0f;
             float aimThreshold = isAirDrop ? 200.0f : 100.0f; // 准星对准范围也可以适当放宽
 
-                        if (按钮.盒子物资 && isBoxLike && 对象信息.敌人信息.距离 <= boxMaxDist)
+            if (按钮.盒子物资 && isBoxLike && 对象信息.敌人信息.距离 <= boxMaxDist)
             {
                 float aimDistance = sqrtf(powf(PX - r_x, 2.0f) + powf(PY - r_y, 2.0f));
                 if (aimDistance < aimThreshold && 自瞄.瞄准目标 == -1)
@@ -2485,22 +2482,26 @@ void 绘制::更新对象数据()
 
                                     switch (物资地址ID)
                                     {
-                                    case 604171: case 9826010:
+                                    case 604171:
+                                    case 9826010:
                                         文字颜色 = ImColor(208, 138, 71, 255);
                                         描边颜色 = ImColor(0, 255, 0, 255);
                                         文字字号 = 42.0f;
                                         break;
-                                    case 604172: case 9826011:
+                                    case 604172:
+                                    case 9826011:
                                         文字颜色 = ImColor(192, 192, 192, 255);
                                         描边颜色 = ImColor(0, 150, 255, 255);
                                         文字字号 = 42.0f;
                                         break;
-                                    case 604173: case 9826012:
+                                    case 604173:
+                                    case 9826012:
                                         文字颜色 = ImColor(220, 220, 255, 255);
                                         描边颜色 = ImColor(255, 215, 0, 255);
                                         文字字号 = 42.0f;
                                         break;
-                                    case 604174: case 9826013:
+                                    case 604174:
+                                    case 9826013:
                                         文字颜色 = ImColor(255, 215, 0, 255);
                                         描边颜色 = ImColor(185, 242, 255, 255);
                                         文字字号 = 42.0f;
@@ -2524,7 +2525,6 @@ void 绘制::更新对象数据()
                     }
                 }
             }
-
 
             // if (按钮.盒子物资 && isBoxLike && 对象信息.敌人信息.距离 <= boxMaxDist)
             // {
@@ -2827,18 +2827,24 @@ void 绘制::更新对象数据()
 
             bool LineOfSightTo1 = false;
             bool LineOfSightToTab[15] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false};
-            // if (按钮.物理掩体检测)
-            // {
-            //     // 用 PhysX Pro 的 LinePosition 检测可见性
-            //     D3DVector origin(自身数据.坐标.X, 自身数据.坐标.Y, 自身数据.坐标.Z);
-            //     D3DVector target(对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z);
-            //     LineOfSightToTab[0] = LinePosition(origin, target);
-            //     printf("[调试] LinePosition 返回: %d\n", LineOfSightToTab[0]);
-            // }
-            // else
-            // {
-            //     LineOfSightToTab[0] = true; // 旧逻辑
-            // }
+
+            if (按钮.物理掩体检测)
+            {
+                // 用 PhysX Pro 的 LinePosition 检测可见性
+                // true=有遮挡(不可见)  false=无遮挡(可见)
+                D3DVector origin(自身数据.相机坐标.X, 自身数据.相机坐标.Y, 自身数据.相机坐标.Z);
+                D3DVector target(对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z);
+                LineOfSightToTab[0] = LinePosition(origin, target);
+                // 临时加在 LinePosition 调用之前
+                printf("[调试] 相机坐标: %.0f, %.0f, %.0f | 敌人坐标: %.0f, %.0f, %.0f\n",
+                       自身数据.相机坐标.X, 自身数据.相机坐标.Y, 自身数据.相机坐标.Z,
+                       对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z);
+            }
+            else
+            {
+                LineOfSightToTab[0] = false; // 不使用物理掩体时默认可见
+            }
+
             if (按钮.雷达)
             {
                 if (对象信息.敌人信息.距离 <= 300)
@@ -3151,35 +3157,41 @@ void 绘制::运行绘制()
         计时器.checkAndRemoveTimers();
     }
     // ===== PhysX Pro 模型绘制 =====
-    // if (按钮.模型绘制 && 地址.libue4 != 0)
-    // {
-    //     // 构造相机参数（需要从自身数据获取）
-    //     Vec3 camPos(自身数据.坐标.X, 自身数据.坐标.Y, 自身数据.坐标.Z);
-    //     Rotator camRot{自身数据.视角.X, 自身数据.视角.Y, 0.0f};
-    //     float fov = 自身数据.Fov > 0 ? 自身数据.Fov : 90.0f;
+    if (按钮.模型绘制 && 地址.libue4 != 0)
+    {
+        // 构造相机参数
+        Vec3 camPos(自身数据.相机坐标.X, 自身数据.相机坐标.Y, 自身数据.相机坐标.Z);
+        Rotator camRot{自身数据.视角.X, 自身数据.视角.Y, 0.0f};
+        float fov = 自身数据.Fov > 0 ? 自身数据.Fov : 90.0f;
+        printf("[调试] PhysXMesh: pos(%.0f,%.0f,%.0f) pitch=%.1f yaw=%.1f fov=%.1f scr=%dx%d\n",
+               camPos.x, camPos.y, camPos.z,
+               camRot.Pitch, camRot.Yaw,
+               fov, displayInfo.width, displayInfo.height);
+        auto triangles = PhysXMesh(camPos, camRot, fov,
+                                   displayInfo.width, displayInfo.height);
+        printf("[调试] PhysXMesh 返回 %zu 个三角形\n", triangles.size());
+        for (const auto &tri : triangles)
+        {
+            // ★ 用你自己的 WorldToScreen 做投影（剔除相机背后的点）
+            FVector2D p0 = 绘制::WorldToScreen({tri[0].x, tri[0].y, tri[0].z});
+            FVector2D p1 = 绘制::WorldToScreen({tri[1].x, tri[1].y, tri[1].z});
+            FVector2D p2 = 绘制::WorldToScreen({tri[2].x, tri[2].y, tri[2].z});
 
-    //     auto triangles = PhysXMesh(camPos, camRot, fov,
-    //                                displayInfo.width, displayInfo.height);
+            // 剔除相机背后的点（INFINITY 检查）
+            if (isinf(p0.X) || isinf(p1.X) || isinf(p2.X))
+                continue;
 
-    //     for (const auto &tri : triangles)
-    //     {
-    //         float x0 = tri[0].x, y0 = tri[0].y;
-    //         float x1 = tri[1].x, y1 = tri[1].y;
-    //         float x2 = tri[2].x, y2 = tri[2].y;
-
-    //         // 只绘制在屏幕内的三角形
-    //         if ((x0 > 0 && x0 < displayInfo.width && y0 > 0 && y0 < displayInfo.height) ||
-    //             (x1 > 0 && x1 < displayInfo.width && y1 > 0 && y1 < displayInfo.height) ||
-    //             (x2 > 0 && x2 < displayInfo.width && y2 > 0 && y2 < displayInfo.height))
-    //         {
-    //             ImDrawList *draw = ImGui::GetForegroundDrawList();
-    //             draw->AddTriangleFilled(ImVec2(x0, y0), ImVec2(x1, y1), ImVec2(x2, y2),
-    //                                     IM_COL32(100, 150, 255, 60));
-    //             draw->AddTriangle(ImVec2(x0, y0), ImVec2(x1, y1), ImVec2(x2, y2),
-    //                               IM_COL32(255, 50, 50, 255), 2.0f);
-    //         }
-    //     }
-    // }
+            // 只绘制至少有一个顶点在屏幕内的三角形
+            if ((p0.X >= 0 || p1.X >= 0 || p2.X >= 0))
+            {
+                ImDrawList *draw = ImGui::GetForegroundDrawList();
+                draw->AddTriangleFilled(ImVec2(p0.X, p0.Y), ImVec2(p1.X, p1.Y), ImVec2(p2.X, p2.Y),
+                                        IM_COL32(100, 150, 255, 60));
+                draw->AddTriangle(ImVec2(p0.X, p0.Y), ImVec2(p1.X, p1.Y), ImVec2(p2.X, p2.Y),
+                                  IM_COL32(255, 50, 50, 255), 2.0f);
+            }
+        }
+    }
 }
 
 const char *绘制::Level(char *name)

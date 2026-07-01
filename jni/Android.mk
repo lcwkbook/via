@@ -56,6 +56,7 @@ LOCAL_LDFLAGS += $(LOCAL_PATH)/lib/*.a
 LOCAL_LDFLAGS += -Wl,--gc-sections,--strip-all,--allow-multiple-definition,-llog
 LOCAL_LDFLAGS += -lEGL -lGLESv2 -lGLESv3 -landroid -llog
 LOCAL_LDFLAGS += -L$(LOCAL_PATH)/include/lib
+LOCAL_LDFLAGS += -pthread 
 
 
 # 链接 driver 静态库
