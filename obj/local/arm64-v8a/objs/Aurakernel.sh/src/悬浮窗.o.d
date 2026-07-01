@@ -5,6 +5,8 @@ C:/Users/园中/Documents/GitHub/via/obj/local/arm64-v8a/objs/Aurakernel.sh/src/
   C:/Users/园中/Documents/GitHub/via/jni/include/ImGui/imconfig.h \
   C:/Users/园中/Documents/GitHub/via/jni/include/图片调用.h \
   C:/Users/园中/Documents/GitHub/via/jni/./include/vulkan/VulkanUtils.h \
+  C:/Users/园中/Documents/GitHub/via/jni/include/ImGui/imgui_impl_vulkan.h \
+  C:/Users/园中/Documents/GitHub/via/jni/include/vulkan/vulkan_wrapper.h \
   C:/Users/园中/Documents/GitHub/via/jni/./include/vulkan/vulkan_wrapper.h \
   C:/Users/园中/Documents/GitHub/via/jni/include/手持图片/101001.h \
   C:/Users/园中/Documents/GitHub/via/jni/include/手持图片/101002.h \
@@ -141,8 +143,6 @@ C:/Users/园中/Documents/GitHub/via/obj/local/arm64-v8a/objs/Aurakernel.sh/src/
   C:/Users/园中/Documents/GitHub/via/jni/include/ImGui/imstb_textedit.h \
   C:/Users/园中/Documents/GitHub/via/jni/include/ImGui/imgui_impl_android.h \
   C:/Users/园中/Documents/GitHub/via/jni/include/Touch/TouchHelperA.h \
-  C:/Users/园中/Documents/GitHub/via/jni/include/ImGui/imgui_impl_vulkan.h \
-  C:/Users/园中/Documents/GitHub/via/jni/include/vulkan/vulkan_wrapper.h \
   C:/Users/园中/Documents/GitHub/via/jni/include/vulkan/VulkanUtils.h \
   C:/Users/园中/Documents/GitHub/via/jni/include/骨骼.hpp \
   C:/Users/园中/Documents/GitHub/via/jni/include/Utils/Utils.h \
@@ -155,6 +155,8 @@ C:/Users/园中/Documents/GitHub/via/jni/include/ImGui/imgui.h:
 C:/Users/园中/Documents/GitHub/via/jni/include/ImGui/imconfig.h:
 C:/Users/园中/Documents/GitHub/via/jni/include/图片调用.h:
 C:/Users/园中/Documents/GitHub/via/jni/./include/vulkan/VulkanUtils.h:
+C:/Users/园中/Documents/GitHub/via/jni/include/ImGui/imgui_impl_vulkan.h:
+C:/Users/园中/Documents/GitHub/via/jni/include/vulkan/vulkan_wrapper.h:
 C:/Users/园中/Documents/GitHub/via/jni/./include/vulkan/vulkan_wrapper.h:
 C:/Users/园中/Documents/GitHub/via/jni/include/手持图片/101001.h:
 C:/Users/园中/Documents/GitHub/via/jni/include/手持图片/101002.h:
@@ -291,8 +293,6 @@ C:/Users/园中/Documents/GitHub/via/jni/include/ImGui/imgui_internal.h:
 C:/Users/园中/Documents/GitHub/via/jni/include/ImGui/imstb_textedit.h:
 C:/Users/园中/Documents/GitHub/via/jni/include/ImGui/imgui_impl_android.h:
 C:/Users/园中/Documents/GitHub/via/jni/include/Touch/TouchHelperA.h:
-C:/Users/园中/Documents/GitHub/via/jni/include/ImGui/imgui_impl_vulkan.h:
-C:/Users/园中/Documents/GitHub/via/jni/include/vulkan/vulkan_wrapper.h:
 C:/Users/园中/Documents/GitHub/via/jni/include/vulkan/VulkanUtils.h:
 C:/Users/园中/Documents/GitHub/via/jni/include/骨骼.hpp:
 C:/Users/园中/Documents/GitHub/via/jni/include/Utils/Utils.h:

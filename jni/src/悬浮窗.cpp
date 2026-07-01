@@ -1968,6 +1968,8 @@ void DrawCharacterPage()
         {"全图人数", &绘制.按钮.全图人数},
         {"自救倒计时", &绘制.按钮.自救倒计时},
         {"漏手模式", &绘制.按钮.漏手模式},
+        {"掩体变色", &绘制.按钮.物理掩体检测},
+        {"模型绘制", &绘制.按钮.模型绘制},
     };
 
     const int total = IM_ARRAYSIZE(options);
@@ -2317,18 +2319,26 @@ void DrawVisualPage()
     ImGui::Spacing();
 
     // PhysX Pro 模型绘制开关
-    ImGui::Text("PhysX Pro 模型");
+    ImGui::Text("模型绘制");
     ImGui::SameLine(150);
-    ImGui::Checkbox("##模型绘制", &绘制.按钮.模型绘制);
+    if (ImGui::Checkbox("##模型绘制", &绘制.按钮.模型绘制))
+    {
+        绘制.保存配置();
+        AddNotification("模型绘制", 绘制.按钮.模型绘制);
+    }
     ImGui::SameLine();
     ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f), "三角形网格渲染");
 
     ItemSpacing();
 
-    // PhysX Pro 物理掩体检测开关
-    ImGui::Text("物理掩体检测");
+    // PhysX Pro 掩体变色开关
+    ImGui::Text("掩体变色");
     ImGui::SameLine(150);
-    ImGui::Checkbox("##物理掩体", &绘制.按钮.物理掩体检测);
+    if (ImGui::Checkbox("##掩体变色", &绘制.按钮.物理掩体检测))
+    {
+        绘制.保存配置();
+        AddNotification("掩体变色", 绘制.按钮.物理掩体检测);
+    }
     ImGui::SameLine();
     ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "LinePosition射线检测");
 
@@ -2438,14 +2448,22 @@ void DrawColorPage()
 
     // ====================== 颜色项数据 ======================
     int colorSetIndex = ColorSettings;
-    const char *colorLabels[] = {"方框颜色", "射线颜色", "骨骼颜色", "距离颜色", "名称颜色", /*"物资颜色", */ "车辆颜色"};
+    const char *colorLabels[] = {
+    "方框可见", "方框掩体",
+    "射线可见", "射线掩体",
+    "骨骼可见", "骨骼掩体",
+    "距离颜色", "名称颜色", "车辆颜色"
+};
+
     float *colorPointers[] = {
         绘制.Colorset[colorSetIndex].方框颜色,
+        绘制.Colorset[colorSetIndex].方框掩体颜色,
         绘制.Colorset[colorSetIndex].射线颜色,
+        绘制.Colorset[colorSetIndex].射线掩体颜色,
         绘制.Colorset[colorSetIndex].骨骼颜色,
+        绘制.Colorset[colorSetIndex].骨骼掩体颜色,
         绘制.Colorset[colorSetIndex].距离颜色,
         绘制.Colorset[colorSetIndex].名称颜色,
-        // 绘制.物资颜色,
         绘制.车辆颜色};
 
     // ====================== 表格布局 ======================
@@ -3070,6 +3088,7 @@ void 布局::开启悬浮窗()
     {
         更新状态();
         绘制悬浮窗();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1)); // 防止空转
         // WindowDrawing.SetFps(绘制.按钮.当前帧率);
         // WindowDrawing.AotuFPS();
         // std::this_thread::sleep_for(1ms);

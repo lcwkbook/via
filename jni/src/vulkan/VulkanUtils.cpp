@@ -1,6 +1,7 @@
 #include "VulkanUtils.h"
 
 #include "imgui.h"
+#include "vulkan_wrapper.h"
 #include "imgui_impl_vulkan.h"
 
 #include <stdlib.h>
@@ -9,20 +10,21 @@
 #include "./include/ImGui/stb_image.h"
 
 // Data
-static VkAllocationCallbacks *g_Allocator = NULL;
-static VkInstance g_Instance = VK_NULL_HANDLE;
-static VkPhysicalDevice g_PhysicalDevice = VK_NULL_HANDLE;
-static VkDevice g_Device = VK_NULL_HANDLE;
-static uint32_t g_QueueFamily = (uint32_t)-1;
+VkAllocationCallbacks *g_Allocator = NULL;
+VkInstance g_Instance = VK_NULL_HANDLE;
+VkPhysicalDevice g_PhysicalDevice = VK_NULL_HANDLE;
+VkDevice g_Device = VK_NULL_HANDLE;
+uint32_t g_QueueFamily = (uint32_t)-1;
 static VkQueue g_Queue = VK_NULL_HANDLE;
 static VkDebugReportCallbackEXT g_DebugReport = VK_NULL_HANDLE;
 static VkPipelineCache g_PipelineCache = VK_NULL_HANDLE;
 static VkDescriptorPool g_DescriptorPool = VK_NULL_HANDLE;
 
-static ImGui_ImplVulkanH_Window g_MainWindowData;
-static ImGui_ImplVulkanH_Window *wd = &g_MainWindowData;
-static int g_MinImageCount = 3;
-static bool g_SwapChainRebuild = false;
+ImGui_ImplVulkanH_Window g_MainWindowData;
+ImGui_ImplVulkanH_Window *wd = &g_MainWindowData;
+
+int g_MinImageCount = 3;
+bool g_SwapChainRebuild = false;
 
 #ifndef NDEBUG
 
@@ -305,16 +307,16 @@ void UploadFonts()
 
 void SwapChainRebuild(int w, int h)
 {
-    if (g_SwapChainRebuild)
-    {
-        ImGui_ImplVulkan_SetMinImageCount(g_MinImageCount);
-        ImGui_ImplVulkanH_CreateOrResizeWindow(g_Instance, g_PhysicalDevice, g_Device, &g_MainWindowData,
-                                               g_QueueFamily, g_Allocator, w, h,
-                                               g_MinImageCount);
-        g_MainWindowData.FrameIndex = 0;
-        g_SwapChainRebuild = false;
-    }
+    // 不再内部检查 g_SwapChainRebuild，由调用方控制
+    ImGui_ImplVulkan_SetMinImageCount(g_MinImageCount);
+    ImGui_ImplVulkanH_CreateOrResizeWindow(g_Instance, g_PhysicalDevice, g_Device,
+                                           wd,
+                                           g_QueueFamily, g_Allocator,
+                                           w, h,  // ← 使用函数参数
+                                           g_MinImageCount);
+    wd->FrameIndex = 0;
 }
+
 
 void FrameRender(ImDrawData *draw_data)
 {
@@ -334,7 +336,7 @@ void FrameRender(ImDrawData *draw_data)
 
     if (err == VK_ERROR_OUT_OF_DATE_KHR /*|| err == VK_SUBOPTIMAL_KHR*/)
     {
-        // g_SwapChainRebuild = true;
+        g_SwapChainRebuild = true;
         return;
     }
     // check_vk_result(err);
@@ -418,7 +420,7 @@ void FramePresent()
     if (err == VK_ERROR_OUT_OF_DATE_KHR /*|| err == VK_SUBOPTIMAL_KHR*/)
     {
         // LOGD("错误2 %d",err);
-        // g_SwapChainRebuild = true;
+        g_SwapChainRebuild = true;
         return;
     }
     // check_vk_result(err);

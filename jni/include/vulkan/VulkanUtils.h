@@ -3,7 +3,9 @@
 
 //#include <cstring>
 #include "imgui.h"
+#include "imgui_impl_vulkan.h"
 #include "vulkan_wrapper.h"
+
 
 // A struct to manage data related to one image in vulkan
 struct MyTextureData {
@@ -38,6 +40,18 @@ void SetupVulkanWindow(ANativeWindow *window, int width, int height);
 void UploadFonts();
 
 void SwapChainRebuild(int w, int h);
+
+extern VkDevice g_Device;
+extern ImGui_ImplVulkanH_Window* wd;
+extern bool g_SwapChainRebuild;
+
+// ★ 新增：暴露这些变量给 draw.cpp 使用
+extern VkInstance g_Instance;
+extern VkPhysicalDevice g_PhysicalDevice;
+extern uint32_t g_QueueFamily;
+extern VkAllocationCallbacks* g_Allocator;
+extern int g_MinImageCount;
+extern ImGui_ImplVulkanH_Window g_MainWindowData;
 
 void FrameRender(ImDrawData *draw_data);
 

@@ -562,6 +562,8 @@ void 绘制::保存配置()
         {"密室钥匙", 按钮.密室钥匙},
         {"黑色物资箱", 按钮.显示黑色物资箱},
         {"绘制最大距离", 按钮.绘制最大距离},
+        {"模型绘制", 按钮.模型绘制},
+        {"物理掩体检测", 按钮.物理掩体检测},
     };
 
     // 其他配置
@@ -720,6 +722,8 @@ void 绘制::读取配置()
             按钮.密室钥匙 = button.value("密室钥匙", false);
             按钮.显示黑色物资箱 = button.value("黑色物资箱", false);
             按钮.绘制最大距离 = button.value("绘制最大距离", 按钮.绘制最大距离);
+            按钮.模型绘制 = button.value("模型绘制", 按钮.模型绘制);
+            按钮.物理掩体检测 = button.value("物理掩体检测", 按钮.物理掩体检测);
         }
 
         // 读取其他配置
@@ -2828,22 +2832,7 @@ void 绘制::更新对象数据()
             bool LineOfSightTo1 = false;
             bool LineOfSightToTab[15] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false};
 
-            if (按钮.物理掩体检测)
-            {
-                // 用 PhysX Pro 的 LinePosition 检测可见性
-                // true=有遮挡(不可见)  false=无遮挡(可见)
-                D3DVector origin(自身数据.相机坐标.X, 自身数据.相机坐标.Y, 自身数据.相机坐标.Z);
-                D3DVector target(对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z);
-                LineOfSightToTab[0] = LinePosition(origin, target);
-                // 临时加在 LinePosition 调用之前
-                printf("[调试] 相机坐标: %.0f, %.0f, %.0f | 敌人坐标: %.0f, %.0f, %.0f\n",
-                       自身数据.相机坐标.X, 自身数据.相机坐标.Y, 自身数据.相机坐标.Z,
-                       对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z);
-            }
-            else
-            {
-                LineOfSightToTab[0] = false; // 不使用物理掩体时默认可见
-            }
+            LineOfSightToTab[0] = false; // 逐骨骼检测会在骨骼坐标计算后填充
 
             if (按钮.雷达)
             {
@@ -2958,6 +2947,23 @@ void 绘制::更新对象数据()
             骨骼数据 t_骨骼数据 = 计算.计算骨骼(自身数据.相机坐标, 对象信息.敌人信息.骨骼坐标, PX, PY);
             std::vector<D2DVector *> 骨骼二维坐标 = t_骨骼数据.获取所有骨骼指针();
             绘图.初始化坐标(t_屏幕坐标, t_骨骼数据);
+
+            if (按钮.物理掩体检测)
+            {
+                D3DVector origin(自身数据.相机坐标.X, 自身数据.相机坐标.Y, 自身数据.相机坐标.Z);
+                for (int i = 0; i < 15; ++i)
+                {
+                    const auto &bone = 对象信息.敌人信息.骨骼坐标[i];
+                    if (bone.X == 0.0f && bone.Y == 0.0f && bone.Z == 0.0f)
+                    {
+                        LineOfSightToTab[i] = LineOfSightToTab[0];
+                        continue;
+                    }
+
+                    D3DVector target(bone.X, bone.Y, bone.Z);
+                    LineOfSightToTab[i] = LinePosition(origin, target);
+                }
+            }
 
             if (按钮.被瞄预警)
             {
@@ -3163,13 +3169,8 @@ void 绘制::运行绘制()
         Vec3 camPos(自身数据.相机坐标.X, 自身数据.相机坐标.Y, 自身数据.相机坐标.Z);
         Rotator camRot{自身数据.视角.X, 自身数据.视角.Y, 0.0f};
         float fov = 自身数据.Fov > 0 ? 自身数据.Fov : 90.0f;
-        printf("[调试] PhysXMesh: pos(%.0f,%.0f,%.0f) pitch=%.1f yaw=%.1f fov=%.1f scr=%dx%d\n",
-               camPos.x, camPos.y, camPos.z,
-               camRot.Pitch, camRot.Yaw,
-               fov, displayInfo.width, displayInfo.height);
         auto triangles = PhysXMesh(camPos, camRot, fov,
                                    displayInfo.width, displayInfo.height);
-        printf("[调试] PhysXMesh 返回 %zu 个三角形\n", triangles.size());
         for (const auto &tri : triangles)
         {
             // ★ 用你自己的 WorldToScreen 做投影（剔除相机背后的点）

@@ -4,6 +4,9 @@
 #include <map>
 #include <cstdlib>
 #include <thread>
+#include <cerrno>
+#include <cstring>
+#include <sys/stat.h>
 #include "utils/http_utils.cpp"
 #include "utils/sign_utils.cpp"
 #include "utils/crypt_utils.cpp"
@@ -31,9 +34,54 @@ std::string app_version = "1.37.1.0";
 std::string notice_id = "1971";
 
 // 卡密存储路径
+const static char *storage_dir = "/sdcard/AuraKernel";
 const static char *card_path = "/sdcard/AuraKernel/Aura.km";
 // 机器码存储路径
 const static char *imei_path = "/sdcard/AuraKernel/Aura.imei";
+
+static bool ensureStorageDir()
+{
+    if (mkdir(storage_dir, 0777) != 0 && errno != EEXIST)
+    {
+        printf("  \033[1;31m  Failed to create %s: %s\033[0m\n", storage_dir, strerror(errno));
+        return false;
+    }
+
+    chmod(storage_dir, 0777);
+    return true;
+}
+
+static bool readTokenFile(const char *path, char *out, size_t outSize)
+{
+    if (out == nullptr || outSize == 0)
+        return false;
+
+    out[0] = '\0';
+    FILE *fp = fopen(path, "r");
+    if (fp == nullptr)
+        return false;
+
+    char fmt[32];
+    snprintf(fmt, sizeof(fmt), "%%%zus", outSize - 1);
+    int ret = fscanf(fp, fmt, out);
+    fclose(fp);
+
+    return ret == 1 && out[0] != '\0';
+}
+
+static bool writeTokenFile(const char *path, const char *value)
+{
+    FILE *fp = fopen(path, "w");
+    if (fp == nullptr)
+    {
+        printf("  \033[1;31m  Failed to open %s: %s\033[0m\n", path, strerror(errno));
+        return false;
+    }
+
+    fprintf(fp, "%s", value);
+    fclose(fp);
+    return true;
+}
 
 // 心跳容错次数 - 连续失败指定的次数就会停止运行
 const static int canError = 5;
@@ -467,8 +515,11 @@ void checkVersionApi()
 int loginApi()
 {
 home_main:
-    char card[40];
-    if (fopen(card_path, "r") == NULL)
+    char card[40] = "";
+    if (!ensureStorageDir())
+        return 0;
+
+    if (!readTokenFile(card_path, card, sizeof(card)))
     {
         printf("\n");
         printf("  \033[1;36m┌──────────────────────────────────────────┐\033[0m\n");
@@ -481,7 +532,12 @@ home_main:
         char _inputKm[128] = "";
         scanf("%127s", _inputKm);
 
-        FILE *fp = fopen(card_path, "w");
+        if (!writeTokenFile(card_path, _inputKm))
+            return 0;
+
+        snprintf(card, sizeof(card), "%s", _inputKm);
+
+        FILE *fp = nullptr;
         if (fp != NULL)
         {
             fprintf(fp, "%s", _inputKm);
@@ -496,10 +552,8 @@ home_main:
         printf("  \033[1;34m  ⏳ 正在验证已保存的卡密...\033[0m\n");
     }
 
-    fscanf(fopen(card_path, "r"), "%s", &card);
-
-    char imei[40];
-    if (fopen(imei_path, "r") == NULL)
+    char imei[40] = "";
+    if (!readTokenFile(imei_path, imei, sizeof(imei)))
     {
         printf("  \033[1;33m  ⚠ 未检测到设备标识，正在生成...\033[0m\n");
         srand(time(NULL));
@@ -511,19 +565,16 @@ home_main:
         }
         _Str[20] = '\0';
 
-        FILE *fp = fopen(imei_path, "w");
-        if (fp == NULL)
+        if (!writeTokenFile(imei_path, _Str))
         {
+            free(_Str);
             printf("  \033[1;31m  ✘ 设备标识文件创建失败\033[0m\n");
             return 0;
         }
-        fprintf(fp, "%s", _Str);
-        fclose(fp);
+        snprintf(imei, sizeof(imei), "%s", _Str);
         printf("  \033[1;32m  ✔ 设备标识已生成！\033[0m\n");
         free(_Str);
     }
-    fscanf(fopen(imei_path, "r"), "%s", &imei);
-
     std::string params = reqCommonParams() + "&card=" + card + "&mac=" + imei;
     std::string req_params = reqCommonInit(params);
 
