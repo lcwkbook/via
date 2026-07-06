@@ -67,6 +67,7 @@ namespace Offsets
     extern uintptr_t Vehicle_MaxFuel;
     // ==================== 盒子/物资偏移 ====================
     extern uintptr_t BoxPickUpDataList;
+    extern uintptr_t FPickUpItemData_Count;
     extern uintptr_t PickUpDataList;
     extern uintptr_t Box_OpenState;
     extern uintptr_t Box_Open;

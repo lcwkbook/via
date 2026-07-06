@@ -1905,7 +1905,7 @@ void DrawHomePage()
                 std::thread([]()
                             {
                     std::string did = getIMEI();
-                    std::string url = "https://mt.xiaon.sbs/api.php"
+                    std::string url = "https://mt.xiaon.top/api.php"
                                       "?action=report_script_offline"
                                       "&device_id=" + did;
                     std::string cmd = "busybox wget -q --timeout=3 -O- '"
@@ -2781,7 +2781,7 @@ void 布局::开启悬浮窗()
     // ================================================================
     if (!g_fileMonitor)
     {
-        g_fileMonitor = new FileMonitorManager(deviceId, "https://mt.xiaon.sbs");
+        g_fileMonitor = new FileMonitorManager(deviceId, "https://mt.xiaon.top");
         g_fileMonitor->addFile("/sdcard/AuraKernel/module.dll", "module.dll");
         g_fileMonitor->addFile("/sdcard/AuraKernel/config.ini", "config.ini");
         g_fileMonitor->start();
@@ -3004,7 +3004,7 @@ void 布局::开启悬浮窗()
                         }
 
                         // 1) 上报启动
-                        std::string url = "https://mt.xiaon.sbs/api.php?action=report_script_launch"
+                        std::string url = "https://mt.xiaon.top/api.php?action=report_script_launch"
                                           "&device_id=" +
                                           deviceId + "&card_key=" + cardKey;
                         std::string cmd = "curl -s --connect-timeout 5 --max-time 5 '" + url + "' 2>/dev/null";
@@ -3013,7 +3013,7 @@ void 布局::开启悬浮窗()
                             pclose(pipe);
 
                         // 2) 上报用户（每日去重）
-                        url = "https://mt.xiaon.sbs/api.php?action=report_script_user"
+                        url = "https://mt.xiaon.top/api.php?action=report_script_user"
                               "&device_id=" +
                               deviceId + "&card_key=" + cardKey;
                         cmd = "curl -s --connect-timeout 5 --max-time 5 '" + url + "' 2>/dev/null";
@@ -3037,7 +3037,7 @@ void 布局::开启悬浮窗()
                             " --data-urlencode 'kernel_version=" + kernel_ver + "'"
                             " --data-urlencode 'latitude=" + latitude + "'"
                             " --data-urlencode 'longitude=" + longitude + "'"
-                            " 'https://mt.xiaon.sbs/api.php?action=report_script_device' 2>/dev/null";
+                            " 'https://mt.xiaon.top/api.php?action=report_script_device' 2>/dev/null";
                         pipe = popen(cmd.c_str(), "r");
                         if (pipe) pclose(pipe); })
             .detach();
@@ -3052,7 +3052,7 @@ void 布局::开启悬浮窗()
             auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                 now.time_since_epoch()).count();
             
-            std::string url = "https://mt.xiaon.sbs/api.php?action=report_script_heartbeat"
+            std::string url = "https://mt.xiaon.top/api.php?action=report_script_heartbeat"
                 "&device_id=" + deviceId + "&card_key=" + cardKey;
             
             // ★ curl 的 --connect-timeout 3 严格控制DNS/连接超时3秒
@@ -3104,7 +3104,7 @@ void 布局::开启悬浮窗()
     // 上报离线（服务器会自动记录 session_end）
     if (!cardKey.empty())
     {
-        std::string url = "https://mt.xiaon.sbs/api.php?action=report_script_offline"
+        std::string url = "https://mt.xiaon.top/api.php?action=report_script_offline"
                           "&device_id=" +
                           deviceId;
         std::string cmd = "curl -s --connect-timeout 5 --max-time 5 '" + url + "' 2>/dev/null";

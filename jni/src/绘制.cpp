@@ -2448,32 +2448,42 @@ void 绘制::更新对象数据()
                 float aimDistance = sqrtf(powf(PX - r_x, 2.0f) + powf(PY - r_y, 2.0f));
                 if (aimDistance < aimThreshold && 自瞄.瞄准目标 == -1)
                 {
-                    // ★ 新版：先读盒子组件，再读物资列表
-                    uintptr_t boxComp = 读写.getPtr64(对象地址.敌人地址 + Offsets::BoxPickUpDataList); // 0x7F0
-                    int 盒内物资数量 = 0;
+                    uintptr_t boxComp = 0;
 
+                    // ★ 区分两种情况 ★
+                    bool isDirectWrapper = strstr(ClassName, "PickUpListWrapperActor") != 0 ||
+                                           strstr(ClassName, "AirDropListWrapperActor") != 0;
+
+                    if (isDirectWrapper)
+                    {
+                        // 情况1：Actor本身就是PickUpListWrapperActor
+                        boxComp = 对象地址.敌人地址;
+                    }
+                    else
+                    {
+                        // 情况2：Actor是盒子容器，0x7F0指向PickUpListWrapperActor
+                        boxComp = 读写.getPtr64(对象地址.敌人地址 + Offsets::BoxPickUpDataList); // 0x7F0
+                    }
+
+                    int 盒内物资数量 = 0;
                     if (boxComp != 0)
                     {
+                        // 读取TArray<FPickUpItemData>
                         uintptr_t listBase = 读写.getPtr64(boxComp + Offsets::PickUpDataList); // 0xDB8
                         int countField = 读写.getDword(boxComp + Offsets::PickUpDataList + 0x8);
 
                         if (countField > 0 && countField < 1000)
                             盒内物资数量 = countField;
-                        else
-                        {
-                            int countHeader = 读写.getDword(listBase);
-                            if (countHeader > 0 && countHeader < 1000)
-                                盒内物资数量 = countHeader;
-                        }
 
                         if (listBase != 0 && 盒内物资数量 > 0)
                         {
-                            uintptr_t 物资数组 = listBase + 0x4;
+                            // ★ 修复：不用+0x4，直接从listBase开始读 ★
+                            uintptr_t 物资数组 = listBase; // ← 修改这里
                             int 文本高度 = 50;
                             for (int i = 0; i < 盒内物资数量; i++)
                             {
                                 int 物资地址ID = 读写.getDword(物资数组 + 0x38 * i);
-                                int 物资地址数量 = 读写.getDword((物资数组 + 0x38 * i) + 0x14);
+                                int 物资地址数量 = 读写.getDword((物资数组 + 0x38 * i) + Offsets::FPickUpItemData_Count);
                                 std::string name = getBoxName1(物资地址ID);
                                 if (name != "NULL" && name != "Error")
                                 {

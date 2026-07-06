@@ -77,6 +77,7 @@ namespace Offsets
     uintptr_t Vehicle_MaxFuel;
 
     uintptr_t BoxPickUpDataList;
+    uintptr_t FPickUpItemData_Count;
     uintptr_t PickUpDataList;
     uintptr_t Box_OpenState;
     uintptr_t Box_Open;
@@ -399,6 +400,7 @@ bool Offsets::LoadFromJson(const std::string &jsonStr)
     SET_UINT("Vehicle_CurrentFuel", Vehicle_CurrentFuel);
     SET_UINT("Vehicle_MaxFuel", Vehicle_MaxFuel);
     SET_UINT("BoxPickUpDataList", BoxPickUpDataList);
+    SET_UINT("FPickUpItemData_Count", FPickUpItemData_Count);
     SET_UINT("PickUpDataList", PickUpDataList);
     SET_UINT("Box_OpenState", Box_OpenState);
     SET_UINT("Box_Open", Box_Open);
