@@ -215,6 +215,7 @@ struct 开关
 
     bool 解密;
     bool 坐标解密 = false;
+    bool 闪框解密 = false;
     bool 显示医疗箱 = false;
     bool 显示急救包 = false;
     bool 显示绷带 = false;

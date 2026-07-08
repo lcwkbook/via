@@ -1726,7 +1726,7 @@ void DrawHomePage()
             const float btnW = ctrlW - 40.0f;       // 按钮宽（左右各20px呼吸空间）
             const float btnH = 42.0f;               // 按钮高
             const float gap = 14.0f;                // 按钮间距
-            const float btnsH = btnH * 3 + gap * 2; // 三个按钮总高
+            const float btnsH = btnH * 4 + gap * 3; // 三个按钮总高
             const float topY = kContentTop + (kSecondH - kContentTop - btnsH) * 0.5f;
             const float cx = (ctrlW - btnW) * 0.5f; // 水平居中
 
@@ -1776,6 +1776,27 @@ void DrawHomePage()
                 }
                 ImGui::PopStyleColor(2);
             }
+                        // 按钮 4：闪框解密
+            ImGui::SetCursorPos(ImVec2(cx, topY + (btnH + gap) * 3));
+            {
+                bool active = 绘制.按钮.闪框解密;
+                ImGui::PushStyleColor(
+                    ImGuiCol_Button,
+                    active ? ImVec4(0.18f, 0.68f, 0.38f, 0.85f)
+                           : ImVec4(0.40f, 0.40f, 0.40f, 0.80f));
+                ImGui::PushStyleColor(
+                    ImGuiCol_ButtonHovered,
+                    ImVec4(0.28f, 0.78f, 0.48f, 0.92f));
+                if (ImGui::Button(active ? "闪框解密: 开" : "闪框解密: 关",
+                                  ImVec2(btnW, btnH)))
+                {
+                    绘制.按钮.闪框解密 = !active;
+                    AddNotification(active ? "闪框解密已关闭" : "闪框解密已开启",
+                                    true);
+                }
+                ImGui::PopStyleColor(2);
+            }
+
         }
         ImGui::EndChild();
 

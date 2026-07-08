@@ -1108,11 +1108,24 @@ void 绘制::更新地址数据()
 
     地址.类地址 = 读写.getPtr64(地址.libue4 + Offsets::ClassBase);
 
-    // ========== 自身坐标 (通过 RootComponent + 0x200) ==========
-    uintptr_t rootComp = 读写.getPtr64(地址.自身地址 + Offsets::Actor_RootComponent);
-    if (rootComp != 0)
+    // ========== 自身坐标 (闪框/普通双模式) ==========
+    if (按钮.闪框解密)
     {
-        读写.readv(rootComp + 0x200, &自身数据.坐标, sizeof(自身数据.坐标));
+        // 闪框模式：RootComp = Actor + 0x5640，坐标 = RootComp + 0x1B0
+        uintptr_t selfRootComp = 读写.getPtr64(地址.自身地址 + 0x5640);
+        if (selfRootComp != 0)
+        {
+            读写.readv(selfRootComp + 0x1B0, &自身数据.坐标, sizeof(自身数据.坐标));
+        }
+    }
+    else
+    {
+        // 普通模式：RootComp = Actor + 0x260，坐标 = RootComp + 0x200
+        uintptr_t selfRootComp = 读写.getPtr64(地址.自身地址 + 0x260);
+        if (selfRootComp != 0)
+        {
+            读写.readv(selfRootComp + 0x200, &自身数据.坐标, sizeof(自身数据.坐标));
+        }
     }
 
     // ========== 自身基础属性 ==========
@@ -1322,7 +1335,21 @@ void 绘制::更新对象数据()
     {
         // 主循环
         对象地址.敌人地址 = 读写.getPtr64(地址.数组地址 + a * 8);
-        读写.readv(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_RootComponent) + 0x1B0, &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
+
+        // ─── 闪框解密模式切换 ───
+        if (按钮.闪框解密)
+        {
+            // 闪框模式：RootComp = Actor + 0x5640，坐标 = RootComp + 0x1B0
+            读写.readv(读写.getPtr64(对象地址.敌人地址 + 0x5640) + 0x1B0,
+                       &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
+        }
+        else
+        {
+            // 普通模式：RootComp = Actor + 0x260，坐标 = RootComp + 0x200
+            读写.readv(读写.getPtr64(对象地址.敌人地址 + 0x260) + 0x200,
+                       &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
+        }
+
         FVector_class &坐标 = 对象信息.敌人信息.坐标;
         if (按钮.坐标解密)
         {
@@ -2454,23 +2481,51 @@ void 绘制::更新对象数据()
                     bool isDirectWrapper = strstr(ClassName, "PickUpListWrapperActor") != 0 ||
                                            strstr(ClassName, "AirDropListWrapperActor") != 0;
 
-                    if (isDirectWrapper)
+                                       if (isDirectWrapper)
                     {
                         // 情况1：Actor本身就是PickUpListWrapperActor
                         boxComp = 对象地址.敌人地址;
                     }
                     else
                     {
-                        // 情况2：Actor是盒子容器，0x7F0指向PickUpListWrapperActor
-                        boxComp = 读写.getPtr64(对象地址.敌人地址 + Offsets::BoxPickUpDataList); // 0x7F0
+                        if (按钮.闪框解密)
+                        {
+                            // ─── 闪框模式物资：0x4A78 → +0x460 → +0xA0 ───
+                            uintptr_t itemWrapper = 读写.getPtr64(对象地址.敌人地址 + 0x4A78);
+                            if (itemWrapper != 0)
+                            {
+                                boxComp = 读写.getPtr64(itemWrapper + 0x460);
+                            }
+                            else
+                            {
+                                boxComp = 0;
+                            }
+                        }
+                        else
+                        {
+                            // 普通模式：0x7F0指向PickUpListWrapperActor
+                            boxComp = 读写.getPtr64(对象地址.敌人地址 + Offsets::BoxPickUpDataList); // 0x7F0
+                        }
                     }
 
                     int 盒内物资数量 = 0;
                     if (boxComp != 0)
                     {
-                        // 读取TArray<FPickUpItemData>
-                        uintptr_t listBase = 读写.getPtr64(boxComp + Offsets::PickUpDataList); // 0xDB8
-                        int countField = 读写.getDword(boxComp + Offsets::PickUpDataList + 0x8);
+                        uintptr_t listBase;
+                        int countField;
+
+                        if (按钮.闪框解密)
+                        {
+                            // 闪框模式：物资列表在 boxComp + 0xA0
+                            listBase = 读写.getPtr64(boxComp + 0xA0);
+                            countField = 读写.getDword(boxComp + 0xA0 + 0x8);
+                        }
+                        else
+                        {
+                            // 普通模式：PickUpDataList (0xDB8)
+                            listBase = 读写.getPtr64(boxComp + Offsets::PickUpDataList); // 0xDB8
+                            countField = 读写.getDword(boxComp + Offsets::PickUpDataList + 0x8);
+                        }
 
                         if (countField > 0 && countField < 1000)
                             盒内物资数量 = countField;
