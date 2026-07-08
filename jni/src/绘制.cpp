@@ -2760,14 +2760,22 @@ void 绘制::更新对象数据()
             对象信息.敌人信息.实体数量 = 读写.getDword(对象信息.敌人信息.角色实体 + 0x818 + 0x8);
             long int MeshOffset = 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_Mesh);
             int Bonecount = 读写.getDword(MeshOffset + Offsets::Mesh_BoneArray + 8);
-            D3DVector tempBones[17];
+                        D3DVector tempBones[17];
+            // 构造 D3DVector 修正坐标
+            D3DVector 修正坐标;
+            修正坐标.X = 对象信息.敌人信息.坐标.X;
+            修正坐标.Y = 对象信息.敌人信息.坐标.Y;
+            修正坐标.Z = 对象信息.敌人信息.坐标.Z;
+
             骨骼->更新骨骼数据(
                 MeshOffset + Offsets::Mesh_ComponentToWorld,
                 读写.getPtr64(MeshOffset + Offsets::Mesh_BoneArray) + 0x30,
                 tempBones,
                 Bonecount,
                 对象信息.敌人信息.队伍,
-                ClassName);
+                ClassName,
+                按钮.闪框解密,
+                修正坐标);
             for (int i = 0; i < 15; i++)
             {
                 对象信息.敌人信息.骨骼坐标[i].X = tempBones[i].X;

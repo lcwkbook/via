@@ -221,9 +221,19 @@ public:
     return PointingAngle;
   }
 
-  void 更新骨骼数据(uintptr_t MeshAddress, uintptr_t Bone, D3DVector (&骨骼坐标)[17], int Bonecount, int Team, char *类名)
+  // ★★★★★ 修改点：增加了 闪框解密 和 修正坐标 参数 ★★★★★
+  void 更新骨骼数据(uintptr_t MeshAddress, uintptr_t Bone, D3DVector (&骨骼坐标)[17], int Bonecount, int Team, char *类名, bool 闪框解密, const D3DVector& 修正坐标)
   {
     FTransform meshtrans = getBone(MeshAddress);
+
+    // ★★★★★ 闪框解密：覆盖 Mesh Transform 的 Translation ★★★★★
+    if (闪框解密)
+    {
+        meshtrans.Translation.X = 修正坐标.X;
+        meshtrans.Translation.Y = 修正坐标.Y;
+        meshtrans.Translation.Z = 修正坐标.Z;
+    }
+
     FMatrix c2wMatrix = TransformToMatrix(meshtrans);
     // std::vector<int> boneIndices = {5, 4, 1, 11, (Bonecount == 68) ? 33 : 32, 12, (Bonecount == 68) ? 34 : 33, (Bonecount == 68) ? 13 : 63, (Bonecount == 68) ? 35 : 62, (Bonecount == 68) ? 55 : 53, (Bonecount == 68) ? 59 : 56, (Bonecount == 68) ? 56 : 53, (Bonecount == 68) ? 60 : 57, (Bonecount == 68) ? 57 : 54, (Bonecount == 68) ? 61 : 58};
 
