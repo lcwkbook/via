@@ -1337,18 +1337,9 @@ void 绘制::更新对象数据()
         对象地址.敌人地址 = 读写.getPtr64(地址.数组地址 + a * 8);
 
         // ─── 闪框解密模式切换 ───
-        if (按钮.闪框解密)
-        {
-            // 闪框模式：RootComp = Actor + 0x5640，坐标 = RootComp + 0x1B0
-            读写.readv(读写.getPtr64(对象地址.敌人地址 + 0x5640) + 0x1B0,
-                       &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
-        }
-        else
-        {
-            // 普通模式：RootComp = Actor + 0x260，坐标 = RootComp + 0x200
-            读写.readv(读写.getPtr64(对象地址.敌人地址 + 0x260) + 0x200,
-                       &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
-        }
+        // ─── 读取坐标（统一用普通模式，闪框解密在敌人识别后单独处理）───
+        读写.readv(读写.getPtr64(对象地址.敌人地址 + 0x260) + 0x200,
+                   &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
 
         FVector_class &坐标 = 对象信息.敌人信息.坐标;
         if (按钮.坐标解密)
@@ -2481,7 +2472,7 @@ void 绘制::更新对象数据()
                     bool isDirectWrapper = strstr(ClassName, "PickUpListWrapperActor") != 0 ||
                                            strstr(ClassName, "AirDropListWrapperActor") != 0;
 
-                                       if (isDirectWrapper)
+                    if (isDirectWrapper)
                     {
                         // 情况1：Actor本身就是PickUpListWrapperActor
                         boxComp = 对象地址.敌人地址;
@@ -2731,6 +2722,14 @@ void 绘制::更新对象数据()
         if (读写.getFloat(对象地址.敌人地址 + Offsets::Actor_HighWalkSpeed) == 479.5 || strstr(ClassName, "BPPawn_Escape_") != 0 || isboss)
         {
             D4DVector 屏外预警坐标(r_x, r_y, r_y - r_z, (r_y - r_z) / 2);
+            if (按钮.闪框解密)
+            {
+                uintptr_t flashRootComp = 读写.getPtr64(对象地址.敌人地址 + 0x5640);
+                if (flashRootComp != 0)
+                {
+                    读写.readv(flashRootComp + 0x1B0, &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
+                }
+            }
             对象信息.敌人信息.队伍 = 读写.getDword(对象地址.敌人地址 + Offsets::Actor_TeamID);
             对象信息.敌人信息.isboot = (对象信息.敌人信息.队伍 == -1) ? 1 : 读写.getDword(对象地址.敌人地址 + Offsets::Actor_bIsAI);
             对象信息.敌人信息.高级人机 = 读写.getDword(对象地址.敌人地址 + 0xb88);
@@ -2760,7 +2759,7 @@ void 绘制::更新对象数据()
             对象信息.敌人信息.实体数量 = 读写.getDword(对象信息.敌人信息.角色实体 + 0x818 + 0x8);
             long int MeshOffset = 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_Mesh);
             int Bonecount = 读写.getDword(MeshOffset + Offsets::Mesh_BoneArray + 8);
-                        D3DVector tempBones[17];
+            D3DVector tempBones[17];
             // 构造 D3DVector 修正坐标
             D3DVector 修正坐标;
             修正坐标.X = 对象信息.敌人信息.坐标.X;
