@@ -9,61 +9,58 @@
 #define PARADISE_GYRO_MASK_UNCAL (1u << 1)
 #define PARADISE_GYRO_MASK_ALL (PARADISE_GYRO_MASK_GYRO | PARADISE_GYRO_MASK_UNCAL)
 
-/* Hardware breakpoint definitions */
-#define HWBP_MAX_POINTS 16
-#define HWBP_MAX_RECORDS 0x100
+#define HW_BP_TYPE_R  1
+#define HW_BP_TYPE_W  2
+#define HW_BP_TYPE_RW 3
+#define HW_BP_TYPE_X  4
 
-enum hwbp_type {
-    HWBP_BREAKPOINT_EMPTY = 0,
-    HWBP_BREAKPOINT_R = 1,
-    HWBP_BREAKPOINT_W = 2,
-    HWBP_BREAKPOINT_RW = HWBP_BREAKPOINT_R | HWBP_BREAKPOINT_W,
-    HWBP_BREAKPOINT_X = 4,
-};
+#define MAX_MODIFY_REGS 10
+#define MAX_HIT_RECORDS 16
 
-enum hwbp_len {
-    HWBP_BREAKPOINT_LEN_1 = 1,
-    HWBP_BREAKPOINT_LEN_2 = 2,
-    HWBP_BREAKPOINT_LEN_3 = 3,
-    HWBP_BREAKPOINT_LEN_4 = 4,
-    HWBP_BREAKPOINT_LEN_5 = 5,
-    HWBP_BREAKPOINT_LEN_6 = 6,
-    HWBP_BREAKPOINT_LEN_7 = 7,
-    HWBP_BREAKPOINT_LEN_8 = 8,
-};
+typedef struct paradise_tracking_data {
+    bool is_active;
+    uintptr_t bp_addr;
+    float x;
+    float y;
+    float z;
+} TRACKING_DATA;
 
-enum hwbp_scope {
-    SCOPE_MAIN_THREAD = 0,
-    SCOPE_OTHER_THREADS = 1,
-    SCOPE_ALL_THREADS = 2
-};
+typedef struct paradise_hw_bp_info {
+    pid_t pid;
+    uintptr_t addr;
+    int type;
+    int len;
+    bool is_write_gp_regs;
+    int gp_reg_count;
+    int gp_reg_indices[MAX_MODIFY_REGS];
+    uint64_t gp_reg_values[MAX_MODIFY_REGS];
+    bool is_write_fp_regs;
+    int fp_reg_count;
+    int fp_reg_indices[MAX_MODIFY_REGS];
+    uint64_t fp_reg_values[MAX_MODIFY_REGS][2];
+} HW_BP_INFO;
 
-struct hwbp_record {
-    uint8_t mask[18];
-    uint64_t hit_count;
-    uint64_t pc;
-    uint64_t lr;
+typedef struct paradise_regs_info {
+    uint64_t regs[31];
     uint64_t sp;
-    uint64_t orig_x0;
-    uint64_t syscallno;
+    uint64_t pc;
     uint64_t pstate;
-    uint64_t x0, x1, x2, x3, x4, x5, x6, x7, x8, x9;
-    uint64_t x10, x11, x12, x13, x14, x15, x16, x17, x18, x19;
-    uint64_t x20, x21, x22, x23, x24, x25, x26, x27, x28, x29;
-    uint32_t fpsr;
-    uint32_t fpcr;
-    __uint128_t q0, q1, q2, q3, q4, q5, q6, q7, q8, q9;
-    __uint128_t q10, q11, q12, q13, q14, q15, q16, q17, q18, q19;
-    __uint128_t q20, q21, q22, q23, q24, q25, q26, q27, q28, q29;
-    __uint128_t q30, q31;
-};
+} REGS_INFO;
 
-struct hwbp_point_config {
-    enum hwbp_type bt;
-    enum hwbp_len bl;
-    enum hwbp_scope bs;
-    uint64_t hit_addr;
-};
+typedef struct paradise_hwbp_hit_item {
+    pid_t task_id;
+    uintptr_t hit_addr;
+    uint64_t hit_time;
+    REGS_INFO regs_info;
+} HWBP_HIT_ITEM;
+
+typedef struct paradise_hwbp_hit_args {
+    pid_t pid;
+    uintptr_t addr;
+    HWBP_HIT_ITEM *out_buf;
+    int out_len;
+    int real_count;
+} HWBP_HIT_ARGS;
 
 class paradise_driver {
 private:
@@ -88,25 +85,9 @@ public:
     
     // 获取模块基址，传入模块名，从内核层安全获取模块基址
     uintptr_t get_module_base(const char *name);
-
-    // 获取模块映射范围 [base, end)，end 为最高一段 VMA 的 vm_end，便于一次覆盖整个 so，如 libc 多段
-    bool get_module_range(const char *name, uintptr_t *base_out, uintptr_t *end_out);
-
-    // 获取模块结束地址，传入模块名，从内核层安全获取模块结束地址
-    uintptr_t get_module_end(const char *name);
-
-    /*
-    用法示例：
-        uintptr_t lo, hi;
-        if (get_module_range("libc.so", &lo, &hi)) {
-            // 映射包络为 [lo, hi)，按需分段读取
-        }
-        // 或仅获取结束地址：
-        uintptr_t end = get_module_end("libc.so");
-    */
     
     // 更新陀螺仪数据
-    // bool gyro_update(float x, float y, uint32_t type_mask = PARADISE_GYRO_MASK_ALL, bool enable = true);
+    bool gyro_update(float x, float y, uint32_t type_mask = PARADISE_GYRO_MASK_ALL, bool enable = true);
     
     // 检查进程是否存活 (alive_out: 1为存活，0为未存活)
     bool is_process_alive(pid_t check_pid, int *alive_out);
@@ -132,36 +113,82 @@ public:
     // 内核层映射修改数据，传入地址、数据指针、类型大小
     bool write_fast(uintptr_t addr, void *buffer, size_t size);
 
-    // // 初始化触摸注入，传入用户屏幕分辨率用于坐标映射
-    // bool touch_init(int screen_width, int screen_height);
+    // 初始化触摸注入，传入用户屏幕分辨率用于坐标映射
+    bool touch_init(int screen_width, int screen_height);
 
-    // // 手指按下
-    // bool touch_down(int slot, int x, int y);
+    // 手指按下
+    bool touch_down(int slot, int x, int y);
 
-    // // 手指移动
-    // bool touch_move(int slot, int x, int y);
+    // 手指移动
+    bool touch_move(int slot, int x, int y);
 
-    // // 手指抬起
-    // bool touch_up(int slot);
+    // 手指抬起
+    bool touch_up(int slot);
 
-    // // 销毁触摸注入
-    // bool touch_destroy();
+    // 销毁触摸注入
+    bool touch_destroy();
 
-    // // 获取硬件断点/观察点槽位数量
-    // bool hwbp_get_info(uint64_t *num_brps, uint64_t *num_wrps);
+    // Install one RT-style breakpoint for an exact thread and address.
+    bool hwbp_add(const HW_BP_INFO *info);
 
-    // // 设置硬件断点，points 数组最多 HWBP_MAX_POINTS 个，hit_addr=0 的条目被忽略
-    // bool hwbp_set(pid_t target_pid, struct hwbp_point_config *points, int count);
+    // Read the RT hit queue. This handler intentionally does not enqueue hits.
+    bool hwbp_get_hits(HWBP_HIT_ARGS *args);
 
-    // // 移除指定进程的所有硬件断点
-    // bool hwbp_remove(pid_t target_pid);
+    // Update register values and enable an installed breakpoint.
+    bool hwbp_enable(const HW_BP_INFO *info);
 
-    // 读取断点命中记录，point_index 指定哪个观测点 (0-15)
-    // records_out 为输出缓冲区，max_records 为最多读取的记录数
-    // 返回实际读取的记录数，-1 表示错误
-    // int hwbp_read_records(pid_t target_pid, int point_index,
-    //                       struct hwbp_record *records_out, int max_records,
-    //                       uint64_t *hit_addr_out, int *total_records_out);
+    // Remove every installed breakpoint.
+    bool hwbp_clear();
+
+    // Disable one breakpoint without removing it.
+    bool hwbp_disable(pid_t target_pid, uintptr_t addr);
+
+    // Update the optional tracking coordinate override.
+    bool hwbp_update_tracking(const TRACKING_DATA *data);
+
+    // 直接读取目标进程的浮点寄存器
+    // reg_mask: bit0=V0, bit1=V1, ... bit31=V31
+    // vregs_out: 128-bit * 32 输出缓冲区, fpsr_out/fpcr_out: 状态寄存器输出
+    bool fpr_read(pid_t target_pid, uint32_t reg_mask,
+                  uint8_t vregs_out[32][16], uint32_t *fpsr_out, uint32_t *fpcr_out);
+
+    // 直接写入目标进程的浮点寄存器
+    // reg_mask: 哪些 V 寄存器需要写入
+    // vregs: 128-bit * 32 输入值
+    bool fpr_write(pid_t target_pid, uint32_t reg_mask,
+                   const uint8_t vregs[32][16]);
+
+    // 直接读取目标进程的通用寄存器 X0-X30 + SP + PC + PSTATE
+    bool gpr_read(pid_t target_pid, uint64_t regs_out[31],
+                  uint64_t *sp_out, uint64_t *pc_out, uint64_t *pstate_out);
+
+    // 直接写入目标进程的通用寄存器 X0-X30 + SP + PC
+    bool gpr_write(pid_t target_pid, const uint64_t regs[31],
+                   uint64_t sp, uint64_t pc);
+
+    // 批量写入 float 值到指定 V 寄存器的低 32 位
+    bool fpr_write_floats(pid_t target_pid, uint32_t count,
+                          const uint32_t reg_indices[8], const float values[8]);
+
+    // 同时完成读取和写入
+    bool fpr_read_modify_write(pid_t target_pid, uint32_t read_mask,
+                               uint32_t write_count, const uint32_t write_indices[8],
+                               const float write_values[8], uint8_t out_vregs[32][16]);
+
+    // 获取pid 主线程tls
+    uintptr_t get_main_thread_elf0(pid_t target_pid);
+
+    // 获取指定tid的tls
+    uintptr_t get_thread_tpidr_el0(pid_t tid);
+
+    // 获取pac密钥
+    bool get_thread_pacga_key(pid_t tid, uint64_t *lo, uint64_t *hi, uint32_t *algo = nullptr);
+
+    // 获取pacia密钥
+    bool get_thread_pacia_key(pid_t tid, uint64_t *lo, uint64_t *hi, uint32_t *algo = nullptr);
+
+    // 将指定tid的pac密钥改成目标tid的pac密钥
+    bool bind_thread_pacga_key(pid_t tid, pid_t target_tid);
 
     // 模板方法，传入地址，返回地址上的值
     template <typename T>

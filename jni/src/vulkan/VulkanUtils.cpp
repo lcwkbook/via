@@ -5,6 +5,8 @@
 #include "imgui_impl_vulkan.h"
 
 #include <stdlib.h>
+#include <unistd.h> // _exit
+#include <cstdio>
 
 // #define STB_IMAGE_IMPLEMENTATION
 #include "./include/ImGui/stb_image.h"
@@ -41,6 +43,9 @@ static void check_vk_result(VkResult err)
 
 static void check_vk_result(VkResult err)
 {
+    // release 也打印错误码（不中断流程），便于 logcat 排查 vkCreateSwapchainKHR 等失败原因
+    if (err < 0)
+        fprintf(stderr, "[vulkan] Error: VkResult = %d\n", err);
 }
 
 #endif
@@ -220,7 +225,7 @@ void SetupVulkanWindow(ANativeWindow *window, int width, int height)
     vkGetPhysicalDeviceSurfaceSupportKHR(g_PhysicalDevice, g_QueueFamily, wd->Surface, &res);
     if (res != VK_TRUE) {
         fprintf(stderr, "Error no WSI support on physical device 0\n");
-        exit(-1);
+        _exit(-1);
     }*/
     // Select Surface Format
     const VkFormat requestSurfaceImageFormat[] = {VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM,
@@ -305,9 +310,27 @@ void UploadFonts()
     }
 }
 
+bool IsScreenOn(); // draw.cpp 提供
+
 void SwapChainRebuild(int w, int h)
 {
     // 不再内部检查 g_SwapChainRebuild，由调用方控制
+
+    // ★ 息屏时禁止重建：息屏后 surface/device 失效，重建必崩（GetSwapchainImagesKHR 空指针）
+    if (!IsScreenOn())
+    {
+        g_SwapChainRebuild = true; // 保留标志，亮屏后再重建
+        return;
+    }
+
+    // ★ 重建前检测 device 有效性
+    if (g_Device == VK_NULL_HANDLE || vkDeviceWaitIdle(g_Device) != VK_SUCCESS)
+    {
+        printf("[错误] SwapChainRebuild: device 无效，重启进程\n");
+        fflush(stdout);
+        _exit(42); // 42=请求看门狗重启;
+    }
+
     ImGui_ImplVulkan_SetMinImageCount(g_MinImageCount);
     ImGui_ImplVulkanH_CreateOrResizeWindow(g_Instance, g_PhysicalDevice, g_Device,
                                            wd,
@@ -315,11 +338,23 @@ void SwapChainRebuild(int w, int h)
                                            w, h,  // ← 使用函数参数
                                            g_MinImageCount);
     wd->FrameIndex = 0;
+
+    if (wd->Swapchain == VK_NULL_HANDLE)
+    {
+        printf("[错误] SwapChainRebuild 失败，重启进程\n");
+        fflush(stdout);
+        _exit(42); // 42=请求看门狗重启;
+    }
 }
 
 
 void FrameRender(ImDrawData *draw_data)
 {
+    // ★ 防二次崩溃：swapchain 无效（待重建/NULL/无图像）时直接跳过本帧，绝不碰 Vulkan
+    if (g_SwapChainRebuild || wd->Swapchain == VK_NULL_HANDLE || wd->ImageCount == 0)
+    {
+        return;
+    }
     VkResult err;
 
     VkSemaphore image_acquired_semaphore = wd->FrameSemaphores[wd->SemaphoreIndex].ImageAcquiredSemaphore;
@@ -334,8 +369,9 @@ void FrameRender(ImDrawData *draw_data)
         return; // 获取不到就跳过这帧
     }
 
-    if (err == VK_ERROR_OUT_OF_DATE_KHR /*|| err == VK_SUBOPTIMAL_KHR*/)
+    if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_ERROR_SURFACE_LOST_KHR || err == VK_ERROR_DEVICE_LOST)
     {
+        printf("[调试] FrameRender: acquire err=%d，标记重建\n", (int)err);
         g_SwapChainRebuild = true;
         return;
     }
@@ -417,9 +453,15 @@ void FramePresent()
     info.pSwapchains = &wd->Swapchain;
     info.pImageIndices = &wd->FrameIndex;
     VkResult err = vkQueuePresentKHR(g_Queue, &info);
-    if (err == VK_ERROR_OUT_OF_DATE_KHR /*|| err == VK_SUBOPTIMAL_KHR*/)
+    if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_ERROR_SURFACE_LOST_KHR || err == VK_ERROR_DEVICE_LOST)
     {
-        // LOGD("错误2 %d",err);
+        // ★ 现场诊断：present 失败时 surface 句柄还活着吗？（0=活着）
+        VkSurfaceCapabilitiesKHR capNow;
+        VkResult capErr = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(g_PhysicalDevice, wd->Surface, &capNow);
+        printf("[调试] FramePresent: present err=%d，标记重建 (surface_alive=%d extent=%ux%u imgCount=%u semIdx=%u)\n",
+               (int)err, (int)capErr,
+               capNow.currentExtent.width, capNow.currentExtent.height,
+               wd->ImageCount, wd->SemaphoreIndex);
         g_SwapChainRebuild = true;
         return;
     }

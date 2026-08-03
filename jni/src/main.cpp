@@ -18,6 +18,7 @@
 #include <thread>
 #include <chrono>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sstream>
 #include "Updater.h"
 #include <cstdlib>
@@ -102,6 +103,19 @@ void createDriverFlag()
     }
 }
 
+// ========== 主渲染逻辑（可被看门狗拉起） ==========
+void RunAuraKernel()
+{
+    布局.初始化程序();
+    绘制.读取配置();
+
+    // 异步加载图片
+    std::thread([]()
+                { 加载内存图片(); })
+        .detach();
+    布局.开启悬浮窗(); // 内部死循环，正常不返回
+}
+
 int main()
 {
 
@@ -129,7 +143,7 @@ int main()
         printf("  \033[1;31m║   请联系开发者或稍后再试                     ║\033[0m\n");
         printf("  \033[1;31m╚══════════════════════════════════════════════╝\033[0m\n\n");
         sleep(3);
-        exit(1); // 直接退出，不给用
+        _exit(1); // 直接退出，不给用
     }
 
     setvbuf(stdout, NULL, _IONBF, 0);
@@ -326,25 +340,52 @@ int main()
     fflush(stdout);
     signal(SIGPIPE, SIG_IGN);
 
-    布局.初始化程序();
-    绘制.读取配置();
-
-    // 异步加载图片
-    std::thread([]()
-                { 加载内存图片(); })
-        .detach();
-    布局.开启悬浮窗();
-
-    // ========== 无后台进程分离（原登录循环内逻辑前移） ==========
+    // ========== 无后台模式：守护进程 + 看门狗（崩溃/被杀后自动拉起） ==========
     if (无后台 == 2)
     {
-        pid_t pids = fork();
-        if (pids > 0)
+        while (true)
         {
-            exit(0);
+            pid_t pid = fork();
+            if (pid == 0)
+            {
+                // 子进程：跑主逻辑
+                RunAuraKernel();
+                _exit(0); // 正常到不了这里
+            }
+            if (pid < 0)
+            {
+                printf("  \033[1;31m✘ fork 失败，3 秒后重试...\033[0m\n");
+                sleep(3);
+                continue;
+            }
+
+            std::cout << "  \033[1;32m✔ 无后台启动成功，进程已分离!\033[0m\n";
+
+            int status = 0;
+            waitpid(pid, &status, 0);
+            if (WIFEXITED(status))
+            {
+                int code = WEXITSTATUS(status);
+                if (code == 42)
+                {
+                    // 42 = 子进程内部错误（Vulkan device lost / 重建失败），请求重启
+                    printf("  \033[1;33m⚠ 内部错误请求重启，3 秒后拉起...\033[0m\n");
+                    sleep(3);
+                    continue;
+                }
+                // 其他退出码 = 用户主动退出（点了退出程序或卡密到期），不再拉起
+                _exit(code);
+            }
+            printf("  \033[1;33m⚠ 进程被信号 %d 终止，3 秒后自动重启...\033[0m\n",
+                   WIFSIGNALED(status) ? WTERMSIG(status) : 0);
+            sleep(3);
         }
-        std::cout << "  \033[1;32m✔ 无后台启动成功，进程已分离!\033[0m\n";
     }
+    else
+    {
+        RunAuraKernel();
+    }
+
     std::cout << std::endl;
     return 0;
 }

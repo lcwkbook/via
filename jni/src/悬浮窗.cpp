@@ -52,6 +52,9 @@ extern std::string t3ecb948ff5e870506e78160a95a1ec24(const std::string &);
 extern std::string wef51bd54b4960d4881e233acf0a25f83(const std::string &);
 extern std::string p3eca7b0968b8c1535746e24ba2547b6c(const std::string &);
 extern std::string g11bf581d48633826202451738f490782(const std::string &, const std::string);
+
+// draw.cpp 中定义的屏幕状态检测（息屏保活）
+bool IsScreenOn();
 // ============================================================
 // ★ 纯 C++ SHA256 实现（无需 OpenSSL）
 // ============================================================
@@ -1935,7 +1938,7 @@ void DrawHomePage()
                     if (p) pclose(p); })
                     .detach();
 
-                exit(1);
+                _exit(1);
             }
             ImGui::PopStyleColor(2);
         }
@@ -2666,6 +2669,17 @@ void 布局::绘制悬浮窗()
     }
 
     drawBegin();
+
+    // ★ 修复息屏崩溃：drawBegin 内 swapchain 重建失败/息屏时会提前 return，
+    //   ImGui::NewFrame() 未执行，此时 CurrentWindow 为 NULL，
+    //   若继续画 UI 会因访问 NULL CurrentWindow 而崩溃（SIGSEGV @ NULL+0x28）。
+    //   重建未完成时跳过本帧全部 UI。
+    if (g_SwapChainRebuild)
+    {
+        drawEnd();
+        return;
+    }
+
     DrawNotifications();
 
     // 根据当前主题应用样式
@@ -2713,7 +2727,7 @@ void 布局::绘制悬浮窗()
             }
         }
         if (now_time > endTime && endTime > 0)
-            exit(0);
+            _exit(0);
     }
 
     if (绘制.按钮.绘制)
@@ -2733,13 +2747,15 @@ void 布局::绘制悬浮窗()
         ImGui::SetNextWindowPos(ImVec2(绘制.按钮.悬浮窗X, 绘制.按钮.悬浮窗Y), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(绘制.按钮.悬浮窗W, 绘制.按钮.悬浮窗H), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSizeConstraints(ImVec2(1100, 700), ImVec2(FLT_MAX, FLT_MAX));
+        ImGui::Begin("@Auranh666", &悬浮窗, ImGuiWindowFlags_NoCollapse);
+        // ★ 修复：SetWindowPos/GetWindowPos 必须放在 Begin 之后，
+        //   Begin 前 CurrentWindow 可能为 NULL，GetWindowPos 会空指针崩溃
         if (窗口状态)
         {
             ImGui::SetWindowPos(绘制.悬浮窗标题, 绘制.Pos, ImGuiCond_Always);
             窗口状态 = false;
         }
         绘制.Pos = ImGui::GetWindowPos();
-        ImGui::Begin("@Auranh666", &悬浮窗, ImGuiWindowFlags_NoCollapse);
         static int selectedMenu = 0;
         DrawLeftNavigation(selectedMenu);
         ImGui::SameLine();
@@ -2786,6 +2802,19 @@ void 布局::绘制悬浮窗()
 
 void 布局::开启悬浮窗()
 {
+    // ========== ★ 息屏保活：降低 oom_score_adj，防止被系统/后台清理杀掉 ==========
+    int oom = open("/proc/self/oom_score_adj", O_WRONLY);
+    if (oom >= 0)
+    {
+        write(oom, "-1000", 5);
+        close(oom);
+        LOGI("已设置 oom_score_adj=-1000，进程不可被杀");
+    }
+    else
+    {
+        LOGE("设置 oom_score_adj 失败: %s", strerror(errno));
+    }
+
     std::string deviceId = getIMEI();
 
     // 读取卡密（从 main 保存的文件）
@@ -3105,14 +3134,41 @@ void 布局::开启悬浮窗()
     WindowDrawing.setAffinity();
     绘制.启动时间 = std::chrono::steady_clock::now();
 
+    int wakeLockFd = -1; // 息屏时持的部分唤醒锁（防止 CPU 深度休眠）
     while (true)
     {
-        更新状态();
-        绘制悬浮窗();
-        std::this_thread::sleep_for(std::chrono::milliseconds(1)); // 防止空转
-        // WindowDrawing.SetFps(绘制.按钮.当前帧率);
-        // WindowDrawing.AotuFPS();
-        // std::this_thread::sleep_for(1ms);
+        static auto lastCheck = std::chrono::steady_clock::now();
+        static bool screenOn = true;
+        auto now = std::chrono::steady_clock::now();
+        if (now - lastCheck > std::chrono::milliseconds(1000)) // 每秒查一次屏态
+        {
+            lastCheck = now;
+            screenOn = IsScreenOn();
+        }
+
+        if (screenOn)
+        {
+            // 亮屏：释放唤醒锁，正常渲染
+            if (wakeLockFd >= 0)
+            {
+                close(wakeLockFd);
+                wakeLockFd = -1;
+            }
+            更新状态();
+            绘制悬浮窗();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1)); // 防止空转
+        }
+        else
+        {
+            // 息屏：持唤醒锁防 CPU 深度休眠，且完全不碰渲染（避免 Surface/Swapchain 失效崩溃）
+            if (wakeLockFd < 0)
+            {
+                wakeLockFd = open("/sys/power/wake_lock", O_WRONLY);
+                if (wakeLockFd >= 0)
+                    write(wakeLockFd, "AImGui_keepalive", strlen("AImGui_keepalive"));
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        }
     }
 
     // ================================================================
