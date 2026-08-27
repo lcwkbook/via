@@ -252,16 +252,49 @@ void 绘图::绘制方框(bool 是否可见, bool isboot)
                             static_cast<int>(绘制.Colorset[(int)绘制.对象信息.敌人信息.isboot].方框掩体颜色[2] * 255 + 0.5),
                             static_cast<int>(绘制.Colorset[(int)绘制.对象信息.敌人信息.isboot].方框掩体颜色[3] * 255 + 0.5));
     }
-    // 绘制四角方块
-    ImGui::GetForegroundDrawList()->AddLine({left, top}, {left + 方块长度, top}, 方框color, 绘制.按钮.方框粗细);
-    ImGui::GetForegroundDrawList()->AddLine({right, top}, {right - 方块长度, top}, 方框color, 绘制.按钮.方框粗细);
-    ImGui::GetForegroundDrawList()->AddLine({left, bottom}, {left + 方块长度, bottom}, 方框color, 绘制.按钮.方框粗细);
-    ImGui::GetForegroundDrawList()->AddLine({right, bottom}, {right - 方块长度, bottom}, 方框color, 绘制.按钮.方框粗细);
-
-    ImGui::GetForegroundDrawList()->AddLine({left, top}, {left, top + 方块长度}, 方框color, 绘制.按钮.方框粗细);
-    ImGui::GetForegroundDrawList()->AddLine({right, top}, {right, top + 方块长度}, 方框color, 绘制.按钮.方框粗细);
-    ImGui::GetForegroundDrawList()->AddLine({left, bottom}, {left, bottom - 方块长度}, 方框color, 绘制.按钮.方框粗细);
-    ImGui::GetForegroundDrawList()->AddLine({right, bottom}, {right, bottom - 方块长度}, 方框color, 绘制.按钮.方框粗细);
+    auto *draw = ImGui::GetForegroundDrawList();
+    const float thickness = 绘制.按钮.方框粗细;
+    if (绘制.按钮.方框绘图 == 1)
+    {
+        draw->AddRect({left, top}, {right, bottom}, 方框color, 0.0f, 0, thickness);
+    }
+    else if (绘制.按钮.方框绘图 == 2)
+    {
+        draw->AddRect({left, top}, {right, bottom}, 方框color, 8.0f, 0, thickness);
+    }
+    else if (绘制.按钮.方框绘图 == 3)
+    {
+        draw->AddRect({left - 1.0f, top - 1.0f}, {right + 1.0f, bottom + 1.0f}, IM_COL32(0, 0, 0, 190), 3.0f, 0, thickness + 2.0f);
+        draw->AddRect({left, top}, {right, bottom}, 方框color, 3.0f, 0, thickness);
+    }
+    else if (绘制.按钮.方框绘图 == 4)
+    {
+        const float cut = 8.0f;
+        draw->AddLine({left + cut, top}, {right - cut, top}, 方框color, thickness);
+        draw->AddLine({right - cut, top}, {right, top + cut}, 方框color, thickness);
+        draw->AddLine({right, top + cut}, {right, bottom - cut}, 方框color, thickness);
+        draw->AddLine({right, bottom - cut}, {right - cut, bottom}, 方框color, thickness);
+        draw->AddLine({right - cut, bottom}, {left + cut, bottom}, 方框color, thickness);
+        draw->AddLine({left + cut, bottom}, {left, bottom - cut}, 方框color, thickness);
+        draw->AddLine({left, bottom - cut}, {left, top + cut}, 方框color, thickness);
+        draw->AddLine({left, top + cut}, {left + cut, top}, 方框color, thickness);
+    }
+    else if (绘制.按钮.方框绘图 == 5)
+    {
+        draw->AddRect({left + 3.0f, top + 3.0f}, {right + 3.0f, bottom + 3.0f}, IM_COL32(0, 0, 0, 160), 2.0f, 0, thickness + 1.0f);
+        draw->AddRect({left, top}, {right, bottom}, 方框color, 2.0f, 0, thickness);
+    }
+    else
+    {
+        draw->AddLine({left, top}, {left + 方块长度, top}, 方框color, thickness);
+        draw->AddLine({right, top}, {right - 方块长度, top}, 方框color, thickness);
+        draw->AddLine({left, bottom}, {left + 方块长度, bottom}, 方框color, thickness);
+        draw->AddLine({right, bottom}, {right - 方块长度, bottom}, 方框color, thickness);
+        draw->AddLine({left, top}, {left, top + 方块长度}, 方框color, thickness);
+        draw->AddLine({right, top}, {right, top + 方块长度}, 方框color, thickness);
+        draw->AddLine({left, bottom}, {left, bottom - 方块长度}, 方框color, thickness);
+        draw->AddLine({right, bottom}, {right, bottom - 方块长度}, 方框color, thickness);
+    }
 }
 
 void 绘图::绘制人数(int 人机, int 真人)
@@ -834,8 +867,7 @@ void 绘图::绘制名字(string 名字, bool isboot, float 计时, bool 是否�
 
 void 绘图::绘制血量(float 最大血量, float 当前血量, bool isbot)
 {
-
-    float 血量 = 当前血量 / 最大血量 * 100;
+    const float hpRatio = 最大血量 > 0.0f ? std::min(1.0f, std::max(0.0f, 当前血量 / 最大血量)) : 0.0f;
     if (绘制.按钮.血条绘图 == 2) // 简约
     {
         string duo = to_string((int)当前血量);
@@ -1024,6 +1056,92 @@ void 绘图::绘制血量(float 最大血量, float 当前血量, bool isbot)
                 2.0f);
         }
     }
+
+    if (绘制.按钮.血条绘图 == 4) // 渐变
+    {
+        auto *draw = ImGui::GetForegroundDrawList();
+        const ImVec2 barMin(MIDDLE - 45.0f, top - 18.0f);
+        const ImVec2 barMax(MIDDLE + 45.0f, top - 11.0f);
+        const ImU32 startColor = hpRatio > 0.5f ? IM_COL32(41, 215, 151, 255) : IM_COL32(255, 184, 64, 255);
+        const ImU32 endColor = hpRatio > 0.5f ? IM_COL32(52, 158, 255, 255) : IM_COL32(245, 73, 88, 255);
+        const float fillEnd = barMin.x + (barMax.x - barMin.x) * hpRatio;
+
+        draw->AddRectFilled(barMin, barMax, IM_COL32(8, 14, 25, 220), 3.0f);
+        if (fillEnd > barMin.x)
+            draw->AddRectFilledMultiColor(barMin, ImVec2(fillEnd, barMax.y), startColor, endColor, endColor, startColor);
+        draw->AddRect(barMin, barMax, IM_COL32(255, 255, 255, 120), 3.0f, 0, 1.0f);
+    }
+
+    if (绘制.按钮.血条绘图 == 5) // 电量
+    {
+        auto *draw = ImGui::GetForegroundDrawList();
+        const float blockWidth = 13.0f;
+        const float blockGap = 2.0f;
+        const float barStart = MIDDLE - 45.0f;
+        const ImU32 fillColor = hpRatio > 0.55f ? IM_COL32(76, 220, 126, 255) : hpRatio > 0.25f ? IM_COL32(255, 190, 70, 255) : IM_COL32(240, 80, 82, 255);
+
+        for (int i = 0; i < 6; ++i)
+        {
+            const ImVec2 blockMin(barStart + i * (blockWidth + blockGap), top - 18.0f);
+            const ImVec2 blockMax(blockMin.x + blockWidth, top - 11.0f);
+            const float filled = std::min(1.0f, std::max(0.0f, hpRatio * 6.0f - i));
+            draw->AddRectFilled(blockMin, blockMax, IM_COL32(20, 25, 33, 220), 2.0f);
+            if (filled > 0.0f)
+                draw->AddRectFilled(blockMin, ImVec2(blockMin.x + blockWidth * filled, blockMax.y), fillColor, 2.0f);
+        }
+    }
+
+    if (绘制.按钮.血条绘图 == 6) // 胶囊
+    {
+        auto *draw = ImGui::GetForegroundDrawList();
+        const ImVec2 barMin(MIDDLE - 42.0f, top - 18.0f);
+        const ImVec2 barMax(MIDDLE + 42.0f, top - 10.0f);
+        const ImU32 fillColor = hpRatio > 0.55f ? IM_COL32(72, 232, 139, 255) : hpRatio > 0.25f ? IM_COL32(255, 196, 72, 255) : IM_COL32(255, 87, 92, 255);
+        const float fillEnd = barMin.x + (barMax.x - barMin.x) * hpRatio;
+
+        draw->AddRectFilled(barMin, barMax, IM_COL32(10, 10, 14, 210), 4.0f);
+        if (fillEnd > barMin.x)
+            draw->AddRectFilled(barMin, ImVec2(fillEnd, barMax.y), fillColor, 4.0f);
+        draw->AddRect(barMin, barMax, IM_COL32(255, 255, 255, 150), 4.0f, 0, 1.0f);
+        for (int i = 1; i < 4; ++i)
+        {
+            const float x = barMin.x + (barMax.x - barMin.x) * i / 4.0f;
+            draw->AddLine(ImVec2(x, barMin.y + 2.0f), ImVec2(x, barMax.y - 2.0f), IM_COL32(255, 255, 255, 90), 1.0f);
+        }
+    }
+
+    if (绘制.按钮.血条绘图 == 7) // 霓虹
+    {
+        auto *draw = ImGui::GetForegroundDrawList();
+        const ImVec2 barMin(MIDDLE - 45.0f, top - 18.0f);
+        const ImVec2 barMax(MIDDLE + 45.0f, top - 11.0f);
+        const ImU32 glowColor = hpRatio > 0.5f ? IM_COL32(53, 184, 255, 90) : IM_COL32(255, 57, 142, 90);
+        const ImU32 fillColor = hpRatio > 0.5f ? IM_COL32(64, 211, 255, 255) : IM_COL32(255, 78, 146, 255);
+        const float fillEnd = barMin.x + (barMax.x - barMin.x) * hpRatio;
+
+        draw->AddRectFilled(barMin, barMax, IM_COL32(12, 9, 25, 220), 3.0f);
+        draw->AddRect(ImVec2(barMin.x - 1.0f, barMin.y - 1.0f), ImVec2(barMax.x + 1.0f, barMax.y + 1.0f), glowColor, 4.0f, 0, 3.0f);
+        if (fillEnd > barMin.x)
+            draw->AddRectFilled(barMin, ImVec2(fillEnd, barMax.y), fillColor, 3.0f);
+        draw->AddRect(barMin, barMax, IM_COL32(255, 255, 255, 180), 3.0f, 0, 1.0f);
+    }
+
+    if (绘制.按钮.血条绘图 == 8) // 数值
+    {
+        auto *draw = ImGui::GetForegroundDrawList();
+        const ImVec2 barMin(MIDDLE - 40.0f, top - 18.0f);
+        const ImVec2 barMax(MIDDLE + 40.0f, top - 8.0f);
+        const ImU32 fillColor = hpRatio > 0.55f ? IM_COL32(50, 205, 120, 255) : hpRatio > 0.25f ? IM_COL32(255, 190, 70, 255) : IM_COL32(242, 77, 82, 255);
+        const float fillEnd = barMin.x + (barMax.x - barMin.x) * hpRatio;
+        const string text = to_string(static_cast<int>(hpRatio * 100.0f)) + "%";
+        const ImVec2 textSize = ImGui::CalcTextSize(text.c_str(), 0, 11.0f);
+
+        draw->AddRectFilled(barMin, barMax, IM_COL32(15, 18, 22, 220), 2.0f);
+        if (fillEnd > barMin.x)
+            draw->AddRectFilled(barMin, ImVec2(fillEnd, barMax.y), fillColor, 2.0f);
+        draw->AddRect(barMin, barMax, IM_COL32(0, 0, 0, 255), 2.0f, 0, 1.0f);
+        draw->AddText(nullptr, 11.0f, ImVec2(MIDDLE - textSize.x / 2.0f, top - 18.5f), IM_COL32(255, 255, 255, 255), text.c_str());
+    }
 }
 
 void 绘图::绘制手持(int 手持, int 状态, int 子弹, int 最大子弹)
@@ -1084,13 +1202,26 @@ void 绘图::绘制骨骼(骨骼数据 &骨骼, D4DVector &屏幕坐标, bool Li
         auto *背景绘制 = ImGui::GetBackgroundDrawList();
         auto *前景绘制 = ImGui::GetForegroundDrawList();
 
-        // 绘制头部
-        背景绘制->AddCircle(
-            ImVec2(骨骼.Head.X, 骨骼.Head.Y),
-            屏幕坐标.W / 13,
-            LineOfSightTo[0] ? 掩体颜色 : 可见颜色,
-            0,
-            绘制.按钮.骨骼粗细);
+        const ImColor 头部颜色 = LineOfSightTo[0] ? 掩体颜色 : 可见颜色;
+        const float 头部半径 = 屏幕坐标.W / 13;
+        if (绘制.按钮.骨骼绘图 == 2)
+        {
+            背景绘制->AddCircle(ImVec2(骨骼.Head.X, 骨骼.Head.Y), 头部半径, IM_COL32(0, 0, 0, 190), 0, 绘制.按钮.骨骼粗细 + 2.0f);
+        }
+        if (绘制.按钮.骨骼绘图 == 5)
+        {
+            const ImColor glow(头部颜色.Value.x, 头部颜色.Value.y, 头部颜色.Value.z, 0.25f);
+            背景绘制->AddCircle(ImVec2(骨骼.Head.X, 骨骼.Head.Y), 头部半径, glow, 0, 绘制.按钮.骨骼粗细 + 5.0f);
+        }
+        if (绘制.按钮.骨骼绘图 == 3)
+        {
+            背景绘制->AddCircleFilled(ImVec2(骨骼.Head.X, 骨骼.Head.Y), 头部半径, IM_COL32(0, 0, 0, 190));
+            背景绘制->AddCircleFilled(ImVec2(骨骼.Head.X, 骨骼.Head.Y), std::max(1.0f, 头部半径 - 2.0f), 头部颜色);
+        }
+        else
+        {
+            背景绘制->AddCircle(ImVec2(骨骼.Head.X, 骨骼.Head.Y), 头部半径, 头部颜色, 0, 绘制.按钮.骨骼粗细);
+        }
 
         // 绘制线段（只判断起点 LineOfSightTo）
         auto 绘制线段 = [&](int 起点idx, D2DVector &点1, D2DVector &点2)
@@ -1100,7 +1231,39 @@ void 绘图::绘制骨骼(骨骼数据 &骨骼, D4DVector &屏幕坐标, bool Li
             if ((dx * dx + dy * dy) < 10000)
             {
                 ImColor color = LineOfSightTo[起点idx] ? 掩体颜色 : 可见颜色;
-                前景绘制->AddLine(ImVec2(点1.X, 点1.Y), ImVec2(点2.X, 点2.Y), color, 绘制.按钮.骨骼粗细);
+                const ImVec2 from(点1.X, 点1.Y);
+                const ImVec2 to(点2.X, 点2.Y);
+                const float thickness = 绘制.按钮.骨骼粗细;
+
+                if (绘制.按钮.骨骼绘图 == 5)
+                {
+                    const ImColor glow(color.Value.x, color.Value.y, color.Value.z, 0.25f);
+                    前景绘制->AddLine(from, to, glow, thickness + 5.0f);
+                }
+                if (绘制.按钮.骨骼绘图 == 2)
+                    前景绘制->AddLine(from, to, IM_COL32(0, 0, 0, 190), thickness + 2.0f);
+                前景绘制->AddLine(from, to, color, thickness);
+
+                if (绘制.按钮.骨骼绘图 == 1)
+                {
+                    前景绘制->AddCircleFilled(from, thickness + 2.0f, IM_COL32(0, 0, 0, 190));
+                    前景绘制->AddCircle(from, thickness + 1.0f, color, 0, 1.0f);
+                    前景绘制->AddCircleFilled(to, thickness + 2.0f, IM_COL32(0, 0, 0, 190));
+                    前景绘制->AddCircle(to, thickness + 1.0f, color, 0, 1.0f);
+                }
+                else if (绘制.按钮.骨骼绘图 == 3)
+                {
+                    前景绘制->AddCircleFilled(from, thickness + 1.5f, color);
+                    前景绘制->AddCircleFilled(to, thickness + 1.5f, color);
+                }
+                else if (绘制.按钮.骨骼绘图 == 4)
+                {
+                    const float size = thickness + 2.0f;
+                    前景绘制->AddLine(ImVec2(from.x - size, from.y), ImVec2(from.x + size, from.y), color, 1.0f);
+                    前景绘制->AddLine(ImVec2(from.x, from.y - size), ImVec2(from.x, from.y + size), color, 1.0f);
+                    前景绘制->AddLine(ImVec2(to.x - size, to.y), ImVec2(to.x + size, to.y), color, 1.0f);
+                    前景绘制->AddLine(ImVec2(to.x, to.y - size), ImVec2(to.x, to.y + size), color, 1.0f);
+                }
             }
         };
 

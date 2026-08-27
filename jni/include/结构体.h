@@ -124,6 +124,8 @@ struct 开关
     bool 忽略人机 = false;
     bool 血量 = false;
     int 血条绘图 = 0;
+    int 方框绘图 = 0;
+    int 骨骼绘图 = 0;
     int 手雷样式 = 0;
 
     bool 瞬爆雷预测;

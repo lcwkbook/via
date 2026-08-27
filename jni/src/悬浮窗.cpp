@@ -1953,11 +1953,27 @@ void DrawCharacterPage()
     ImGui::BeginChild("##CharacterContent", ImVec2(-1, -1), true);
     ImGui::SetCursorPos(ImVec2(20, 20));
 
-    static const char *血条样式选项[] = {"简约", "赛事", "分格", "无ui"};
+    static const char *血条样式选项[] = {"简约", "赛事", "分格", "无UI", "渐变", "电量", "胶囊", "霓虹", "数值"};
+    static const char *方框样式选项[] = {"四角", "完整", "圆角", "双层", "切角", "投影"};
+    static const char *骨骼样式选项[] = {"线条", "关节", "描边", "圆点", "十字", "发光"};
+    if (绘制.按钮.血条绘图 < 0 || 绘制.按钮.血条绘图 >= IM_ARRAYSIZE(血条样式选项))
+        绘制.按钮.血条绘图 = 0;
+    if (绘制.按钮.方框绘图 < 0 || 绘制.按钮.方框绘图 >= IM_ARRAYSIZE(方框样式选项))
+        绘制.按钮.方框绘图 = 0;
+    if (绘制.按钮.骨骼绘图 < 0 || 绘制.按钮.骨骼绘图 >= IM_ARRAYSIZE(骨骼样式选项))
+        绘制.按钮.骨骼绘图 = 0;
     ImGui::Text("血条样式");
     ImGui::SameLine(150);
     ImGui::SetNextItemWidth(200);
-    ImGui::SliderInt("##血条样式", &绘制.按钮.血条绘图, 0, 3, 血条样式选项[绘制.按钮.血条绘图]);
+    ImGui::Combo("##血条样式", &绘制.按钮.血条绘图, 血条样式选项, IM_ARRAYSIZE(血条样式选项));
+    ImGui::Text("方框样式");
+    ImGui::SameLine(150);
+    ImGui::SetNextItemWidth(200);
+    ImGui::Combo("##方框样式", &绘制.按钮.方框绘图, 方框样式选项, IM_ARRAYSIZE(方框样式选项));
+    ImGui::Text("骨骼样式");
+    ImGui::SameLine(150);
+    ImGui::SetNextItemWidth(200);
+    ImGui::Combo("##骨骼样式", &绘制.按钮.骨骼绘图, 骨骼样式选项, IM_ARRAYSIZE(骨骼样式选项));
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
@@ -2279,9 +2295,11 @@ void DrawVisualPage()
     // 手雷样式
     ImGui::Text("手雷样式");
     ImGui::SameLine(150);
-    static const char *手雷样式选项[] = {"3D", "曲线"};
+    static const char *手雷样式选项[] = {"3D", "曲线", "组合", "双环"};
+    if (绘制.按钮.手雷样式 < 0 || 绘制.按钮.手雷样式 >= IM_ARRAYSIZE(手雷样式选项))
+        绘制.按钮.手雷样式 = 0;
     ImGui::SetNextItemWidth(200);
-    ImGui::SliderInt("##手雷样式", &绘制.按钮.手雷样式, 0, 1, 手雷样式选项[绘制.按钮.手雷样式]);
+    ImGui::Combo("##手雷样式", &绘制.按钮.手雷样式, 手雷样式选项, IM_ARRAYSIZE(手雷样式选项));
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
