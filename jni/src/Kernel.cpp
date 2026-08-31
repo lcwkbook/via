@@ -3,7 +3,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
+extern int g_driver_mode;
 bool Kernel::init_key(char *key)
 {
     char buf[0x100];
@@ -17,7 +17,10 @@ bool Kernel::init_key(char *key)
 
 Kernel::Kernel()
 {
-    fd = open("/dev/niuto01", O_RDWR);
+    fd = -1;                    // 标记为未打开
+    kpm_driver = nullptr;
+    paradise = nullptr;
+    ditpro = nullptr; // 新增
 }
 
 Kernel::~Kernel()
@@ -26,34 +29,93 @@ Kernel::~Kernel()
     {
         close(fd);
     }
+    if (kpm_driver) delete kpm_driver;
+    if (paradise) delete paradise;
+    if (ditpro) delete ditpro;
 }
 
 void Kernel::初始化读写(int pid)
 {
     this->pid = pid;
-    if (this->pid <= 0)
-    {
-        cout << "[-] 选定进程失败\n";
+    if (g_driver_mode == 1) {
+        kpm_driver = new Driver();
+        if (!kpm_driver->gid) {
+            printf("[-] KPM驱动连接失败\n");
+            delete kpm_driver;
+            kpm_driver = nullptr;
+            return;
+        }
+        kpm_driver->initpid(pid);
+        printf("[+] KPM驱动连接成功, pid=%d\n", pid);
+        return;
     }
-    else
-    {
-        cout << "[-] 读写初始化成功\n";
+     // ========== Paradise 模式 ==========
+    if (g_driver_mode == 2) {
+        if (!paradise) {
+            paradise = new paradise_driver();
+            // 构造函数内部已经尝试连接驱动，如果失败会打印信息
+        }
+        paradise->initialize(pid);
+        printf("[+] Paradise驱动初始化成功, pid=%d\n", pid);
+        return;
+    }
+    // ========== 新增：ditpro_kpm模式 ==========
+    if (g_driver_mode == 3) {
+        if (!ditpro) {
+            ditpro = new ditpro_driver();
+            if (!ditpro->connected) {
+                printf("[-] ditpro驱动连接失败\n");
+                delete ditpro;
+                ditpro = nullptr;
+                return;
+            }
+        }
+        if (ditpro->init_pid(pid)) {
+            printf("[+] ditpro驱动初始化成功, pid=%d\n", pid);
+            // 自动隐藏进程
+            if (ditpro->hideProc() == 0) {
+                printf("[+] 进程隐藏成功\n");
+            } else {
+                printf("[-] 进程隐藏失败\n");
+            }
+        } else {
+            printf("[-] ditpro驱动初始化失败\n");
+            delete ditpro;
+            ditpro = nullptr;
+        }
+        return;
+    }
+    // ========== 原驱动模式 ==========
+    if (g_driver_mode == 0) {
+        if (fd < 0) {
+            fd = open("/dev/niuto01", O_RDWR);
+        }
+        if (fd < 0 || this->pid <= 0)
+            cout << "[-] 选定进程失败\n";
+        else
+            cout << "[-] 读写初始化成功\n";
+        return;
     }
 }
 
-bool Kernel::readv(uintptr_t addr, void *buffer, size_t size)  
+bool Kernel::readv(uintptr_t addr, void *buffer, size_t size)
 {
-    if (addr < 0x10000000 || addr > 0xFFFFFFFFFF || addr <= 0xfff || addr == 0 || addr % 4 != 0)
-    {
-        return false;
+    if (g_driver_mode == 1) {
+        if (!kpm_driver) return false;
+        return kpm_driver->read(addr, buffer, size);
     }
-    struct
-    {
-        pid_t pid_value;
-        uintptr_t addr_value;
-        void *buffer_value;
-        size_t size_value;
-    } cm;
+    if (g_driver_mode == 2) {
+        if (!paradise) return false;
+        // 改用快速映射读取
+        return paradise->read_fast(addr, buffer, size);
+    }
+    if (g_driver_mode == 3) {
+        if (!ditpro) return false;
+        return ditpro->read(addr, buffer, size) == 0;
+    }
+    if (addr < 0x10000000 || addr > 0xFFFFFFFFFF || addr <= 0xfff || addr == 0 || addr % 4 != 0)
+        return false;
+    struct { pid_t pid_value; uintptr_t addr_value; void *buffer_value; size_t size_value; } cm;
     cm.pid_value = this->pid;
     cm.addr_value = addr;
     cm.buffer_value = buffer;
@@ -64,17 +126,22 @@ bool Kernel::readv(uintptr_t addr, void *buffer, size_t size)
 
 bool Kernel::writev(uintptr_t addr, void *buffer, size_t size)
 {
-    if (addr < 0x10000000 || addr > 0xFFFFFFFFFF || addr <= 0xfff || addr == 0 || addr % 4 != 0)
-    {
-        return false;
+    if (g_driver_mode == 1) {
+        if (!kpm_driver) return false;
+        return kpm_driver->write(addr, buffer, size);
     }
-    struct
-    {
-        pid_t pid_value;
-        uintptr_t addr_value;
-        void *buffer_value;
-        size_t size_value;
-    } cm;
+    if (g_driver_mode == 2) {
+        if (!paradise) return false;
+        // 改用快速映射写入
+        return paradise->write_fast(addr, buffer, size);
+    }
+    if (g_driver_mode == 3) {
+        if (!ditpro) return false;
+        return ditpro->write(addr, buffer, size) == 0;
+    }
+    if (addr < 0x10000000 || addr > 0xFFFFFFFFFF || addr <= 0xfff || addr == 0 || addr % 4 != 0)
+        return false;
+    struct { pid_t pid_value; uintptr_t addr_value; void *buffer_value; size_t size_value; } cm;
     cm.pid_value = this->pid;
     cm.addr_value = addr;
     cm.buffer_value = buffer;
@@ -82,15 +149,22 @@ bool Kernel::writev(uintptr_t addr, void *buffer, size_t size)
     ioctl(fd, OP_WRITE_MEM, &cm);
     return true;
 }
-
 uintptr_t Kernel::get_module_base(char *name)
 {
-    struct
-    {
-        pid_t pid_value;
-        char *name_value;
-        uintptr_t base_value;
-    } mb;
+    if (g_driver_mode == 1) {
+        if (!kpm_driver) return 0;
+        return kpm_driver->get_module_base(this->pid, name);
+    }
+    if (g_driver_mode == 2) {          // 新增 Paradise
+        if (!paradise) return 0;
+        return paradise->get_module_base(name);
+    }
+    if (g_driver_mode == 3) {
+        if (!ditpro) return 0;
+        auto base = ditpro->get_module_base(this->pid, name);
+        return base.has_value() ? base.value() : 0;
+    }
+    struct { pid_t pid_value; char *name_value; uintptr_t base_value; } mb;
     char buf[0x100];
     strcpy(buf, name);
     mb.pid_value = this->pid;
@@ -172,6 +246,14 @@ uintptr_t Kernel::get_module_base2(char *module_name)
 
 uintptr_t Kernel::get_Module_On()
 {
+    if (g_driver_mode == 2) {
+        // Paradise 驱动无需检测 /dev/niuto01，直接认为已就绪
+        return 10086;   // 与原来成功时的返回值一致
+    }
+    if (g_driver_mode == 3) {
+        // ditpro驱动连接成功即认为就绪
+        return (ditpro != nullptr && ditpro->connected) ? 10086 : 0;
+    }
     struct
     {
         pid_t pid_value;
@@ -258,6 +340,13 @@ char Kernel::getByte(unsigned long addr)
 
 bool Kernel::reopen_dev()
 {
+     if (g_driver_mode == 2) {
+        return (paradise != nullptr);   // 已构造即视为就绪
+    }
+     if (g_driver_mode == 3) {
+        // ditpro驱动不需要重新打开设备
+        return (ditpro != nullptr && ditpro->connected);
+    }
     if (fd > 0)
     {
         close(fd);

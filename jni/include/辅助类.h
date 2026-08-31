@@ -4,7 +4,8 @@
 #include <iostream>
 #include <pthread.h>
 #include <dirent.h>
-//#include <driver.h>
+#include <driver.h>
+#include "paradise/paradise_api.h"
 #include <regex.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -43,7 +44,6 @@
 #include "结构体.h"
 #include "LineOfSightToAPI.h"
 
-
 #pragma once
 
 #include <arpa/inet.h>
@@ -51,11 +51,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h> // for access
 #include <sys/types.h>
-#include <unistd.h>
 
 // --- 结构体和 IOCTL 定义 ---
 struct paradise_read_physical_memory_cmd
@@ -116,14 +114,11 @@ struct paradise_write_physical_memory_ioremap_cmd
     int prot;           /* Input: Memory protection type (use MT_*) */
 };
 
-
-
-
 // 新增的结构体定义
 struct paradise_is_proc_alive_cmd
 {
-    pid_t pid;  /* Input: Process ID */
-    int alive;  /* Output: 1 if alive, 0 if not */
+    pid_t pid; /* Input: Process ID */
+    int alive; /* Output: 1 if alive, 0 if not */
 };
 
 struct paradise_give_root_cmd
@@ -178,6 +173,252 @@ struct paradise_addr_translate_cmd
 #define WMT_DEVICE_GRE 6
 #define WMT_NORMAL_iNC_oWB 7
 
+// ===================== 新增：ditpro_kpm驱动 =====================
+#include <optional>
+#include <memory>
+#include <cstring>
+
+#define __NR_syscall_ 18
+#define __FLAGS 1UL << 0
+#define __CHECKSUCCESS (1UL << 30)
+
+enum class DitproDriverType : int
+{
+    ERR = -1,
+    DITPRO_KPM = 0,
+    DITS_KO = 1,
+    QX_KO = 2,
+    RT_KO = 3
+};
+
+enum class DitproMemoryOp : uint64_t
+{
+    INIT = 1UL << 1,
+    READ = 1UL << 2,
+    WRITE = 1UL << 3,
+    CPU = 1UL << 4,
+    PROT_NC = 1UL << 5,
+    READLIST = 1UL << 6,
+    READARRAY = 1UL << 7,
+    UNINSTALL = 1UL << 9
+};
+
+enum class DitproOtherOp : uint64_t
+{
+    PROCESS_PID = 1UL << 10,
+    MODULE_BASE = 1UL << 11,
+    HIDE_PID = 1UL << 12,
+    UNHIDE_PID = 1UL << 13,
+    HIDE_EVENT = 1UL << 14,
+    UNHIDE_EVENT = 1UL << 15,
+    GETUSERMAPS = 1UL << 22,
+    LINGYE = 1UL << 25, // 零页
+};
+
+constexpr uint64_t operator|(DitproMemoryOp lhs, DitproMemoryOp rhs)
+{
+    return static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs);
+}
+
+constexpr uint64_t operator|(uint64_t lhs, DitproMemoryOp rhs)
+{
+    return lhs | static_cast<uint64_t>(rhs);
+}
+
+constexpr uint64_t operator|(DitproMemoryOp lhs, uint64_t rhs)
+{
+    return static_cast<uint64_t>(lhs) | rhs;
+}
+
+constexpr uint64_t operator|(DitproOtherOp lhs, DitproOtherOp rhs)
+{
+    return static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs);
+}
+
+constexpr uint64_t operator|(uint64_t lhs, DitproOtherOp rhs)
+{
+    return static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs);
+}
+
+struct Dit_uct_base
+{
+    int pid;
+    const char *name;
+    unsigned long start;
+    unsigned long end;
+};
+
+struct Dit_uct
+{
+    uint64_t addr;
+    void *buffer;
+    uint64_t size;
+} __attribute__((aligned(8)));
+
+struct Dit_uct_kpm_list
+{
+    uint64_t addr[10];
+    void *buffer;
+    uint64_t size;
+} __attribute__((aligned(8)));
+
+struct Dit_uct_array
+{
+    uint64_t count;      // 数量
+    uint64_t array_addr; // 地址
+    void *buffer;        // 缓冲区
+    uint64_t size;       // 列表页大小
+};
+
+struct user_maps
+{
+    unsigned int pid;
+    unsigned long count;
+    char *lists;
+};
+
+class ditpro_driver
+{
+private:
+    int fd{-1};
+    DitproDriverType type{DitproDriverType::ERR};
+
+    DitproDriverType find_dis()
+    {
+        if (auto check = __CHECKSUCCESS; syscall(__NR_syscall_, &check) == 616)
+        {
+            int flags = 616;
+            fd = syscall(__NR_syscall_, &flags);
+            return (fd > 0) ? DitproDriverType::DITS_KO : DitproDriverType::ERR;
+        }
+        else if (syscall(__NR_syscall_, (__FLAGS | __CHECKSUCCESS)) == 616)
+        {
+            return DitproDriverType::DITPRO_KPM;
+        }
+        return DitproDriverType::ERR;
+    }
+
+    template <typename... Args>
+    long call(Args &&...args)
+    {
+        switch (type)
+        {
+        case DitproDriverType::DITPRO_KPM:
+            return syscall(__NR_syscall_, std::forward<decltype(args)>(args)...);
+        case DitproDriverType::DITS_KO:
+            return ioctl(fd, std::forward<decltype(args)>(args)...);
+        default:
+            return -1;
+        }
+    }
+
+public:
+    bool connected = false;
+    pid_t pid = -1;
+
+    ditpro_driver()
+    {
+        type = find_dis();
+        if (type == DitproDriverType::DITS_KO)
+        {
+            printf("[+] 检测到DITS驱动\n");
+            connected = true;
+        }
+        else if (type == DitproDriverType::DITPRO_KPM)
+        {
+            printf("[+] 检测到DITPRO_KPM驱动\n");
+            connected = true;
+        }
+        else
+        {
+            printf("[-] 未找到ditpro系列驱动\n");
+            connected = false;
+        }
+    }
+
+    ~ditpro_driver()
+    {
+        if (connected)
+        {
+            UnMem();
+            unProc();
+        }
+    }
+
+    // 初始化读取 返回true成功
+    bool init_pid(int pid)
+    {
+        this->pid = pid;
+        return call((__FLAGS | DitproMemoryOp::INIT), pid) > 0;
+    }
+
+    // 读取内存
+    long read(uint64_t addr, void *buffer, uint64_t size)
+    {
+        struct Dit_uct cm = {addr, buffer, size};
+        uint64_t flags = (__FLAGS | DitproMemoryOp::READ);
+        return call(flags, &cm);
+    }
+
+    // 链式指针读取（最多10层）
+    long read_chain(std::initializer_list<uint64_t> nums, void *buffer, uint64_t size)
+    {
+        struct Dit_uct_kpm_list cm;
+        memset(cm.addr, -1, sizeof cm.addr);
+        size_t i = 0;
+        for (uint64_t val : nums)
+        {
+            if (i >= 10)
+                return -1;
+            cm.addr[i++] = val;
+        }
+        cm.buffer = buffer;
+        cm.size = size;
+
+        uint64_t flags = static_cast<uint64_t>(DitproMemoryOp::READ) | __FLAGS | static_cast<uint64_t>(DitproMemoryOp::READLIST);
+        return call(flags, &cm);
+    }
+
+    // 写入内存
+    long write(uint64_t addr, void *buffer, uint64_t size)
+    {
+        struct Dit_uct cm = {addr, buffer, size};
+        uint64_t flags = (__FLAGS | DitproMemoryOp::WRITE);
+        return call(flags, &cm);
+    }
+
+    // 获取进程PID
+    std::optional<int> get_pid(std::string_view name)
+    {
+        if (auto pid = call((__FLAGS | DitproOtherOp::PROCESS_PID), name.data()); pid > 2)
+        {
+            return pid;
+        }
+        return std::nullopt;
+    }
+
+    // 获取模块基址 (bss=true获取bss段)
+    std::optional<uint64_t> get_module_base(int pid, std::string_view name, bool bss = false)
+    {
+        struct Dit_uct_base cm = {pid, name.data(), bss, bss};
+        if (call((__FLAGS | DitproOtherOp::MODULE_BASE), &cm) == 0)
+        {
+            return cm.start;
+        }
+        return std::nullopt;
+    }
+
+    // 隐藏进程
+    int hideProc() { return call((__FLAGS | DitproOtherOp::HIDE_PID), gettid()); }
+
+    // 恢复进程（隐藏后必须调用，否则重启）
+    int unProc() { return call((__FLAGS | DitproOtherOp::UNHIDE_PID), gettid()); }
+
+    // 卸载驱动
+    void UnMem() { call((__FLAGS | DitproMemoryOp::UNINSTALL)); }
+};
+// ===================== ditpro_kpm驱动结束 =====================
+
 // --- 单例 c_driver 类 ---
 
 class Kernel
@@ -197,7 +438,9 @@ private:
 public:
     选择配置 选择配置;
     int fd;
-    int kpm = 0;
+    Driver *kpm_driver = nullptr; // KPM驱动对象
+    paradise_driver *paradise = nullptr;
+    ditpro_driver *ditpro = nullptr; // 新增：ditpro驱动对象
     Kernel();
     ~Kernel();
     uintptr_t get_Module_On();
@@ -223,8 +466,6 @@ public:
     char getByte(unsigned long addr);
     bool reopen_dev();
 };
-
-
 
 #include "Draw.h"
 #include "结构体.h"
@@ -730,13 +971,13 @@ public:
     bool isAiming;
     void 初始化绘图(int X, int Y);
     void 初始化坐标(D4DVector &屏幕坐标, 骨骼数据 &骨骼);
-    void 绘制方框(bool 是否可见,bool isboot);
-    void 绘制人数(int 人机, int 真人, uintptr_t 自身);
+    void 绘制方框(bool 是否可见, bool isboot);
+    void 绘制人数(int 人机, int 真人);
     void 绘制距离(int 距离, int 队伍);
-    void 绘制射线(bool 是否可见,骨骼数据 &骨骼);
+    void 绘制射线(bool 是否可见, 骨骼数据 &骨骼);
     void 漏手模式();
     void 绘制血量(float 最大血量, float 当前血量, bool isbot);
-    void 绘制名字(string 名字, bool isboot, float 计时, bool 是否掐雷, char *类名, int 阵营, int Bonecount, bool 是否自救,int 高级人机);
+    void 绘制名字(string 名字, bool isboot, float 计时, bool 是否掐雷, char *类名, int 阵营, int Bonecount, bool 是否自救, int 高级人机);
     void 绘制骨骼(骨骼数据 &骨骼, D4DVector &屏幕坐标, bool LineOfSightTo[15], int 距离, int Bonecount);
     void 绘制手持(int 手持, int 状态, int 子弹, int 最大子弹);
     void 绘制动作(int 状态);
@@ -746,8 +987,8 @@ public:
     void 绘制自瞄触摸范围(float 触摸范围, float 触摸范围X, float 触摸范围Y);
     void 绘制加粗字体(float size, float x, float y, ImColor color, ImColor color1, const char *str);
     void 绘制字体描边(float size, int x, int y, ImVec4 color, const char *str);
-   // void RenderRadarScan(ImDrawList *draw_list, ImVec2 center, float radius, int numSegments, float &rotationAngle, float lineLength);
-    void RenderRadarScan(ImDrawList* draw_list, ImVec2 center, float radius, int numSegments, float& rotationAngle, float lineLength, float yawRotation);
+    // void RenderRadarScan(ImDrawList *draw_list, ImVec2 center, float radius, int numSegments, float &rotationAngle, float lineLength);
+    void RenderRadarScan(ImDrawList *draw_list, ImVec2 center, float radius, int numSegments, float &rotationAngle, float lineLength, float yawRotation);
     void 绘制瞄准信息();
     void 绘制自救(float 自救倒计时);
     void 绘制头甲包(int id);
@@ -765,12 +1006,12 @@ class 绘制
     int 驱动路线 = 0;
     struct ColorTable
     {
-        float 方框颜色[4] = {0.0, 1.0, 0.0, 1.0};       // 掩体前改为绿色
-        float 方框掩体颜色[4] = {1.0, 0, 0, 1.0};       // 掩体后保持红色
-        float 射线颜色[4] = {0.0, 1.0, 0.0, 1.0};       // 掩体前改为绿色
-        float 射线掩体颜色[4] = {1.0, 0, 0, 1.0};       // 掩体后保持红色
-        float 骨骼颜色[4] = {0.0, 1.0, 0.0, 1.0};        // 掩体前改为绿色
-        float 骨骼掩体颜色[4] = {1.0, 0.0, 0.0, 1.0};   // 掩体后保持红色
+        float 方框颜色[4] = {0.0, 1.0, 0.0, 1.0};     // 掩体前改为绿色
+        float 方框掩体颜色[4] = {1.0, 0, 0, 1.0};     // 掩体后保持红色
+        float 射线颜色[4] = {0.0, 1.0, 0.0, 1.0};     // 掩体前改为绿色
+        float 射线掩体颜色[4] = {1.0, 0, 0, 1.0};     // 掩体后保持红色
+        float 骨骼颜色[4] = {0.0, 1.0, 0.0, 1.0};     // 掩体前改为绿色
+        float 骨骼掩体颜色[4] = {1.0, 0.0, 0.0, 1.0}; // 掩体后保持红色
         float 血量颜色[4] = {0.0, 1.0, 0.0, 1.0};
         float 阵营颜色[4] = {1.0, 1.0, 0.0, 1.0};
         float 距离颜色[4] = {1.0, 1.0, 1.0, 1.0};
@@ -875,6 +1116,10 @@ public:
         {104004, "DBS霰弹枪"},
         {104100, "SPAS-12霰弹枪"},
     };
+
+    std::string DebugAimedClassName; // 当前准星对准的类名/地址字符串
+    bool bDebugAimedValid = false;   // 是否有效对准
+
     static std::vector<ConfigItem> configItems;
     static std::vector<ConfigItem> boolConfigItems;
 
@@ -901,70 +1146,79 @@ public:
     float 垂直压枪力度 = 0.2f;
     float 直角压枪力度 = 0.2f;
     int 世界数量;
-    
+
     float 运行负载 = 0.0f;
     int 网络延迟 = 0;
-    std::chrono::steady_clock::time_point 启动时间;    
+    std::chrono::steady_clock::time_point 启动时间;
     // 如果使用方案3，添加这个方法
-    
+
     // 新增圆角配置变量
-    float UI圆角 = 5.0f;      // UI窗口圆角
-    float 按键圆角 = 3.0f;    // 按钮圆角
-        
-    std::string updateshow;      // 更新内容
-    long 卡密到期时间戳 = 0;     // 卡密到期时间戳
-    bool 已登录 = false;         // 登录状态标志
-    
+    float UI圆角 = 5.0f;   // UI窗口圆角
+    float 按键圆角 = 3.0f; // 按钮圆角
+
+    std::string updateshow;  // 更新内容
+    long 卡密到期时间戳 = 0; // 卡密到期时间戳
+    bool 已登录 = false;     // 登录状态标志
+
     // 添加获取剩余时间的函数
-    long 获取剩余天数() {
-        if (!已登录 || 卡密到期时间戳 == 0) return 0;
-        
+    long 获取剩余天数()
+    {
+        if (!已登录 || 卡密到期时间戳 == 0)
+            return 0;
+
         auto current_time = std::chrono::system_clock::now();
         auto current_timestamp = std::chrono::duration_cast<std::chrono::seconds>(current_time.time_since_epoch()).count();
         long 剩余秒数 = 卡密到期时间戳 - current_timestamp;
-        
-        if (剩余秒数 <= 0) {
+
+        if (剩余秒数 <= 0)
+        {
             已登录 = false; // 标记为过期
             return 0;
         }
-        
+
         return 剩余秒数 / (24 * 60 * 60);
     }
-    
-    long 获取剩余小时数() {
-        if (!已登录 || 卡密到期时间戳 == 0) return 0;
-        
+
+    long 获取剩余小时数()
+    {
+        if (!已登录 || 卡密到期时间戳 == 0)
+            return 0;
+
         auto current_time = std::chrono::system_clock::now();
         auto current_timestamp = std::chrono::duration_cast<std::chrono::seconds>(current_time.time_since_epoch()).count();
         long 剩余秒数 = 卡密到期时间戳 - current_timestamp;
-        
-        if (剩余秒数 <= 0) {
+
+        if (剩余秒数 <= 0)
+        {
             已登录 = false; // 标记为过期
             return 0;
         }
-        
+
         return (剩余秒数 % (24 * 60 * 60)) / 3600;
     }
-    
-    long 获取剩余分钟数() {
-        if (!已登录 || 卡密到期时间戳 == 0) return 0;
-        
+
+    long 获取剩余分钟数()
+    {
+        if (!已登录 || 卡密到期时间戳 == 0)
+            return 0;
+
         auto current_time = std::chrono::system_clock::now();
         auto current_timestamp = std::chrono::duration_cast<std::chrono::seconds>(current_time.time_since_epoch()).count();
         long 剩余秒数 = 卡密到期时间戳 - current_timestamp;
-        
-        if (剩余秒数 <= 0) {
+
+        if (剩余秒数 <= 0)
+        {
             已登录 = false; // 标记为过期
             return 0;
         }
-        
+
         return (剩余秒数 % 3600) / 60;
     }
-    
-    float 骨骼距离限制 = 300;
-    int 自瞄模式=999;
-    int 防录屏=999;
-    int 无后台开关=999;
+
+    float 骨骼距离限制 = 500;
+    int 自瞄模式 = 999;
+    int 防录屏 = 999;
+    int 无后台开关 = 999;
     char 卡密[250];
     bool 漏打开关;
     bool Winorlose = false;
@@ -976,7 +1230,7 @@ public:
     压枪 预判度;
     float 握把[100];
     bool isView = true;
-//    uintptr_t 解密数组;
+    //    uintptr_t 解密数组;
     long int 解密模式 = 0x4000;
     int 被瞄准对象数量 = 0;
     int 头甲包文本高度 = 0;
@@ -1001,8 +1255,8 @@ public:
     bool Shelter[14];
     ImFont *font_24 = nullptr; // 24像素字体
     Kernel 读写;
-    地址 地址;    
-    int 掩体刷新时间=10;
+    地址 地址;
+    int 掩体刷新时间 = 10;
     uintptr_t 真人数量;
     开关 按钮;
     计算 计算;
@@ -1020,12 +1274,6 @@ public:
     void 初始化绘制(string 包名, int 真实X, int 真实Y);
     float 倍镜判断(float Fov);
     float 倍镜压枪(int id);
-    void 自瞄主线程();
-    void 贝塞尔自瞄主线程();
-    void 欧拉角自瞄主线程();
-    void 连点主线程();
-    void 无后座主线程();
-    void 驱动自瞄主线程();
     int findminat();
     void 更新地址数据();
     void 多线程更新地址();
@@ -1038,32 +1286,17 @@ public:
     string getBoxName(int id);
     string getBoxName1(int id);
     void OffScreen(ImDrawList *ImDraw, D4DVector Obj, float camear, ImU32 color, float Radius, float 距离);
-    void GetTouch();       
     void 保存配置();
     void 读取配置();
     void 重置配置();
     void 读取用户选择配置();
-    bool 自瞄触发(float 距离);
-    
-    
-    
-    void 无目标压枪();
-    
-    
-    void 停止陀螺仪();
-    void 重置陀螺仪();
-    
-    float 陀螺仪灵敏度补偿(float Fov);
-    // 新增的FOV相关函数
-    float 计算FovFactor(float currentFov);
-    float 动态Fov范围调整(float baseRange, float currentFov);
-       
+
     uintptr_t 解密数组;
 
     bool 已启用解密;
     uintptr_t 特征地址;
     std::vector<uintptr_t> 解密地址列表;
-    
+
     // 解密函数声明
     void 查找解密地址();
     void 设置解密功能(bool 启用);
@@ -1071,16 +1304,16 @@ public:
     void 重新扫描解密地址();
     void 显示解密数组选择窗口();
     void 选择解密数组(uintptr_t 数组地址);
-    bool 解密数组选择窗口开启;   
-    bool 连点触发(float 距离);
+    bool 解密数组选择窗口开启;
     const char *getMaterialName(char *name);
     int Cloudcheck();
     const char *Level(char *name);
     void InitShoot();
-    FVector2D WorldToScreen(const FVector_class & WorldLocation);
-    D2DVector WorldToScreen2(const FVector_class & WorldLocation);
-    void SetTouchPositionFor连点();
-   
+    FVector2D WorldToScreen(const FVector_class &WorldLocation);
+    D2DVector WorldToScreen2(const FVector_class &WorldLocation);
+    void WorldToScreenBatch(const FVector_class &WorldLoc,
+                            float &outX, float &outY,
+                            float &outFootY, float &outHeadY);
 };
 
 class 布局

@@ -17,25 +17,42 @@
 #include "图片调用.h"
 #include "物资ID.h"
 #include "辅助类.h"
+#include "DataReader.h"
+#include "ItemNameMap.h"
 #include "HookRW.h" // 添加HookRW头文件
-
+#include "Offsets.h"
+#include <unistd.h>
 // 添加ptrace过检测功能
 #include <sys/ptrace.h>
+#include "json.hpp"
+#include "TomieModel.h"
+
+// ========== 自定义物资全局变量 ==========
+DataReader *g_CustomReader = nullptr;
+std::atomic<bool> g_CustomDataLoaded{false}; // 定义并初始化
+
+using json = nlohmann::json;
+extern float statusBarAlpha;
 int decrypt_zero_x()
 {
-    return 0x8; // 默认偏移值，根据你的游戏修改
+    return 0x10; // 默认偏移值，根据你的游戏修改
 }
 
 int decrypt_zero_y()
 {
-    return 0x10; // 默认偏移值，根据你的游戏修改
+    return 0x20; // 默认偏移值，根据你的游戏修改
 }
 
 extern 绘制 绘制;
 std::map<std::string, std::chrono::steady_clock::time_point> 自救Timers;
 bool 线程开启状态 = false;
+extern bool showTopStatusBar;
 // 掩体函数
-
+// 全局内存读取函数（给 PhysX Pro 用）
+// bool MyPhysXReadv(uint64_t addr, void *buffer, size_t size)
+// {
+//     return 绘制.读写.readv(addr, buffer, size);
+// }
 void 更新自救倒计时()
 {
     auto it = 自救Timers.begin();
@@ -171,21 +188,27 @@ void 绘制::查找解密地址()
 
         // 步骤3: 计算目标特征地址
         // 使用链式读取
-        uintptr_t 临时地址1 = 读写.getPtr64(地址.libue4 + 0x1495C2A0);
+        uintptr_t 临时地址1 = 读写.getPtr64(地址.libue4 + 0x14EC2468);
         if (临时地址1 == 0)
         {
             printf("错误: 第一步读取失败\n");
             return;
         }
 
-        uintptr_t 临时地址2 = 读写.getPtr64(临时地址1 + 0x30);
+        uintptr_t 临时地址2 = 读写.getPtr64(临时地址1 + 0xF8);
         if (临时地址2 == 0)
         {
             printf("错误: 第二步读取失败\n");
             return;
         }
+        uintptr_t 临时地址3 = 读写.getPtr64(临时地址2 + 0x340);
+        if (临时地址3 == 0)
+        {
+            printf("错误: 第三步读取失败\n");
+            return;
+        }
 
-        this->特征地址 = 读写.getPtr64(临时地址2 + 0x5D0);
+        this->特征地址 = 读写.getPtr64(临时地址3 + 0xF0);
         if (this->特征地址 == 0)
         {
             printf("错误: 无法计算特征地址\n");
@@ -414,44 +437,12 @@ void 绘制::选择解密数组(uintptr_t 数组地址)
     }
 }
 
-// 修改 ShelterJudgment 函数
-int ShelterJudgment(bool LineOfSightToTab[15], int enemyState = 16)
-{
-    // 如果选择智能瞄准部位，根据敌人状态动态选择
-    if (绘制.自瞄.瞄准部位 == 3)
-    { // 假设3是智能选项
-        int smartBone = GetSmartAimBone(enemyState);
-        if (!LineOfSightToTab[smartBone])
-        {
-            return smartBone;
-        }
-    }
-
-    // 优先检查设置的瞄准部位
-    if (!LineOfSightToTab[绘制.自瞄.瞄准部位])
-    {
-        return 绘制.自瞄.瞄准部位;
-    }
-
-    // 遍历其他骨骼部位
-    for (int i = 0; i < 15; i++)
-    {
-        if (i == 绘制.自瞄.瞄准部位)
-            continue; // 跳过已检查的瞄准部位
-        if (!LineOfSightToTab[i])
-        {
-            return i;
-        }
-    }
-    return 999;
-}
-
 float calculateDistance(float x1, float y1, float x2, float y2)
 {
     return sqrtf((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
 }
-std::unordered_map<int, 武器触发条件> 绘制::武器触发配置;
-std::unordered_map<int, 武器参数> 绘制::武器参数配置;
+// std::unordered_map<int, 武器触发条件> 绘制::武器触发配置;
+// std::unordered_map<int, 武器参数> 绘制::武器参数配置;
 std::unordered_map<uintptr_t, int> 绘制::lastBoneIndices;
 std::unordered_map<uintptr_t, std::vector<int>> 绘制::recentBoneIndices;
 
@@ -492,92 +483,12 @@ double normalizeAngle180(double angle) // 角度转换
 
 void 绘制::保存配置()
 {
-    // 保存自瞄和武器配置
-    nlohmann::json aim_config;
-
-    // 自瞄配置
-    aim_config["自瞄"] = {
-        {"当前自瞄范围", 自瞄.当前自瞄范围},
-        {"触摸范围", 自瞄.触摸范围},
-        {"自瞄速度", 自瞄.自瞄速度},
-        {"腰射自瞄速度", 自瞄.腰射自瞄速度},
-        {"开镜自瞄速度", 自瞄.开镜自瞄速度},
-        {"压枪力度", 自瞄.压枪力度},
-        {"预判力度", 自瞄.预判力度},
-        {"趴下位置调节", 自瞄.趴下位置调节},
-        {"触摸采样率", 自瞄.触摸采样率},
-        {"喷子距离限制", 自瞄.喷子距离限制},
-        {"掉血自瞄数率", 自瞄.掉血自瞄数率},
-        {"腰射距离限制", 自瞄.腰射距离限制},
-        {"自瞄距离限制", 自瞄.自瞄距离限制},
-        {"触摸范围X", 自瞄.触摸范围X},
-        {"触摸范围Y", 自瞄.触摸范围Y},
-        {"自瞄条件", 自瞄.自瞄条件},
-        {"充电口方向", 自瞄.充电口方向},
-        {"瞄准部位", 自瞄.瞄准部位},
-        {"喷子自瞄条件", 自瞄.喷子自瞄条件},
-        {"喷子自瞄范围", 自瞄.喷子自瞄范围},
-        {"连点速度", 自瞄.连点速度},
-        {"定速巡航速率", 自瞄.定速巡航速率},
-        {"三倍压枪", 自瞄.三倍压枪},
-        {"四倍压枪", 自瞄.四倍压枪},
-        {"六倍压枪", 自瞄.六倍压枪},
-        {"开镜自瞄范围", 自瞄.开镜自瞄范围},
-        {"连点位置", {{"startX", 自瞄.连点位置.startX}, {"startY", 自瞄.连点位置.startY}, {"endX", 自瞄.连点位置.endX}, {"endY", 自瞄.连点位置.endY}}},
-        {"初始化", 自瞄.初始化},
-        {"隐藏自瞄圈", 自瞄.隐藏自瞄圈},
-        {"随机触摸点", 自瞄.随机触摸点},
-        {"持续锁定", 自瞄.持续锁定},
-        {"触摸位置", 自瞄.触摸位置},
-        {"动态自瞄", 自瞄.动态自瞄},
-        {"准星射线", 自瞄.准星射线},
-        {"倒地不瞄", 自瞄.倒地不瞄},
-        {"掉血自瞄", 自瞄.掉血自瞄},
-        {"自瞄控件", 自瞄.自瞄控件},
-        {"喷子自瞄", 自瞄.喷子自瞄},
-        {"狙击自瞄", 自瞄.狙击自瞄},
-        {"人机不瞄", 自瞄.人机不瞄},
-        {"框内自瞄", 自瞄.框内自瞄},
-        {"软锁自瞄", 自瞄.软锁自瞄},
-        {"开启单发狙连点", 自瞄.开启单发狙连点},
-        {"开启喷子连点", 自瞄.开启喷子连点},
-        {"扫车不瞄", 自瞄.扫车不瞄},
-        {"定速巡航", 自瞄.定速巡航},
-        {"适应系数", 自瞄.适应系数},
-        {"自动适应灵敏度", 自瞄.自动适应灵敏度},
-    };
-
-    // 武器配置
-    aim_config["武器触发配置"] = nlohmann::json::object();
-    for (const auto &pair : 武器触发配置)
-    {
-        aim_config["武器触发配置"][std::to_string(pair.first)] = {
-            {"独立调节", pair.second.独立调节},
-            {"独立压枪", pair.second.独立压枪},
-            {"独立预判", pair.second.独立预判},
-            {"独立距离限制", pair.second.独立距离限制},
-            {"启用自瞄", pair.second.启用自瞄},
-            {"腰射距离限制", pair.second.腰射距离限制},
-            {"自瞄距离限制", pair.second.自瞄距离限制},
-            {"自瞄条件", pair.second.自瞄条件}};
-    }
-
-    aim_config["武器参数配置"] = nlohmann::json::object();
-    for (const auto &pair : 武器参数配置)
-    {
-        aim_config["武器参数配置"][std::to_string(pair.first)] = {
-            {"压枪力度", pair.second.压枪力度},
-            {"预判力度", pair.second.预判力度},
-            {"自瞄速度", pair.second.自瞄速度}};
-    }
-
-    // 保存自瞄配置到文件
-    std::ofstream aim_file("/data/adb/BXYUN自瞄配置.json");
-    aim_file << aim_config.dump(4);
-    aim_file.close();
-
     // 保存基础配置
     nlohmann::json base_config;
+    base_config["悬浮窗X"] = this->按钮.悬浮窗X;
+    base_config["悬浮窗Y"] = this->按钮.悬浮窗Y;
+    base_config["悬浮窗W"] = this->按钮.悬浮窗W;
+    base_config["悬浮窗H"] = this->按钮.悬浮窗H;
 
     // 按钮配置
     base_config["按钮"] = {
@@ -586,8 +497,6 @@ void 绘制::保存配置()
         {"方框粗细", 按钮.方框粗细},
         {"射线粗细", 按钮.射线粗细},
         {"骨骼粗细", 按钮.骨骼粗细},
-        {"速度值", 按钮.速度值},
-        {"第三人称", 按钮.第三人称},
         {"当前帧率", 按钮.当前帧率},
         {"帧率选项", 按钮.帧率选项},
         {"血条绘图", 按钮.血条绘图},
@@ -597,7 +506,6 @@ void 绘制::保存配置()
         {"忽略人机", 按钮.忽略人机},
         {"手持2", 按钮.手持2},
         {"被瞄预警", 按钮.被瞄预警},
-        {"人物加速", 按钮.人物加速},
         {"物资总开关", 按钮.物资总开关},
         {"绘制信号枪", 按钮.绘制信号枪},
         {"绘制金插", 按钮.绘制金插},
@@ -609,6 +517,7 @@ void 绘制::保存配置()
         {"盒子物资", 按钮.盒子物资},
         {"隐藏已开启", 按钮.隐藏已开启},
         {"超级物资箱", 按钮.超级物资箱},
+        {"密钥", 按钮.显示密钥},
         {"绘制空投", 按钮.绘制空投},
         {"人数", 按钮.人数},
         {"方框", 按钮.方框},
@@ -645,22 +554,12 @@ void 绘制::保存配置()
         {"肾上腺素", 按钮.显示肾上腺素},
         {"爆炸猎弓", 按钮.爆炸猎弓},
         {"超体职业", 按钮.超体职业},
-        {"精英勋章", 按钮.精英勋章},
+        {"自救器", 按钮.显示自救器},
+        {"飞索", 按钮.显示飞索},
+        {"密室钥匙", 按钮.密室钥匙},
+        {"黑色物资箱", 按钮.显示黑色物资箱},
         {"绘制最大距离", 按钮.绘制最大距离},
     };
-
-    // 连点配置
-    base_config["连点"] = {
-        {"触摸范围X", 连点.触摸范围X},
-        {"触摸范围Y", 连点.触摸范围Y},
-        {"连点速度", 连点.连点速度},
-        {"监听边长", 连点.监听边长},
-        {"监听位置X", 连点.监听位置X},
-        {"监听位置Y", 连点.监听位置Y},
-        {"启用连点", 连点.启用连点},
-        {"连点位置", 连点.连点位置},
-        {"跟随自瞄连点", 连点.跟随自瞄连点},
-        {"监听位置", 连点.监听位置}};
 
     // 其他配置
     base_config["其他"] = {
@@ -672,6 +571,7 @@ void 绘制::保存配置()
         {"手持字体大小", 手持字体大小},
         {"物资字体大小", 物资字体大小},
         {"名称字体大小", 名称字体大小},
+        {"showTopStatusBar", showTopStatusBar},
     };
     // 在基础配置中添加圆角配置
     base_config["其他"]["UI圆角"] = UI圆角;
@@ -706,127 +606,46 @@ void 绘制::保存配置()
         车辆颜色[3]};
 
     // 保存基础配置到文件
-    std::ofstream base_file("/data/adb/Via选择配置.json");
+    std::ofstream base_file("/sdcard/AuraKernel/Aura选择配置.json");
     base_file << base_config.dump(4);
     base_file.close();
 }
 
 void 绘制::重置配置()
 {
-    remove("/data/adb/Via配置.json");
-    remove("/data/adb/Via选择配置.json");
+    remove("/sdcard/AuraKernel/Aura配置.json");
+    remove("/sdcard/AuraKernel/Aura选择配置.json");
 }
 
 void 绘制::读取配置()
 {
-    // 读取自瞄配置文件
-    std::ifstream aim_file("/data/adb/BXYUN自瞄配置.json");
-    if (aim_file.is_open())
-    {
-        nlohmann::json aim_config = nlohmann::json::parse(aim_file);
+    // ===== 首次运行标记检测 =====
+    const char *markFile = "/sdcard/AuraKernel/.initialized";
+    const char *configFile = "/sdcard/AuraKernel/Aura选择配置.json";
+    if (access(markFile, F_OK) != 0)
 
-        // 读取自瞄配置
-        if (aim_config.contains("自瞄"))
+        if (access(markFile, F_OK) != 0)
         {
-            const auto &aim = aim_config["自瞄"];
-            自瞄.当前自瞄范围 = aim.value("当前自瞄范围", 自瞄.当前自瞄范围);
-            自瞄.触摸范围 = aim.value("触摸范围", 自瞄.触摸范围);
-            自瞄.自瞄速度 = aim.value("自瞄速度", 自瞄.自瞄速度);
-            自瞄.腰射自瞄速度 = aim.value("腰射自瞄速度", 自瞄.腰射自瞄速度);
-            自瞄.开镜自瞄速度 = aim.value("开镜自瞄速度", 自瞄.开镜自瞄速度);
-            自瞄.压枪力度 = aim.value("压枪力度", 自瞄.压枪力度);
-            自瞄.预判力度 = aim.value("预判力度", 自瞄.预判力度);
-            自瞄.趴下位置调节 = aim.value("趴下位置调节", 自瞄.趴下位置调节);
-            自瞄.触摸采样率 = aim.value("触摸采样率", 自瞄.触摸采样率);
-            自瞄.喷子距离限制 = aim.value("喷子距离限制", 自瞄.喷子距离限制);
-            自瞄.掉血自瞄数率 = aim.value("掉血自瞄数率", 自瞄.掉血自瞄数率);
-            自瞄.腰射距离限制 = aim.value("腰射距离限制", 自瞄.腰射距离限制);
-            自瞄.自瞄距离限制 = aim.value("自瞄距离限制", 自瞄.自瞄距离限制);
-            自瞄.触摸范围X = aim.value("触摸范围X", 自瞄.触摸范围X);
-            自瞄.触摸范围Y = aim.value("触摸范围Y", 自瞄.触摸范围Y);
-            自瞄.自瞄条件 = aim.value("自瞄条件", 自瞄.自瞄条件);
-            自瞄.充电口方向 = aim.value("充电口方向", 自瞄.充电口方向);
-            自瞄.瞄准部位 = aim.value("瞄准部位", 自瞄.瞄准部位);
-            自瞄.喷子自瞄条件 = aim.value("喷子自瞄条件", 自瞄.喷子自瞄条件);
-            自瞄.喷子自瞄范围 = aim.value("喷子自瞄范围", 自瞄.喷子自瞄范围);
-            自瞄.连点速度 = aim.value("连点速度", 自瞄.连点速度);
-            自瞄.定速巡航速率 = aim.value("定速巡航速率", 自瞄.定速巡航速率);
-            自瞄.三倍压枪 = aim.value("三倍压枪", 自瞄.三倍压枪);
-            自瞄.四倍压枪 = aim.value("四倍压枪", 自瞄.四倍压枪);
-            自瞄.六倍压枪 = aim.value("六倍压枪", 自瞄.六倍压枪);
-            自瞄.开镜自瞄范围 = aim.value("开镜自瞄范围", 自瞄.开镜自瞄范围);
-            if (aim.contains("连点位置"))
+            remove(configFile);
+            FILE *f = fopen(markFile, "w");
+            if (f)
             {
-                const auto &pos = aim["连点位置"];
-                自瞄.连点位置.startX = pos.value("startX", 自瞄.连点位置.startX);
-                自瞄.连点位置.startY = pos.value("startY", 自瞄.连点位置.startY);
-                自瞄.连点位置.endX = pos.value("endX", 自瞄.连点位置.endX);
-                自瞄.连点位置.endY = pos.value("endY", 自瞄.连点位置.endY);
-            }
-            自瞄.初始化 = aim.value("初始化", 自瞄.初始化);
-            自瞄.隐藏自瞄圈 = aim.value("隐藏自瞄圈", 自瞄.隐藏自瞄圈);
-            自瞄.随机触摸点 = aim.value("随机触摸点", 自瞄.随机触摸点);
-            自瞄.持续锁定 = aim.value("持续锁定", 自瞄.持续锁定);
-            自瞄.触摸位置 = aim.value("触摸位置", 自瞄.触摸位置);
-            自瞄.动态自瞄 = aim.value("动态自瞄", 自瞄.动态自瞄);
-            自瞄.准星射线 = aim.value("准星射线", 自瞄.准星射线);
-            自瞄.倒地不瞄 = aim.value("倒地不瞄", 自瞄.倒地不瞄);
-            自瞄.掉血自瞄 = aim.value("掉血自瞄", 自瞄.掉血自瞄);
-            自瞄.自瞄控件 = aim.value("自瞄控件", 自瞄.自瞄控件);
-            自瞄.喷子自瞄 = aim.value("喷子自瞄", 自瞄.喷子自瞄);
-            自瞄.狙击自瞄 = aim.value("狙击自瞄", 自瞄.狙击自瞄);
-            自瞄.人机不瞄 = aim.value("人机不瞄", 自瞄.人机不瞄);
-            自瞄.框内自瞄 = aim.value("框内自瞄", 自瞄.框内自瞄);
-            自瞄.软锁自瞄 = aim.value("软锁自瞄", 自瞄.软锁自瞄);
-            自瞄.开启单发狙连点 = aim.value("开启单发狙连点", 自瞄.开启单发狙连点);
-            自瞄.开启喷子连点 = aim.value("开启喷子连点", 自瞄.开启喷子连点);
-            自瞄.扫车不瞄 = aim.value("扫车不瞄", 自瞄.扫车不瞄);
-            自瞄.定速巡航 = aim.value("定速巡航", 自瞄.定速巡航);
-            自瞄.适应系数 = aim.value("适应系数", 自瞄.适应系数);
-            自瞄.自动适应灵敏度 = aim.value("自动适应灵敏度", 自瞄.自动适应灵敏度);
-        }
-
-        // 读取武器触发配置
-        if (aim_config.contains("武器触发配置"))
-        {
-            const auto &weapon_trigger = aim_config["武器触发配置"];
-            for (const auto &[key, value] : weapon_trigger.items())
-            {
-                int weapon_id = std::stoi(key);
-                武器触发条件 condition;
-                condition.独立调节 = value.value("独立调节", condition.独立调节);
-                condition.独立压枪 = value.value("独立压枪", condition.独立压枪);
-                condition.独立预判 = value.value("独立预判", condition.独立预判);
-                condition.独立距离限制 = value.value("独立距离限制", condition.独立距离限制);
-                condition.启用自瞄 = value.value("启用自瞄", true);
-                condition.腰射距离限制 = value.value("腰射距离限制", 50.0f);
-                condition.自瞄距离限制 = value.value("自瞄距离限制", 100.0f);
-                condition.自瞄条件 = value.value("自瞄条件", 0);
-                武器触发配置[weapon_id] = condition;
+                fputs("1", f);
+                fclose(f);
             }
         }
-
-        // 读取武器参数配置
-        if (aim_config.contains("武器参数配置"))
-        {
-            const auto &weapon_params = aim_config["武器参数配置"];
-            for (const auto &[key, value] : weapon_params.items())
-            {
-                int weapon_id = std::stoi(key);
-                武器参数 params;
-                params.压枪力度 = value.value("压枪力度", 2.15f);
-                params.预判力度 = value.value("预判力度", 1.45f);
-                params.自瞄速度 = value.value("自瞄速度", 35.f);
-                武器参数配置[weapon_id] = params;
-            }
-        }
-    }
 
     // 读取基础配置文件
-    std::ifstream base_file("/data/adb/Via选择配置.json");
+    std::ifstream base_file("/sdcard/AuraKernel/Aura选择配置.json");
     if (base_file.is_open())
     {
         nlohmann::json base_config = nlohmann::json::parse(base_file);
+        // 在保存配置函数中加入
+        this->按钮.悬浮窗X = base_config.value("悬浮窗X", 50.0f);
+        this->按钮.悬浮窗Y = base_config.value("悬浮窗Y", 50.0f);
+        this->按钮.悬浮窗W = base_config.value("悬浮窗W", 1150.0f);
+        this->按钮.悬浮窗H = base_config.value("悬浮窗H", 800.0f);
+
 
         // 读取按钮配置
         if (base_config.contains("按钮"))
@@ -837,8 +656,6 @@ void 绘制::读取配置()
             按钮.方框粗细 = button.value("方框粗细", 按钮.方框粗细);
             按钮.射线粗细 = button.value("射线粗细", 按钮.射线粗细);
             按钮.骨骼粗细 = button.value("骨骼粗细", 按钮.骨骼粗细);
-            按钮.速度值 = button.value("速度值", 按钮.速度值);
-            按钮.第三人称 = button.value("第三人称", 按钮.第三人称);
             按钮.当前帧率 = button.value("当前帧率", 按钮.当前帧率);
             按钮.帧率选项 = button.value("帧率选项", 按钮.帧率选项);
             按钮.血条绘图 = button.value("血条绘图", 按钮.血条绘图);
@@ -848,7 +665,6 @@ void 绘制::读取配置()
             按钮.忽略人机 = button.value("忽略人机", 按钮.忽略人机);
             按钮.手持2 = button.value("手持2", 按钮.手持2);
             按钮.被瞄预警 = button.value("被瞄预警", 按钮.被瞄预警);
-            按钮.人物加速 = button.value("人物加速", 按钮.人物加速);
             按钮.物资总开关 = button.value("物资总开关", 按钮.物资总开关);
             按钮.绘制信号枪 = button.value("绘制信号枪", 按钮.绘制信号枪);
             按钮.绘制金插 = button.value("绘制金插", 按钮.绘制金插);
@@ -860,6 +676,7 @@ void 绘制::读取配置()
             按钮.盒子物资 = button.value("盒子物资", 按钮.盒子物资);
             按钮.隐藏已开启 = button.value("隐藏已开启", 按钮.隐藏已开启);
             按钮.超级物资箱 = button.value("超级物资箱", 按钮.超级物资箱);
+            按钮.显示密钥 = button.value("密钥", 按钮.显示密钥);
             按钮.绘制空投 = button.value("绘制空投", 按钮.绘制空投);
             按钮.人数 = button.value("人数", 按钮.人数);
             按钮.方框 = button.value("方框", 按钮.方框);
@@ -895,25 +712,12 @@ void 绘制::读取配置()
             按钮.投掷物品 = button.value("投掷物", 按钮.投掷物品);
             按钮.显示肾上腺素 = button.value("肾上腺素", 按钮.显示肾上腺素);
             按钮.爆炸猎弓 = button.value("爆炸猎弓", 按钮.爆炸猎弓);
-            按钮.精英勋章 = button.value("精英勋章", 按钮.精英勋章);
             按钮.超体职业 = button.value("超体职业", 按钮.超体职业);
+            按钮.显示自救器 = button.value("自救器", false);
+            按钮.显示飞索 = button.value("飞索", false);
+            按钮.密室钥匙 = button.value("密室钥匙", false);
+            按钮.显示黑色物资箱 = button.value("黑色物资箱", false);
             按钮.绘制最大距离 = button.value("绘制最大距离", 按钮.绘制最大距离);
-        }
-
-        // 读取连点配置
-        if (base_config.contains("连点"))
-        {
-            const auto &click = base_config["连点"];
-            连点.触摸范围X = click.value("触摸范围X", 连点.触摸范围X);
-            连点.触摸范围Y = click.value("触摸范围Y", 连点.触摸范围Y);
-            连点.连点速度 = click.value("连点速度", 连点.连点速度);
-            连点.监听边长 = click.value("监听边长", 连点.监听边长);
-            连点.监听位置X = click.value("监听位置X", 连点.监听位置X);
-            连点.监听位置Y = click.value("监听位置Y", 连点.监听位置Y);
-            连点.启用连点 = click.value("启用连点", 连点.启用连点);
-            连点.连点位置 = click.value("连点位置", 连点.连点位置);
-            连点.跟随自瞄连点 = click.value("跟随自瞄连点", 连点.跟随自瞄连点);
-            连点.监听位置 = click.value("监听位置", 连点.监听位置);
         }
 
         // 读取其他配置
@@ -930,6 +734,7 @@ void 绘制::读取配置()
             手持字体大小 = other.value("手持字体大小", 手持字体大小);
             物资字体大小 = other.value("物资字体大小", 物资字体大小);
             名称字体大小 = other.value("名称字体大小", 名称字体大小);
+            showTopStatusBar = other.value("showTopStatusBar", true);
         }
 
         // 读取颜色配置
@@ -1135,8 +940,6 @@ bool Read(pid_t pid, uint64_t addr, void *buffer, size_t size)
 }
 
 #include "Event.h"
-static Gyro *gyro = nullptr;
-bool 陀螺仪开启状态 = false;
 void 绘制::初始化绘制(string 包名, int 真实X, int 真实Y)
 {
     真实PX = 真实X;
@@ -1158,13 +961,7 @@ void 绘制::初始化绘制(string 包名, int 真实X, int 真实Y)
         this->PY = 真实X / 2;
     }
     地址.libue4 = 读写.get_module_base((char *)"libUE4.so");
-
-    // 陀螺仪初始化
-    if (!陀螺仪开启状态)
-    {
-        gyro = new Gyro(); // 这里会自动检测并选择驱动模式
-        陀螺仪开启状态 = true;
-    }
+    printf("[调试] libUE4 基址: 0x%lX\n", 地址.libue4); // ← 加上这行
 
     // 设置启动时间
     启动时间 = std::chrono::steady_clock::now();
@@ -1179,944 +976,331 @@ void 绘制::初始化绘制(string 包名, int 真实X, int 真实Y)
     // 初始化其他状态变量
     运行负载 = 0.0f;
     网络延迟 = 0;
+
+    DebugAimedClassName.clear();
+    bDebugAimedValid = false;
+    // // ===== PhysX Pro 初始化 =====
+    // static bool physxInited = false;
+    // if (!physxInited && 地址.libue4 != 0)
+    // {
+    //     printf("[调试] 即将调用 InitPhysX, libUE4=0x%lX\n", 地址.libue4);
+    //     InitPhysX("5124768803969458", 地址.libue4, MyPhysXReadv, 0);
+    //     physxInited = true;
+    //     printf("[+] PhysX Pro 初始化成功\n");
+    // }
+    // else
+    // {
+    //     printf("[调试] 跳过 InitPhysX: physxInited=%d, libUE4=0x%lX\n", physxInited, 地址.libue4);  // ★ 新增
+    // }
 }
 
-int 绘制::findminat()
-{
-    float DistanceMin = 450.0f;
-    float min = 自瞄.自瞄范围;
-    int minAt = 999;
-    bool foundNewTarget = false;
-
-    // 持续锁定逻辑：只在开火状态下生效
-    if (自瞄.持续锁定 && 自瞄.持续自瞄中 && 自瞄.瞄准目标 != -1 && 自瞄.瞄准目标 < 自瞄.瞄准总数量 && 自身数据.开火 == 1)
-    {
-        // 检查当前锁定目标是否仍然有效
-        if (自瞄函数[自瞄.瞄准目标].准心距离 <= 自瞄.自瞄范围 &&
-            自瞄函数[自瞄.瞄准目标].距离 <= 自瞄.自瞄距离限制 &&
-            自瞄函数[自瞄.瞄准目标].掩体部位 != 999)
-        {
-            return 自瞄.瞄准目标;
-        }
-        else
-        {
-            // 当前目标失效，重置持续锁定状态
-            自瞄.持续自瞄中 = false;
-            strncpy(AimName, "", sizeof(AimName) - 1);
-        }
-    }
-
-    for (int i = 0; i < 自瞄.瞄准总数量; i++)
-    {
-        switch ((int)自瞄.瞄准优先)
-        {
-        case 0:
-            if (自瞄.持续自瞄中 && 自身数据.开火 == 1) // 只在开火状态下持续锁定
-            {
-                if (strcmp(自瞄函数[i].名字.c_str(), AimName) == 0 && 自瞄函数[i].准心距离 <= min)
-                {
-                    minAt = i;
-                    min = 自瞄函数[i].准心距离;
-                }
-            }
-            else
-            {
-                if (自瞄函数[i].准心距离 < min && 自瞄函数[i].准心距离 != 0)
-                {
-                    min = 自瞄函数[i].准心距离;
-                    foundNewTarget = true;
-                    minAt = i;
-                }
-            }
-            break;
-        case 1:
-            if (自瞄.持续自瞄中 && 自身数据.开火 == 1) // 只在开火状态下持续锁定
-            {
-                if (strcmp(自瞄函数[i].名字.c_str(), AimName) == 0 &&
-                    自瞄函数[i].准心距离 <= 自瞄.自瞄范围 &&
-                    自瞄函数[i].距离 < DistanceMin)
-                {
-                    DistanceMin = 自瞄函数[i].距离;
-                    minAt = i;
-                }
-            }
-            else
-            {
-                if (自瞄函数[i].准心距离 < 自瞄.自瞄范围)
-                {
-                    if (自瞄函数[i].距离 < DistanceMin)
-                    {
-                        DistanceMin = 自瞄函数[i].距离;
-                        foundNewTarget = true;
-                        minAt = i;
-                    }
-                }
-            }
-            break;
-        }
-    }
-
-    if (foundNewTarget && 自瞄.持续锁定 && 自身数据.开火 == 1) // 只在开火状态下设置持续锁定
-    {
-        strncpy(AimName, 自瞄函数[minAt].名字.c_str(), sizeof(AimName) - 1);
-        AimName[sizeof(AimName) - 1] = '\0';
-    }
-    if (minAt == 999)
-    {
-        自瞄.瞄准目标 = -1;
-        自瞄.持续自瞄中 = false;
-        return -1;
-    }
-    自瞄.瞄准目标 = minAt;
-    if (自瞄.持续锁定 && 自身数据.开火 == 1) // 只在开火状态下设置持续自瞄标志
-    {
-        自瞄.持续自瞄中 = true;
-    }
-    if (自瞄函数[自瞄.瞄准目标].掩体部位 == 999)
-    {
-        自瞄.瞄准目标 = -1;
-        return -1;
-    }
-    return minAt;
-}
-
-void 绘制::GetTouch()
-{
-    std::thread *触摸位置线程 = new std::thread([&]
-                                                {
-    for(;;)
-    {
-        usleep(1000000 / 120);
-        ImGuiIO& iooi = ImGui::GetIO();
-        
-        // 新增连点位置调整逻辑
-        if (连点.连点位置 && iooi.MouseDown[0] && iooi.MousePos.x <= 连点.触摸范围X + 连点.触摸范围 && iooi.MousePos.y <= displayInfo.height - 连点.触摸范围Y + 连点.触摸范围 && iooi.MousePos.x >= 连点.触摸范围X - 连点.触摸范围 && iooi.MousePos.y >= displayInfo.height - 连点.触摸范围Y - 连点.触摸范围)
-        {
-          usleep(30000);
-          if (连点.连点位置 && iooi.MouseDown[0] && iooi.MousePos.x <= 连点.触摸范围X + 连点.触摸范围 && iooi.MousePos.y <= displayInfo.height - 连点.触摸范围Y + 连点.触摸范围 && iooi.MousePos.x >= 连点.触摸范围X - 连点.触摸范围 && iooi.MousePos.y >= displayInfo.height - 连点.触摸范围Y - 连点.触摸范围)
-          {
-            while (连点.连点位置 && iooi.MouseDown[0] && iooi.MousePos.x <= 连点.触摸范围X + 连点.触摸范围 && iooi.MousePos.y <= displayInfo.height - 连点.触摸范围Y + 连点.触摸范围 && iooi.MousePos.x >= 连点.触摸范围X - 连点.触摸范围 && iooi.MousePos.y >= displayInfo.height - 连点.触摸范围Y - 连点.触摸范围)
-            {
-              连点.触摸范围X = iooi.MousePos.x;
-              连点.触摸范围Y = displayInfo.height - iooi.MousePos.y;
-              usleep(500);
-            }
-          }
-        }
-
-
-      if (自瞄.触摸位置 && iooi.MouseDown[0] && iooi.MousePos.x <= 自瞄.触摸范围X + 自瞄.触摸范围 && iooi.MousePos.y <= displayInfo.height - 自瞄.触摸范围Y + 自瞄.触摸范围 && iooi.MousePos.x >= 自瞄.触摸范围X - 自瞄.触摸范围 && iooi.MousePos.y >= displayInfo.height - 自瞄.触摸范围Y - 自瞄.触摸范围)
-      {
-        usleep(30000);
-        if (自瞄.触摸位置 && iooi.MouseDown[0] && iooi.MousePos.x <= 自瞄.触摸范围X + 自瞄.触摸范围 && iooi.MousePos.y <= displayInfo.height - 自瞄.触摸范围Y + 自瞄.触摸范围 && iooi.MousePos.x >= 自瞄.触摸范围X - 自瞄.触摸范围 && iooi.MousePos.y >= displayInfo.height - 自瞄.触摸范围Y - 自瞄.触摸范围)
-        {
-          while (自瞄.触摸位置 && iooi.MouseDown[0] && iooi.MousePos.x <= 自瞄.触摸范围X + 自瞄.触摸范围 && iooi.MousePos.y <= displayInfo.height - 自瞄.触摸范围Y + 自瞄.触摸范围 && iooi.MousePos.x >= 自瞄.触摸范围X - 自瞄.触摸范围 && iooi.MousePos.y >= displayInfo.height - 自瞄.触摸范围Y - 自瞄.触摸范围)
-          {
-            自瞄.触摸范围X = iooi.MousePos.x;
-            自瞄.触摸范围Y = displayInfo.height - iooi.MousePos.y;
-            usleep(500);
-          }
-        }
-      }
-    } });
-    触摸位置线程->detach();
-}
-
-bool 绘制::自瞄触发(float 距离)
-{
-    // 如果开启持续锁定且正在持续自瞄中，并且正在开火，直接返回true
-    if (自瞄.持续锁定 && 自瞄.持续自瞄中 && 自身数据.开火 == 1)
-    {
-        return true;
-    }
-
-    // 原有的自瞄触发逻辑...
-    if (自瞄.喷子自瞄)
-    {
-        if (自身数据.手持 == 104003 or 自身数据.手持 == 104005 or 自身数据.手持 == 104100 or 自身数据.手持 == 104004)
-        {
-            if (距离 < 自瞄.喷子距离限制)
-            {
-                if (自瞄.喷子自瞄条件 == 0 or (自瞄.喷子自瞄条件 == 1 && 自身数据.开镜 != 0) or (自瞄.喷子自瞄条件 == 2 && 自身数据.射出子弹数量 != 0))
-                {
-                    if (自瞄.开启喷子连点)
-                    {
-                        clickRegion(true, 自瞄.连点位置);
-                    }
-                    return true;
-                }
-            }
-        }
-    }
-
-    auto &配置 = 武器触发配置[自身数据.手持];
-    if (配置.独立距离限制)
-    {
-        if (自瞄函数[自瞄.瞄准目标].距离 > 配置.自瞄距离限制)
-        {
-            return false;
-        }
-        if (自瞄函数[自瞄.瞄准目标].距离 > 配置.腰射距离限制 && 自身数据.Fov > 75)
-        {
-            return false;
-        }
-    }
-    else
-    {
-        if (自瞄函数[自瞄.瞄准目标].距离 > 自瞄.自瞄距离限制)
-        {
-            return false;
-        }
-        if (自瞄函数[自瞄.瞄准目标].距离 > 自瞄.腰射距离限制 && 自身数据.Fov > 75)
-        {
-            return false;
-        }
-    }
-    if (自瞄.狙击自瞄)
-    {
-        if (自身数据.手持 == 103011 or 自身数据.手持 == 103001 or 自身数据.手持 == 103003 or 自身数据.手持 == 103015 or 自身数据.手持 == 103012 or 自身数据.手持 == 103002)
-        {
-            if (自身数据.Fov < 75)
-            {
-                return true;
-            }
-        }
-    }
-
-    int 触发条件 = 配置.独立调节 ? 配置.自瞄条件 : 自瞄.自瞄条件;
-    switch (触发条件)
-    {
-    case 0:
-        if (自身数据.开火 != 1)
-        {
-            return false;
-        }
-        break;
-    case 1:
-        if (自身数据.开镜 != 1)
-        {
-            return false;
-        }
-        break;
-    case 2:
-        if (自身数据.开火 == 0 && 自身数据.开镜 != 1)
-        {
-            return false;
-        }
-        break;
-    }
-    return true;
-}
-
-float 绘制::陀螺仪灵敏度补偿(float Fov)
-{
-    int 补偿系数 = 自瞄.适应系数;
-    float 当前灵敏度 = 0;
-
-    if (自瞄.自适应腰射灵敏度 && Fov > 75)
-    {
-        // 启用自适应腰射灵敏度，且处于腰射状态
-        // 根据FOV计算腰射灵敏度
-        float 腰射系数 = 1.0f + (Fov - 75) / 15.0f * 0.5f; // FOV越大，灵敏度越高
-        当前灵敏度 = 自身数据.陀螺仪灵敏度第一人称 * 腰射系数;
-        return 补偿系数 / 当前灵敏度;
-    }
-
-    if (Fov > 80)
-    {
-        当前灵敏度 = 自身数据.陀螺仪灵敏度第一人称;
-        return 补偿系数 / 当前灵敏度;
-    }
-    else if (Fov > 75 && Fov <= 80)
-    {
-        当前灵敏度 = 自身数据.陀螺仪灵敏度第三人称;
-        return 补偿系数 / 当前灵敏度;
-    }
-    int 倍镜 = 90 / Fov;
-    const std::unordered_map<int, float> scopeMap = {
-        {0, 自身数据.陀螺仪灵敏度第三人称},
-        {1, 自身数据.陀螺仪灵敏度红点}, // 红点
-        {2, 自身数据.陀螺仪灵敏度二倍},
-        {3, 自身数据.陀螺仪灵敏度三倍},
-        {4, 自身数据.陀螺仪灵敏度四倍},
-        {5, 自身数据.陀螺仪灵敏度四倍},
-        {6, 自身数据.陀螺仪灵敏度六倍},
-        {7, 自身数据.陀螺仪灵敏度六倍},
-        {8, 自身数据.陀螺仪灵敏度八倍}};
-    auto it = scopeMap.find(倍镜);
-    当前灵敏度 = it->second;
-    return 补偿系数 / 当前灵敏度;
-}
-
-void 绘制::自瞄主线程()
-{
-    std::thread *自瞄线程 = new std::thread([&]
-                                            {
-        bool isDown = false;    
-        float halfSize = 自瞄.触摸范围 / 2;
-        double RandomnumberX = 自瞄.触摸范围Y, RandomnumberY = 自瞄.触摸范围X;
-        double tx = 自瞄.触摸范围Y, ty = 自瞄.触摸范围X;
-        
-        if (自瞄.随机触摸点) {
-            RandomnumberY = 自瞄.触摸范围X - halfSize + (rand() % (int)自瞄.触摸范围);
-            RandomnumberX = 自瞄.触摸范围Y - halfSize + (rand() % (int)自瞄.触摸范围);
-            tx = RandomnumberX, ty = RandomnumberY;    
-        }
-        
-        double ScreenX, ScreenY;
-        if(displayInfo.orientation == 1 || displayInfo.orientation == 3) {
-            ScreenX = displayInfo.height; 
-            ScreenY = displayInfo.width;
-        } else {
-            ScreenX = displayInfo.width; 
-            ScreenY = displayInfo.height;
-        }
-        
-        double ScrXH = ScreenX / 2.0f;
-        double ScrYH = ScreenY / 2.0f;
-        static float TargetX = 0;
-        static float TargetY = 0;
-        FVector_class obj;
-        float NowCoor[3];
-        float zm_x, zm_y;
-        
-        int 目标血量 = 100;
-        string 目标名字;
-        bool 自瞄测试 = false;
-        int 数率 = 0;
-        
-        timer AimFPS;
-        AimFPS.SetFps(120);
-        AimFPS.AotuFPS_init();
-        AimFPS.setAffinity();
-        
-        // 新增：平滑过渡变量
-        float lastTargetX = 0, lastTargetY = 0;
-        const float smoothFactor = 0.3f; // 平滑系数
-        
-        // 新增：当前自瞄速度变量
-        float 当前自瞄速度 = 自瞄.自瞄速度;
-        
-        // 新增：陀螺仪状态跟踪
-        bool 上次陀螺仪状态 = false;
-        bool 当前陀螺仪状态 = false;
-        int 无目标计数 = 0;
-        const int 最大无目标计数 = 1; // 连续5帧无目标则停止陀螺仪
-
-        while (1)
-        {
-            // 检查自瞄是否初始化
-            if (!自瞄.初始化)
-            {
-                // 自瞄未初始化时，确保陀螺仪停止
-                if (上次陀螺仪状态 && gyro != nullptr && gyro->isRunning()) {
-                    gyro->update(0, 0, false);
-                    上次陀螺仪状态 = false;
-                }
-                usleep(当前自瞄速度 * 10000);
-                continue;
-            }
-            
-            auto &配置 = 武器触发配置[自身数据.手持];
-            int TempRange = 0;
-            if (自身数据.Fov < 75)
-            {
-                TempRange = 自瞄.开镜自瞄范围;
-            }
-            else
-            {
-                TempRange = 自瞄.当前自瞄范围;
-            }
-            
-            自瞄.自瞄范围 = (自身数据.手持 == 104003 || 自身数据.手持 == 104005 || 
-                          自身数据.手持 == 104100 || 自身数据.手持 == 104004) ? 
-                          自瞄.喷子自瞄范围 : TempRange;
-            
-            // 寻找最近目标
-            findminat();
-            
-            // 更新陀螺仪状态
-            当前陀螺仪状态 = (自瞄.瞄准目标 != -1 && 
-                            自瞄函数[自瞄.瞄准目标].准心距离 <= 自瞄.自瞄范围 &&
-                            自瞄触发(自瞄函数[自瞄.瞄准目标].距离));
-            
-            // 跟踪无目标计数
-            if (!当前陀螺仪状态) {
-                无目标计数++;
-                if (无目标计数 >= 最大无目标计数 && 上次陀螺仪状态) {
-                    // 连续多帧无目标，停止陀螺仪
-                    if (gyro != nullptr && gyro->isRunning()) {
-                        gyro->update(0, 0, false);
-                      //  printf("连续%d帧无目标，停止陀螺仪\n", 最大无目标计数);
-                    }
-                    上次陀螺仪状态 = false;
-                    无目标计数 = 0;
-                }
-            } else {
-                无目标计数 = 0; // 重置计数
-            }
-            
-            // 如果陀螺仪状态从开启变为关闭，发送停止命令
-            if (上次陀螺仪状态 && !当前陀螺仪状态 && gyro != nullptr && gyro->isRunning()) {
-                gyro->update(0, 0, false);
-              //  printf("自瞄目标丢失，停止陀螺仪\n");
-            }
-            
-            上次陀螺仪状态 = 当前陀螺仪状态;
-            
-            if (自瞄.瞄准目标 == -1)
-            {
-                if (自瞄.持续自瞄中) {
-                    自瞄.持续自瞄中 = false;
-                    strncpy(AimName, "", sizeof(AimName) - 1);
-                }
-                usleep(当前自瞄速度 * 10000);
-                continue;
-            }
-            
-            if (自瞄.持续锁定 && 自瞄.持续自瞄中 && 自身数据.开火 == 1) {
-                if (strcmp(自瞄函数[自瞄.瞄准目标].名字.c_str(), AimName) != 0) {
-                    strncpy(AimName, 自瞄函数[自瞄.瞄准目标].名字.c_str(), sizeof(AimName) - 1);
-                    AimName[sizeof(AimName) - 1] = '\0';
-                }
-            }
-            
-            if (自瞄.持续锁定 && 自瞄.持续自瞄中 && 自身数据.开火 != 1) {
-                自瞄.持续自瞄中 = false;
-                strncpy(AimName, "", sizeof(AimName) - 1);
-            }
-            
-            // =============== 动态自瞄速度计算 ===============
-            当前自瞄速度 = 自瞄.自瞄速度;
-
-            // 根据自瞄条件和FOV状态选择速度
-            if (自瞄.自瞄条件 == 0 || 自瞄.自瞄条件 == 2) {
-                if (自身数据.Fov > 75) {
-                    // 腰射状态
-                    当前自瞄速度 = 自瞄.腰射自瞄速度;
-                } else {
-                    // 开镜状态
-                    当前自瞄速度 = 自瞄.开镜自瞄速度;
-                }
-            } else if (自瞄.自瞄条件 == 1) {
-                当前自瞄速度 = 自瞄.开镜自瞄速度;
-            }
-
-            // 检查武器独立配置
-   /*         if (配置.独立调节) {
-                当前自瞄速度 = 武器参数配置[自身数据.手持].自瞄速度;
-            }*/
-            // ===================================================
-            
-            float ToReticleDistance = 自瞄函数[自瞄.瞄准目标].准心距离;
-            float BulletFlightTime = 自瞄函数[自瞄.瞄准目标].距离 / 自身数据.子弹速度;
-            float FlyTime;
-            float 预判力度a = 自瞄.预判力度;
-            
-            if (对象信息.敌人信息.乘坐载具)
-            {
-                预判力度a = 预判度.扫车;
-            }
-            else
-            {
-                if (武器触发配置[自身数据.手持].独立预判)
-                {
-                    预判力度a = 武器参数配置[自身数据.手持].预判力度;
-                }
-            }
-
-            if (自瞄函数[自瞄.瞄准目标].距离 >= 40) {
-                FlyTime = 自瞄函数[自瞄.瞄准目标].距离 / (自身数据.子弹速度 * 0.01f) * 预判力度a;
-            } else {
-                FlyTime = 自瞄函数[自瞄.瞄准目标].距离 / (自身数据.子弹速度 * 0.0055f) * 预判力度a;
-            }
-            
-            float DropM = 540.0f * BulletFlightTime * BulletFlightTime;
-            float 压枪力度 = 自瞄.压枪力度;
-            
-            if (武器触发配置[自身数据.手持].独立压枪)
-            {
-                压枪力度 = 武器参数配置[自身数据.手持].压枪力度;
-            }
-            
-            if (自身数据.人物高度 == 120.0f) {
-                压枪力度 = 自瞄.压枪力度 - (Recoil(自身数据.手持) * 自瞄.趴下位置调节);
-            }
-            
-            NowCoor[0] = 自瞄函数[自瞄.瞄准目标].瞄准坐标.X;
-            NowCoor[1] = 自瞄函数[自瞄.瞄准目标].瞄准坐标.Y;
-            NowCoor[2] = 自瞄函数[自瞄.瞄准目标].瞄准坐标.Z;
-            obj.X = NowCoor[0] + (自瞄函数[自瞄.瞄准目标].人物向量.X * FlyTime);
-            obj.Y = NowCoor[1] + (自瞄函数[自瞄.瞄准目标].人物向量.Y * FlyTime);
-            obj.Z = NowCoor[2] + (自瞄函数[自瞄.瞄准目标].人物向量.Z * FlyTime) + DropM;
-
-            if (自身数据.开火 == 1) {
-                obj.Z -= 自瞄函数[自瞄.瞄准目标].距离 * 压枪力度 * 自身数据.后坐力数据;
-            }
-            
-            if (自身数据.手持握把 == 202004)
-            {
-                obj.Z += 自瞄函数[自瞄.瞄准目标].距离 * 轻型压枪力度 * GetWeaponId(自身数据.手持);
-            } else if(自身数据.手持握把 == 202006) {
-                obj.Z += 自瞄函数[自瞄.瞄准目标].距离 * 拇指压枪力度 * GetWeaponId(自身数据.手持);
-            } else if(自身数据.手持握把 == 202002) {
-                obj.Z += 自瞄函数[自瞄.瞄准目标].距离 * 垂直压枪力度 * GetWeaponId(自身数据.手持);
-            } else if(自身数据.手持握把 == 202001) {
-                obj.Z += 自瞄函数[自瞄.瞄准目标].距离 * 直角压枪力度 * GetWeaponId(自身数据.手持);
-            }
-            
-            D2DVector vpvp = WorldToScreen2(obj);
-            float AimDs = sqrt(pow(PX - vpvp.X, 2) + pow(PY - vpvp.Y, 2));
-            
-            
-
-            
-
-                        
-            
-            
-            
-            
-            
-            
-            if(自瞄.动态自瞄 && (自身数据.开火==1 || 自身数据.开镜 == 1))
-            {
-                自瞄.动态范围 = AimDs;
-            } else {
-                自瞄.动态范围 = 自瞄.自瞄范围;
-            }      
-            
-            zm_y = vpvp.X;
-            zm_x = ScreenX - vpvp.Y;
-            
-            if (zm_x <= 0 || zm_x >= ScreenX || zm_y <= 0 || zm_y >= ScreenY)
-            {
-                if (gyro != nullptr && gyro->isRunning()) {
-                    gyro->update(0, 0, false);
-                }
-                usleep(当前自瞄速度 * 10000);
-                continue;
-            }
-            
-            if (ToReticleDistance <= 自瞄.自瞄范围)
-            {
-                if (!自瞄触发(自瞄函数[自瞄.瞄准目标].距离))
-                {
-                    if (gyro != nullptr && gyro->isRunning()) {
-                        gyro->update(0, 0, false);
-                    }
-                    usleep(当前自瞄速度 * 10000);
-                    continue;
-                }
-                
-                // 优化后的FOV灵敏度计算
-                float FovFactor = 计算FovFactor(自身数据.Fov);
-                float Acc = getScopeAcc((int)(90 / 自身数据.Fov)) * FovFactor;
-                
-                // 计算目标偏移量
-                float deltaX = zm_x - ScrXH;
-                float deltaY = zm_y - ScrYH;
-                
-                // 应用FOV缩放
-                deltaX *= FovFactor;
-                deltaY *= FovFactor;
-                
-                // 使用计算出的自瞄速度进行平滑过渡
-                TargetX = lastTargetX * (1 - smoothFactor) + (-deltaX / 当前自瞄速度 * Acc) * smoothFactor;
-                TargetY = lastTargetY * (1 - smoothFactor) + (deltaY / 当前自瞄速度 * Acc) * smoothFactor;
-                
-                // 边界检查
-                if (TargetY >= 35 || TargetX >= 35 || TargetY <= -35 || TargetX <= -35)
-                {
-                    if (gyro != nullptr && gyro->isRunning()) {
-                        gyro->update(0, 0, false);
-                    }
-                    usleep(当前自瞄速度 * 10000);
-                    continue;
-                }
-
-                // 陀螺仪控制部分
-                float dx = vpvp.X - (ScreenY / 2);
-                float dy = vpvp.Y - (ScreenX / 2);
-
-                float gyroAcc = getScopeAcc((int)(90 / 自身数据.Fov));
-                dx *= gyroAcc;
-                dy *= gyroAcc;
-                dx *= 当前自瞄速度;
-                dy *= 当前自瞄速度;
-
-                float pitch = -dy;
-                float yaw = dx;
-
-                if (自瞄.充电口方向)
-                {
-                    pitch = -pitch;
-                    yaw = -yaw;
-                }
-
-                float sendX = pitch * 0.004f;
-                float sendY = yaw * 0.004f;
-
-                if (displayInfo.orientation == 3)
-                {
-                    sendX = -sendX;
-                    sendY = -sendY;
-                }
-
-                if (gyro && 当前陀螺仪状态)
-                {
-                    gyro->update(sendX, sendY, true);
-                }
-                
-                // 保存当前值用于下一次平滑
-                lastTargetX = TargetX;
-                lastTargetY = TargetY;
-            }
-            else
-            {
-                // 目标不在自瞄范围内，确保陀螺仪停止
-                if (上次陀螺仪状态 && gyro != nullptr && gyro->isRunning()) {
-                    gyro->update(0, 0, false);
-                    上次陀螺仪状态 = false;
-                }
-            }
-            
-            usleep(当前自瞄速度 * 10000);
-            AimFPS.SetFps(按钮.当前帧率);
-            AimFPS.AotuFPS();
-        } });
-    自瞄线程->detach();
-}
-
-// 在 绘制 类中添加停止陀螺仪的方法
-
-void 绘制::停止陀螺仪()
-{
-    if (gyro != nullptr && gyro->isRunning())
-    {
-        gyro->stop();
-        //    printf("手动停止陀螺仪\n");
-    }
-}
-
-void 绘制::重置陀螺仪()
-{
-    if (gyro != nullptr)
-    {
-        gyro->reset();
-        //   printf("重置陀螺仪\n");
-    }
-}
-// 修复：FOV因子计算函数
-float 绘制::计算FovFactor(float currentFov)
-{
-    // FOV越小（开镜），灵敏度越低，瞄准越精确
-    // FOV越大（腰射），灵敏度越高，反应越快
-
-    const float baseFov = 80.0f; // 基础FOV
-    float factor = 1.0f;
-
-    if (currentFov <= 45.0f)
-    {
-        // 高倍镜：更低的灵敏度，更精确的瞄准
-        factor = 0.3f + (currentFov / 45.0f) * 0.3f;
-    }
-    else if (currentFov <= 60.0f)
-    {
-        // 低倍镜：中等灵敏度
-        factor = 0.6f + ((currentFov - 45.0f) / 15.0f) * 0.2f;
-    }
-    else if (currentFov <= 75.0f)
-    {
-        // 腰射/肩射：较高灵敏度
-        factor = 0.8f + ((currentFov - 60.0f) / 15.0f) * 0.15f;
-    }
-    else
-    {
-        // 第三人称：最高灵敏度
-        factor = 0.95f + ((currentFov - 75.0f) / 15.0f) * 0.05f;
-    }
-
-    // 确保因子在合理范围内
-    factor = std::max(0.1f, std::min(1.5f, factor));
-
-    return factor;
-}
-
-// 修复：删除重复的陀螺仪灵敏度补偿函数，只保留一个
-// 注意：删除原来第1326行的重复定义
-
-// 新增：动态FOV范围调整函数
-float 绘制::动态Fov范围调整(float baseRange, float currentFov)
-{
-    // FOV越小，瞄准范围应该越小（更精确）
-    // FOV越大，瞄准范围可以适当增大（更宽松）
-
-    float adjustment = 1.0f;
-
-    if (currentFov <= 45.0f)
-    {
-        adjustment = 0.7f; // 高倍镜缩小范围
-    }
-    else if (currentFov <= 60.0f)
-    {
-        adjustment = 0.85f;
-    }
-    else if (currentFov <= 75.0f)
-    {
-        adjustment = 1.0f;
-    }
-    else
-    {
-        adjustment = 1.15f; // 腰射适当扩大范围
-    }
-
-    return baseRange * adjustment;
-}
 FVector2D 绘制::WorldToScreen(const FVector_class &WorldLocation)
 {
     FVector2D ScreenLocation;
-    FMatrix_class RotationMatrix = 自身数据.准星.GetMatrix();
-    FVector_class AxisX = RotationMatrix.GetScaledAxisX();
-    FVector_class AxisY = RotationMatrix.GetScaledAxisY();
-    FVector_class AxisZ = RotationMatrix.GetScaledAxisZ();
 
-    FVector_class CameraLocation;
-    CameraLocation = 自身数据.相机坐标;
-    FVector_class vDelta(WorldLocation - CameraLocation);
-    FVector_class vTransformed(vDelta | AxisY, vDelta | AxisZ, vDelta | AxisX);
-    if (vTransformed.Z == 0.0f)
-        vTransformed.Z = -0.001f;
+    // 直接使用静态链读出的自身数据.矩阵
+    float matrix[16];
+    memcpy(matrix, 自身数据.矩阵, sizeof(matrix));
 
-    auto VieW = vTransformed.Z;
+    // 计算裁剪空间中的 w 分量
+    float w = matrix[3] * WorldLocation.X + matrix[7] * WorldLocation.Y + matrix[11] * WorldLocation.Z + matrix[15];
+    if (w < 0.001f)
+    {
+        // 在相机后方，返回 INFINITY 让上层跳过绘制
+        return FVector2D(INFINITY, INFINITY);
+    }
 
-    if (vTransformed.Z < 0.0f)
-        vTransformed.Z = -vTransformed.Z;
+    float screenW = displayInfo.width;
+    float screenH = displayInfo.height;
+    float halfW = screenW / 2.0f;
+    float halfH = screenH / 2.0f;
 
-    float ScreenWidth, ScreenHeight;
-    ScreenWidth = displayInfo.width;
-    ScreenHeight = displayInfo.height;
-    float ScreenCenterX = ScreenWidth / 2.0f;
-    float ScreenCenterY = ScreenHeight / 2.0f;
-    float TangentFOV = tanf(ConvertToRadians(自身数据.Fov / 2.0f));
+    // NDC -> 屏幕坐标
+    ScreenLocation.X = halfW + (matrix[0] * WorldLocation.X + matrix[4] * WorldLocation.Y + matrix[8] * WorldLocation.Z + matrix[12]) / w * halfW;
+    ScreenLocation.Y = halfH - (matrix[1] * WorldLocation.X + matrix[5] * WorldLocation.Y + matrix[9] * WorldLocation.Z + matrix[13]) / w * halfH;
 
-    ScreenLocation.X = (ScreenCenterX + vTransformed.X * (ScreenCenterX / TangentFOV) / vTransformed.Z);
-    ScreenLocation.Y = (ScreenCenterY - vTransformed.Y * (ScreenCenterX / TangentFOV) / vTransformed.Z);
-
-    if (VieW != INFINITY && VieW > 0.0f)
-        return ScreenLocation;
-    return FVector2D(INFINITY, INFINITY);
+    return ScreenLocation;
 }
 
 D2DVector 绘制::WorldToScreen2(const FVector_class &WorldLocation)
 {
     D2DVector ScreenLocation;
-    FMatrix_class RotationMatrix = 自身数据.准星.GetMatrix();
-    FVector_class AxisX = RotationMatrix.GetScaledAxisX();
-    FVector_class AxisY = RotationMatrix.GetScaledAxisY();
-    FVector_class AxisZ = RotationMatrix.GetScaledAxisZ();
-    FVector_class CameraLocation;
-    CameraLocation = 自身数据.相机坐标;
-    FVector_class vDelta(WorldLocation - CameraLocation);
-    FVector_class vTransformed(vDelta | AxisY, vDelta | AxisZ, vDelta | AxisX);
-    if (vTransformed.Z == 0.0f)
-        vTransformed.Z = -0.001f;
-    auto VieW = vTransformed.Z;
-    if (vTransformed.Z < 0.0f)
-        vTransformed.Z = -vTransformed.Z;
-    float ScreenWidth, ScreenHeight;
-    ScreenWidth = displayInfo.width;
-    ScreenHeight = displayInfo.height;
-    float ScreenCenterX = ScreenWidth / 2.0f;
-    float ScreenCenterY = ScreenHeight / 2.0f;
-    float TangentFOV = tanf(ConvertToRadians(自身数据.Fov / 2.0f));
-    ScreenLocation.X = (ScreenCenterX + vTransformed.X * (ScreenCenterX / TangentFOV) / vTransformed.Z);
-    ScreenLocation.Y = (ScreenCenterY - vTransformed.Y * (ScreenCenterX / TangentFOV) / vTransformed.Z);
+    float matrix[16];
+    memcpy(matrix, 自身数据.矩阵, sizeof(matrix));
+
+    float w = matrix[3] * WorldLocation.X + matrix[7] * WorldLocation.Y + matrix[11] * WorldLocation.Z + matrix[15];
+    if (w < 0.001f)
+    {
+        ScreenLocation.X = INFINITY;
+        ScreenLocation.Y = INFINITY;
+        return ScreenLocation;
+    }
+
+    float halfW = displayInfo.width / 2.0f;
+    float halfH = displayInfo.height / 2.0f;
+
+    ScreenLocation.X = halfW + (matrix[0] * WorldLocation.X + matrix[4] * WorldLocation.Y + matrix[8] * WorldLocation.Z + matrix[12]) / w * halfW;
+    ScreenLocation.Y = halfH - (matrix[1] * WorldLocation.X + matrix[5] * WorldLocation.Y + matrix[9] * WorldLocation.Z + matrix[13]) / w * halfH;
     return ScreenLocation;
 }
 
-// 更新 数据
-
-// ========== 更新后的偏移宏定义 ==========
-#define GWorld 0x15772758                 // 世界地址基址
-#define STExtraBaseCharacter 0x3478       // 自身Actor偏移 (链中)
-#define GName 0x154DAD38                  // 类名基址
-#define PawnStateRepSyncData 0x1680       // 状态
-#define TeamID 0xb78                      // 队伍ID
-#define bIsGunADS 0x17b8                  // 是否开镜
-#define bIsWeaponFiring 0x2608            // 是否开火
-#define CurrentUsingWeaponSafety 0x1108   // 当前武器指针
-#define CachedBulletTrackComponent 0x1f60 // 缓存子弹轨迹组件 (用于喷子开火，原0x1cF0)
-#define ShootBursts 0x23c                 // 喷子开火计数 (原0x234)
-#define RepWeaponID 0xda8                 // 武器ID
-#define CurBulletNumInClip 0x1f80         // 当前弹夹子弹数
-#define CurMaxBulletNumInOneClip 0x1f84   // 弹夹最大容量
-#define STPlayerController 0x5c58         // 玩家控制器
-#define PlayerCameraManager 0x660         // 相机管理器
-#define CAMERA_MANAGER_OFFSET 0x658       // 相机管理器偏移 (用于读取相机数据)
-#define SpeedValue 0x1018                 // 人物高度/速度值 (原0xee8)
-#define HighWalkSpeed 0x38c4              // 高走速度 (用于判断是否为玩家)
-#define bIsAI 0xb94                       // 是否AI
-#define RootComponent 0x260               // 根组件
-#define VehicleCommon 0xbd8               // 载具通用数据指针
-#define VehicleHP 0x1f8                   // 载具当前血量
-#define VehicleMaxHP 0x1f4                // 载具最大血量
-#define VehicleFuel 0x21c                 // 载具当前油量
-#define VehicleMaxFuel 0x218              // 载具最大油量
-#define PickUpDataList 0xd88              // 拾取数据列表 (盒子物资)
-#define Health 0xFF8                      // 当前血量
-#define HealthMax 0x1000                  // 最大血量
-#define PlayerName 0xaf8                  // 玩家名字
-#define PlayerUID 0xb10                   // 玩家UID (新增)
-#define VelocitySafety 0x10fc             // 速度向量
-#define WeaponEntityComp 0xC68            // 武器实体组件
-#define BulletFireSpeed 0x15CC            // 子弹速度
-#define AccessoriesVRecoilFactor 0x1EC8   // 后坐力系数 (原0x1e98)
-#define Mesh 0x658                        // Mesh组件
-#define Matrix 0x1573BEE8                 // 矩阵链基址 (原0x14573BEE8)
-#define Matrix_Tol 0x154DAD38             // 备用矩阵链基址 (原0x1495C2A0)
-#define MeshPoint 0x828                   // 骨骼节点偏移
-// 对局信息 (新偏移链)
-#define AliveRealPlayerNum 0x12A0 // 本局真实玩家数
-#define AlivePlayerNum 0x129C     // 本局剩余玩家总数
-#define AliveTeamNum 0x130C       // 本局剩余队伍数
-void 绘制::更新地址数据()
+// ═══════════════════════════════════════════════════════════
+// ★ 新增：批量 WorldToScreen（一次矩阵运算出3个坐标）
+// ═══════════════════════════════════════════════════════════
+void 绘制::WorldToScreenBatch(const FVector_class &WorldLoc,
+                              float &outX, float &outY,
+                              float &outFootY, float &outHeadY)
 {
-    // 本项目仅用于学习和研究，不用于任何商业用途 否则自己承担所有风险
+    float matrix[16];
+    memcpy(matrix, 自身数据.矩阵, sizeof(matrix));
 
-    // ========== 基础地址 (使用新偏移) ==========
-    地址.世界地址 = 读写.getPtr64(读写.getPtr64(地址.libue4 + 0x15772758) + 0xb0);                                                                     // GWorld
-    地址.自身地址 = 读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x15772758) + 0xb8) + 0x88) + 0x30) + 0x3478); // 自身Actor
-    地址.矩阵地址 = 读写.getPtr64(读写.getPtr64(地址.libue4 + 0x1573BEE8) + 0x20) + 0x270;                                                             // ViewMatrix
-    地址.矩阵地址_Tol = 读写.getPtr64(读写.getPtr64(地址.libue4 + 0x154DAD38) + 0x98) + 0x10440;                                                       // 备用矩阵链
-
-    // 数组地址与数量 (未解密时)
-    地址.数组地址 = 读写.getPtr64(地址.世界地址 + 0xA0);
-    世界数量 = 读写.getDword(地址.世界地址 + 0xA8);
-
-    // 解密数组优先 (如果已启用)
-    if (解密数组)
+    float w = matrix[3] * WorldLoc.X + matrix[7] * WorldLoc.Y + matrix[11] * WorldLoc.Z + matrix[15];
+    if (w < 0.01f)
     {
-        地址.数组地址 = 解密数组;
-        世界数量 = 读写.getDword(地址.世界地址 + 0xB8);
+        outX = outY = outFootY = outHeadY = INFINITY;
+        return;
     }
 
-    地址.类地址 = 读写.getPtr64(地址.libue4 + 0x14E33C18); // GName 基址
+    float halfW = displayInfo.width / 2.0f;
+    float halfH = displayInfo.height / 2.0f;
+    float invW = 1.0f / w;
+
+    // 屏幕中心X
+    float baseX = halfW + (matrix[0] * WorldLoc.X + matrix[4] * WorldLoc.Y + matrix[8] * WorldLoc.Z + matrix[12]) * invW * halfW;
+    // 屏幕中心Y（身体）
+    float baseY = halfH - (matrix[1] * WorldLoc.X + matrix[5] * WorldLoc.Y + matrix[9] * WorldLoc.Z + matrix[13]) * invW * halfH;
+
+    outX = baseX;
+    outY = baseY;
+    // 脚底Y（Z-5）
+    outFootY = halfH - (matrix[1] * WorldLoc.X + matrix[5] * WorldLoc.Y + matrix[9] * (WorldLoc.Z - 5.0f) + matrix[13]) * invW * halfH;
+    // 头顶Y（Z+身高）
+    outHeadY = halfH - (matrix[1] * WorldLoc.X + matrix[5] * WorldLoc.Y + matrix[9] * (WorldLoc.Z + Offsets::HumanHeight) + matrix[13]) * invW * halfH;
+}
+
+// 更新 数据
+void 绘制::更新地址数据()
+{
+    // ========== 基础地址 (使用新偏移) ==========
+    地址.世界地址 = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::GWorld_PersistentLevel);
+    地址.自身地址 = 读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::GWorld_ActorsCountDec) + 0x88) + 0x30) + 0x3478);
+
+    // 静态视图矩阵链（不依赖玩家 Actor，死亡后依然有效）
+    地址.矩阵地址 = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::MatrixChain1) + 0x20) + Offsets::Matrix_ViewMatrix;
+    地址.矩阵地址_Tol = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::MatrixChain2) + Offsets::Matrix_Tol_Offset1) + Offsets::Matrix_Tol_Offset2;
+
+    // 数组地址与数量（未解密时）
+    地址.数组地址 = 读写.getPtr64(地址.世界地址 + Offsets::GWorld_ActorsArray);
+    世界数量 = 读写.getDword(地址.世界地址 + Offsets::GWorld_ActorsCount);
+
+    // 解密数组优先（如果已启用）
+    if (按钮.解密)
+    {
+        地址.数组地址 = 读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x141BF3F8) + 0xf8) + 0x138) + 0xf0);
+        世界数量 = 读写.getDword(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x141BF3F8) + 0xf8) + 0x138) + 0xf8);
+    }
+
+    地址.类地址 = 读写.getPtr64(地址.libue4 + Offsets::ClassBase);
 
     // ========== 自身坐标 (通过 RootComponent + 0x200) ==========
-    uintptr_t rootComp = 读写.getPtr64(地址.自身地址 + 0x260);
+    uintptr_t rootComp = 读写.getPtr64(地址.自身地址 + Offsets::Actor_RootComponent);
     if (rootComp != 0)
     {
         读写.readv(rootComp + 0x200, &自身数据.坐标, sizeof(自身数据.坐标));
     }
 
     // ========== 自身基础属性 ==========
-    自身数据.自身队伍 = 读写.getDword(地址.自身地址 + 0xb78);                 // TeamID
-    自身数据.自身状态 = 读写.getDword(读写.getPtr64(地址.自身地址 + 0x1680)); // PawnStateRepSyncData
-    自身数据.开镜 = 读写.getDword(地址.自身地址 + 0x17b8);                    // bIsGunADS
-    自身数据.开火 = 读写.getDword(地址.自身地址 + 0x2608);                    // bIsWeaponFiring
+    自身数据.自身队伍 = 读写.getDword(地址.自身地址 + Offsets::Actor_TeamID);
+    自身数据.自身状态 = 读写.getDword(读写.getPtr64(地址.自身地址 + Offsets::Actor_PawnState));
+    自身数据.开镜 = 读写.getDword(地址.自身地址 + Offsets::Actor_bIsGunADS);
+    自身数据.开火 = 读写.getDword(地址.自身地址 + Offsets::Actor_bIsWeaponFiring);
 
     // ========== 手持武器信息 ==========
-    uintptr_t weaponPtr = 读写.getPtr64(地址.自身地址 + 0x1108); // CurrentUsingWeaponSafety
+    uintptr_t weaponPtr = 读写.getPtr64(地址.自身地址 + Offsets::Actor_CurrentWeapon);
     if (weaponPtr != 0)
     {
-        自身数据.手持id = 读写.getDword(weaponPtr + 0xda8); // RepWeaponID
+        自身数据.手持id = 读写.getDword(weaponPtr + Offsets::Weapon_RepID);
         自身数据.手持 = heldconversion(自身数据.手持id);
     }
 
-    // ========== 相机与FOV ==========
-    uintptr_t controller = 读写.getPtr64(地址.自身地址 + 0x5c58); // STPlayerController
+    // 从静态矩阵链直接读取 4x4 视图矩阵（死亡后依然有效）
+    // 尝试使用矩阵链1（更通用）
+    读写.readv(地址.矩阵地址, &自身数据.矩阵, sizeof(自身数据.矩阵));
+
+    // 如果矩阵链1无效（全零），则回退到矩阵链2
+    if (自身数据.矩阵[0] == 0.0f && 自身数据.矩阵[5] == 0.0f && 自身数据.矩阵[10] == 0.0f)
+    {
+        读写.readv(地址.矩阵地址_Tol, &自身数据.矩阵, sizeof(自身数据.矩阵));
+    }
+
+    // FOV 和准星 Yaw 仍然尝试从 PlayerController 读取（自瞄可能需要，读不到也无妨）
+    uintptr_t controller = 读写.getPtr64(地址.自身地址 + Offsets::Controller_Offset);
     if (controller != 0)
     {
-        uintptr_t camManager = 读写.getPtr64(controller + 0x660); // PlayerCameraManager
+        uintptr_t camManager = 读写.getPtr64(controller + Offsets::Controller_CameraManager);
+        // 在 camManager 那段代码中添加视角读取
         if (camManager != 0)
         {
-            读写.readv(camManager + 0x650, &自身数据.相机坐标, sizeof(自身数据.相机坐标));
-            读写.readv(camManager + 0x650 + 0x18, &自身数据.准星, sizeof(自身数据.准星));
-            自身数据.Fov = 读写.getFloat(camManager + 0x680);
+            自身数据.Fov = 读写.getFloat(camManager + Offsets::CameraManager_FOV);
+            // 新增：读取相机坐标
+            读写.readv(camManager + Offsets::CameraManager_CameraPos, &自身数据.相机坐标, sizeof(自身数据.相机坐标));
+            // 新增：读取相机旋转
+            自身数据.视角.X = 读写.getFloat(camManager + Offsets::CameraManager_Rotation);     // Pitch
+            自身数据.视角.Y = 读写.getFloat(camManager + Offsets::CameraManager_Rotation + 4); // Yaw
         }
-        // 准星Y (从0x5fc改为0x604)
-        自身数据.准星Y = 读写.getFloat(controller + 0x604) - 90.0f;
+        自身数据.准星Y = 读写.getFloat(controller + Offsets::Controller_AimYaw) - 90.0f;
     }
 
-    // ========== 子弹速度与后坐力 ==========
-    uintptr_t weaponEntityComp = 读写.getPtr64(weaponPtr + 0xC68); // WeaponEntityComp
-    if (weaponEntityComp != 0)
-    {
-        自身数据.子弹速度 = 读写.getFloat(weaponEntityComp + 0x15CC);   // BulletFireSpeed
-        自身数据.后坐力数据 = 读写.getFloat(weaponEntityComp + 0x1EC8); // AccessoriesVRecoilFactor (新偏移)
-    }
+    // ========== 人物高度 ==========
+    自身数据.人物高度 = 读写.getFloat(地址.自身地址 + Offsets::Actor_SpeedValue);
 
-    // ========== 人物高度 (用于趴下调节) ==========
-    自身数据.人物高度 = 读写.getFloat(地址.自身地址 + 0x1018); // 原0xee8改为0x1018
-
-    // ========== 手持握把 (新增) ==========
-    uintptr_t weaponEntity = 读写.getPtr64(地址.自身地址 + 0x10E8);
+    // ========== 手持握把 ==========
+    uintptr_t weaponEntity = 读写.getPtr64(地址.自身地址 + Offsets::Actor_WeaponEntity);
     if (weaponEntity != 0)
     {
         uintptr_t weaponComp = 读写.getPtr64(weaponEntity + 0xBB8);
         if (weaponComp != 0)
         {
-            自身数据.手持握把 = 读写.getDword(weaponComp + 0xEA0);
+            自身数据.手持握把 = 读写.getDword(weaponComp + Offsets::Weapon_GripID);
         }
     }
 
-    // ========== 对局信息 (新偏移链) ==========
-    if (按钮.显示对局信息) // 原为：if (按钮.显示对局信息 || 按钮.显示全图信息)
-    {
-        uintptr_t gameState = 读写.getPtr64(地址.世界地址 + 0xAB8);
-        if (gameState != 0)
-        {
-            自身数据.真人数量 = 读写.getDword(gameState + 0x12A0);
-            自身数据.人机数量 = 读写.getDword(gameState + 0x129C) - 自身数据.真人数量;
-            自身数据.队伍数量 = 读写.getDword(gameState + 0x130C);
-        }
-    }
-
-    // ========== 陀螺仪灵敏度 (保留原逻辑，但偏移链可能需要后续验证) ==========
-    if (按钮.刷新灵敏度)
-    {
-        // 注意：这里偏移链可能需要更新，暂保持原样，如需要可参照新链调整
-        自身数据.陀螺仪灵敏度第三人称 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x12F65848) + 0x438) + 0x80) + 0xbb8) + 0x58c);
-        自身数据.陀螺仪灵敏度第一人称 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x12F65848) + 0x438) + 0x80) + 0xbb8) + 0x5B0);
-        自身数据.陀螺仪灵敏度红点 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x12F65848) + 0x438) + 0x80) + 0xbb8) + 0x590);
-        自身数据.陀螺仪灵敏度二倍 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x12F65848) + 0x438) + 0x80) + 0xbb8) + 0x594);
-        自身数据.陀螺仪灵敏度三倍 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x12F65848) + 0x438) + 0x80) + 0xbb8) + 0x5A0);
-        自身数据.陀螺仪灵敏度四倍 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x12F65848) + 0x438) + 0x80) + 0xbb8) + 0x598);
-        自身数据.陀螺仪灵敏度六倍 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x12F65848) + 0x438) + 0x80) + 0xbb8) + 0x5a4);
-        自身数据.陀螺仪灵敏度八倍 = 读写.getFloat(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x12F65848) + 0x438) + 0x80) + 0xbb8) + 0x59C);
-        if (自身数据.陀螺仪灵敏度第三人称 != 0)
-        {
-            按钮.刷新灵敏度 = false;
-        }
-    }
+    // ========== 全图人数统计 ==========
+    自身数据.全图数量 = 读写.getDword(
+        读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AllivePlayerNum);
+    自身数据.真人数量 = 读写.getDword(
+        读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AliveRealPlayerNum);
+    自身数据.人机数量 = 自身数据.全图数量 - 自身数据.真人数量;
+    自身数据.队伍数量 = 读写.getDword(
+        读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::AliveNum) + Offsets::AliveTeamNum);
 }
+
 ImColor 绘制::floatArrToImColor(float arr[4])
 {
     return ImColor(arr[0] * 255, arr[1] * 255, arr[2] * 255, arr[3] * 255);
 }
 
+// ============================================================
+// 坐标解密算法 - 在绘制.cpp中 更新对象数据() 函数前面添加
+// ============================================================
+
+// 全局解密缓存（也可放在函数内用static）
+static std::unordered_map<uintptr_t, FVector_class> g_解密缓存;
+static std::unordered_map<uintptr_t, bool> g_解密缓存已初始化;
+static std::unordered_map<uintptr_t, std::chrono::steady_clock::time_point> g_缓存时间;
+static std::unordered_map<uintptr_t, FVector_class> g_敌人速度缓存;
+
+// 判断坐标是否被加密（Z轴突变检测）
+bool 判断坐标是否加密(const FVector_class &坐标, const FVector_class &自身坐标)
+{
+    // 1. 坐标距离自身超过10000单位 → 明显加密
+    float 距离 = sqrt(pow(坐标.X - 自身坐标.X, 2) + pow(坐标.Y - 自身坐标.Y, 2) + pow(坐标.Z - 自身坐标.Z, 2));
+    if (距离 > 10000.0f)
+        return true;
+
+    // 2. Z轴与自身差距超过500单位 → Z被篡改
+    if (fabs(坐标.Z - 自身坐标.Z) > 500.0f)
+        return true;
+
+    return false;
+}
+
+// 检测多个敌人在自身5米正下方
+bool 检测下方敌人集群(const FVector_class &自身坐标)
+{
+    int 下方计数 = 0;
+    float 水平阈值 = 500.0f; // 5米（游戏单位通常是cm）
+    float 垂直上限 = 300.0f; // 下方3米内
+    float 垂直下限 = 10.0f;  // 至少10cm在下方
+
+    // 注：这里无法直接访问本轮所有敌人坐标，用距离判断替代
+    // 检测逻辑在主循环外部也可以用另外的方式
+    return false; // 简化版，在主循环中用更精确方式
+}
+
+// 核心解密函数 - 在坐标读取后立即调用
+void 算法解密坐标(FVector_class &敌人坐标, const FVector_class &自身坐标, uintptr_t 敌人地址)
+{
+    bool 被加密 = 判断坐标是否加密(敌人坐标, 自身坐标);
+
+    if (!被加密)
+    {
+        // 坐标正常 → 更新缓存
+        g_解密缓存[敌人地址] = 敌人坐标;
+        g_解密缓存已初始化[敌人地址] = true;
+        return;
+    }
+
+    // 坐标被加密！
+    if (g_解密缓存已初始化[敌人地址])
+    {
+        // 有历史缓存 → 用历史坐标 + Z轴修正
+        FVector_class &缓存 = g_解密缓存[敌人地址];
+        敌人坐标.X = 缓存.X;
+        敌人坐标.Y = 缓存.Y;
+        // Z轴用自身Z减去170（假设敌人在地面）
+        敌人坐标.Z = 自身坐标.Z - 170.0f;
+    }
+    else
+    {
+        // 无缓存 → 直接用自身坐标（至少显示在附近）
+        敌人坐标.X = 自身坐标.X;
+        敌人坐标.Y = 自身坐标.Y;
+        敌人坐标.Z = 自身坐标.Z - 170.0f;
+        g_解密缓存[敌人地址] = 敌人坐标;
+        g_解密缓存已初始化[敌人地址] = true;
+    }
+}
+// 复用的矩阵转换（来自骨骼.hpp）
+FMatrix TransformToMatrix(FTransform transform)
+{
+    FMatrix matrix;
+    matrix.M[3][0] = transform.Translation.X;
+    matrix.M[3][1] = transform.Translation.Y;
+    matrix.M[3][2] = transform.Translation.Z;
+    float x2 = transform.Rotation.X + transform.Rotation.X;
+    float y2 = transform.Rotation.Y + transform.Rotation.Y;
+    float z2 = transform.Rotation.Z + transform.Rotation.Z;
+    float xx2 = transform.Rotation.X * x2;
+    float yy2 = transform.Rotation.Y * y2;
+    float zz2 = transform.Rotation.Z * z2;
+    matrix.M[0][0] = (1 - (yy2 + zz2)) * transform.Scale3D.X;
+    matrix.M[1][1] = (1 - (xx2 + zz2)) * transform.Scale3D.Y;
+    matrix.M[2][2] = (1 - (xx2 + yy2)) * transform.Scale3D.Z;
+    float yz2 = transform.Rotation.Y * z2;
+    float wx2 = transform.Rotation.W * x2;
+    matrix.M[2][1] = (yz2 - wx2) * transform.Scale3D.Z;
+    matrix.M[1][2] = (yz2 + wx2) * transform.Scale3D.Y;
+    float xy2 = transform.Rotation.X * y2;
+    float wz2 = transform.Rotation.W * z2;
+    matrix.M[1][0] = (xy2 - wz2) * transform.Scale3D.Y;
+    matrix.M[0][1] = (xy2 + wz2) * transform.Scale3D.X;
+    float xz2 = transform.Rotation.X * z2;
+    float wy2 = transform.Rotation.W * y2;
+    matrix.M[2][0] = (xz2 + wy2) * transform.Scale3D.Z;
+    matrix.M[0][2] = (xz2 - wy2) * transform.Scale3D.X;
+    matrix.M[0][3] = 0;
+    matrix.M[1][3] = 0;
+    matrix.M[2][3] = 0;
+    matrix.M[3][3] = 1;
+    return matrix;
+}
+
+FMatrix MatrixMulti(const FMatrix &m1, const FMatrix &m2)
+{
+    FMatrix matrix;
+    for (int i = 0; i < 4; i++)
+        for (int j = 0; j < 4; j++)
+        {
+            matrix.M[i][j] = 0;
+            for (int k = 0; k < 4; k++)
+                matrix.M[i][j] += m1.M[i][k] * m2.M[k][j];
+        }
+    return matrix;
+}
+
 void 绘制::更新对象数据()
 {
-    if (自瞄.触摸位置)
-        绘图.绘制自瞄触摸范围(自瞄.触摸范围, 自瞄.触摸范围X, 自瞄.触摸范围Y);
-    if (连点.连点位置)
-        绘图.绘制连点位置(连点.触摸范围X, 连点.触摸范围Y);
-    if (!自瞄.动态自瞄)
-    {
-        自瞄.动态范围 = 自瞄.自瞄范围;
-    }
-    if (连点.监听位置)
-    {
-        绘图.绘制监听区域(连点.监听边长, 连点.监听位置X, 连点.监听位置Y);
-    }
-    if (自瞄.初始化 && !自瞄.隐藏自瞄圈)
-    {
-        if (自身数据.手持 != 0)
-        {
-            ImGui::GetForegroundDrawList()->AddCircle({PX, PY}, 自瞄.动态范围, ImColor(255, 255, 255, 255), 0, 1.5f);
-        }
-    }
     if (按钮.雷达)
     {
         绘图.RenderRadarScan(ImGui::GetForegroundDrawList(), ImVec2(按钮.雷达X, 按钮.雷达Y), 150.0f, 100, 按钮.rotationAngle, 150.0f, 自身数据.准星Y);
@@ -2124,30 +1308,167 @@ void 绘制::更新对象数据()
     int 绘制人机 = 0, 绘制真人 = 0;
     被瞄准对象数量 = 0;
     自瞄.瞄准对象数量 = 0;
+    // 开发者模式：记录距离准星最近的物体
+    static float minDistDebug = 9999.0f;
+    static uintptr_t closestDebugAddr = 0;
+    static std::string closestClassName;
+
+    minDistDebug = 9999.0f;
+    closestDebugAddr = 0;
+    closestClassName.clear();
+    bool 存在已开启的超级物资箱 = false; // 必须在 for 循环前声明
     for (int a = 0; a < 世界数量; a++)
     {
+        // 主循环
         对象地址.敌人地址 = 读写.getPtr64(地址.数组地址 + a * 8);
-        读写.readv(读写.getPtr64(对象地址.敌人地址 + RootComponent) + 0x200, &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标)); // 更新坐标
-        对象信息.敌人信息.距离 = 计算.计算距离(自身数据.坐标, 对象信息.敌人信息.坐标);                                                 // 距离
-        FVector2D screenPos = WorldToScreen(对象信息.敌人信息.坐标);
-        FVector2D footPos = WorldToScreen(FVector_class{对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z - 5});   // 脚部坐标
-        FVector2D headPos = WorldToScreen(FVector_class{对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z + 205}); // 头部坐标
-        float r_x = footPos.X;                                                                                                                // 身体中心X坐标
-        float r_y = footPos.Y;                                                                                                                // 身体中心Y坐标
-        float r_z = headPos.Y;                                                                                                                // 脚部Y坐标
+        读写.readv(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_RootComponent) + 0x1B0, &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
+        FVector_class &坐标 = 对象信息.敌人信息.坐标;
+        if (按钮.坐标解密)
+        {
+            // ─── 帧间一致性检测 ───
+            if (g_解密缓存已初始化[对象地址.敌人地址])
+            {
+                FVector_class &上一帧 = g_解密缓存[对象地址.敌人地址];
+
+                // 计算偏移
+                float 水平偏移 = sqrt(pow(坐标.X - 上一帧.X, 2) + pow(坐标.Y - 上一帧.Y, 2));
+                float 垂直偏移 = fabs(坐标.Z - 上一帧.Z);
+
+                // 加密判断
+                bool 水平加密 = (水平偏移 > 800.0f);
+                bool 垂直加密 = (垂直偏移 > 300.0f);
+
+                // 替换原来的代码
+                if (水平加密 || 垂直加密)
+                {
+                    FVector_class &速度 = g_敌人速度缓存[对象地址.敌人地址];
+                    float dt = 0.05f; // 预测时间因子（根据帧率调整）
+
+                    // XY用上一帧+速度预测
+                    坐标.X = 上一帧.X + 速度.X * dt;
+                    坐标.Y = 上一帧.Y + 速度.Y * dt;
+
+                    // ★ 关键修复：Z用上一帧的Z + 速度预测，而不是用自身Z！
+                    if (!垂直加密)
+                    {
+                        坐标.Z = 上一帧.Z + 速度.Z * dt;
+                    }
+                    else
+                    {
+                        // Z确实加密了，也用上一帧Z，不低于地面即可
+                        坐标.Z = 上一帧.Z;
+                        if (坐标.Z < -10000)
+                            坐标.Z = 上一帧.Z; // 保护
+                    }
+
+                    g_缓存时间[对象地址.敌人地址] = std::chrono::steady_clock::now();
+                }
+                else
+                {
+                    // 正常更新缓存
+                    g_解密缓存[对象地址.敌人地址] = 坐标;
+                    g_缓存时间[对象地址.敌人地址] = std::chrono::steady_clock::now();
+                    读写.readv(对象地址.敌人地址 + Offsets::Actor_Velocity,
+                               &g_敌人速度缓存[对象地址.敌人地址], sizeof(FVector_class));
+                }
+            }
+            else
+            {
+                // ─── 首次遇到：验证坐标是否合理 ───
+                float 距离 = sqrt(pow(坐标.X - 自身数据.坐标.X, 2) + pow(坐标.Y - 自身数据.坐标.Y, 2) + pow(坐标.Z - 自身数据.坐标.Z, 2));
+
+                if (距离 > 10.0f && 距离 < 300000.0f)
+                {
+                    g_解密缓存[对象地址.敌人地址] = 坐标;
+                    g_解密缓存已初始化[对象地址.敌人地址] = true;
+                    g_缓存时间[对象地址.敌人地址] = std::chrono::steady_clock::now();
+                    读写.readv(对象地址.敌人地址 + Offsets::Actor_Velocity,
+                               &g_敌人速度缓存[对象地址.敌人地址], sizeof(FVector_class));
+                }
+                else
+                {
+                    // 首次读取就是加密数据 → 用自身坐标作为基准
+                    坐标.X = 自身数据.坐标.X;
+                    坐标.Y = 自身数据.坐标.Y;
+                    坐标.Z = 自身数据.坐标.Z - 170.0f;
+                    g_解密缓存[对象地址.敌人地址] = 坐标;
+                    g_解密缓存已初始化[对象地址.敌人地址] = true;
+                    g_缓存时间[对象地址.敌人地址] = std::chrono::steady_clock::now();
+                    memset(&g_敌人速度缓存[对象地址.敌人地址], 0, sizeof(FVector_class));
+                    // ← 不再 continue！
+                }
+            }
+        }
+        // ★★★ 解密结束 ★★★
+
+        对象信息.敌人信息.距离 = 计算.计算距离(自身数据.坐标, 对象信息.敌人信息.坐标);
+        float sx, sy, footY, headY;
+        WorldToScreenBatch(对象信息.敌人信息.坐标, sx, sy, footY, headY);
+        FVector2D screenPos = {sx, sy};
+        FVector2D footPos = {sx, footY};
+        FVector2D headPos = {sx, headY};
+
+        struct SmoothPos
+        {
+            float fx, fy, hz;
+        };
+        static std::unordered_map<uintptr_t, SmoothPos> smoothCache;
+
+        // 增强屏幕有效性判断：防空框
+        float screenW = ImGui::GetIO().DisplaySize.x;
+        float screenH = ImGui::GetIO().DisplaySize.y;
+        bool screenValid = (footPos.X != INFINITY && footPos.Y != INFINITY && headPos.Y != INFINITY && footPos.X > -screenW && footPos.X < screenW * 2 // 不过度偏离屏幕
+                            && footPos.Y > -screenH && footPos.Y < screenH * 2 && headPos.Y > -screenH && headPos.Y < screenH * 2);
+
+        if (!screenValid)
+        {
+            smoothCache.erase(对象地址.敌人地址); // 清理残留缓存
+        }
+
+        constexpr float kSmooth = 1.00f;
+        auto &cached = smoothCache[对象地址.敌人地址];
+        // 首次出现且有效时直接赋值，无效时填 0 确保后续 t_屏幕坐标.W < 0
+        if (cached.fx == 0 && cached.fy == 0 && cached.hz == 0)
+        {
+            cached = screenValid ? SmoothPos{footPos.X, footPos.Y, headPos.Y} : SmoothPos{0, 0, 0};
+        }
+        else if (screenValid)
+        {
+            // 只有屏幕有效时才做平滑更新
+            cached.fx += kSmooth * (footPos.X - cached.fx);
+            cached.fy += kSmooth * (footPos.Y - cached.fy);
+            cached.hz += kSmooth * (headPos.Y - cached.hz);
+        }
+
+        float r_x = cached.fx;
+        float r_y = cached.fy;
+        float r_z = cached.hz;
         float camear_r = (screenPos.X != INFINITY && screenPos.Y != INFINITY) ? 1.0f : -1.0f;
-        D4DVector t_屏幕坐标 = {r_x - (r_y - r_z) / 4, r_y, (r_y - r_z) / 2, r_y - r_z};
-        if (对象信息.敌人信息.距离 > 按钮.绘制最大距离)
+
+        // 根据屏幕有效状态构造绘制坐标，无效则强制 W < 0 → 不绘制
+        D4DVector t_屏幕坐标;
+        if (screenValid)
+        {
+            t_屏幕坐标 = {r_x - (r_y - r_z) / 4, r_y, (r_y - r_z) / 2, r_y - r_z};
+        }
+        else
+        {
+            t_屏幕坐标 = {0, 0, 0, -1.0f}; // W < 0 保证后续所有绘制被跳过
+        }
+
+        // 距离过滤仍然保留
+        if (对象信息.敌人信息.距离 > Offsets::MaxDrawDistance)
         {
             continue;
         }
+        // 正常绘制方框...
         char 计算地址[256] = "我是帅哥";
         sprintf(计算地址, "%lx", 对象地址.敌人地址);
         char 自救计算地址[256] = "我是篮子";
         sprintf(自救计算地址, "%lx", 对象地址.敌人地址);
         if (按钮.手雷预警)
         {
-            int 手雷ID = 读写.getDword(对象地址.敌人地址 + 0x794); // 手雷id
+            int 手雷ID = 读写.getDword(对象地址.敌人地址 + 0x794);
             const char *投掷物信息 = Getagrenade(手雷ID);
             if (手雷ID == 602004 or 手雷ID == 9825004)
             {
@@ -2171,7 +1492,7 @@ void 绘制::更新对象数据()
                         name += "[" + std::to_string((int)对象信息.敌人信息.距离) + "米]";
                         auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 35);
                         if (手雷ID != 602004 && 手雷ID != 9825004)
-                        { // 手雷字体显示
+                        {
                             ImGui::GetForegroundDrawList()->AddText(NULL, 35, {r_x - (textSize.x / 2), r_y + 30}, ImColor(255, 0, 0, 255), name.c_str());
                         }
                         if (手雷ID == 602004 or 手雷ID == 9825004)
@@ -2189,11 +1510,15 @@ void 绘制::更新对象数据()
                             ImGui::GetForegroundDrawList()->AddText(NULL, 32, {r_x - (textSize.x / 2), r_y + 20}, ImColor(0, 255, 0, 255), 距离.c_str());
                             if (按钮.手雷样式 == 0)
                             {
-                                // 绘图.ExplosionRange(对象信息.敌人信息.坐标, ImColor(255, 0, 0, 255), 350, 1.5f, 自身数据.矩阵);
+                                绘图.ExplosionRange(
+                                    D3DVector(对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z),
+                                    ImColor(255, 0, 0, 255), 350, 1.5f, 自身数据.矩阵);
                             }
                             else
                             {
-                                // 绘图.ExplosionRange1(对象信息.敌人信息.坐标, ImColor(255, 0, 0, 255), 350, 1.5f, 自身数据.矩阵);
+                                绘图.ExplosionRange1(
+                                    D3DVector(对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z),
+                                    ImColor(255, 0, 0, 255), 350, 1.5f, 自身数据.矩阵);
                             }
                         }
                     }
@@ -2205,23 +1530,38 @@ void 绘制::更新对象数据()
 
         char ClassName[64] = "";
         char 对象信息_max[200] = "";
-        int ClassID = 读写.getPtr64(对象地址.敌人地址 + 24);
+        int ClassID = 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_ClassID);
         long int FNameEntry;
         if (t_屏幕坐标.W > 0)
-        { // 车辆物资区域
+        {
             FNameEntry = 读写.getPtr64(读写.getPtr64(地址.类地址 + (ClassID / 0x4000) * 0x8) + (ClassID % 0x4000) * 0x8);
             读写.readv(FNameEntry + 0xC, ClassName, 64);
 
-            // 设置描边颜色
-            ImColor outlineColor = ImColor(0, 0, 0, 255); // 黑色描边
+            ImColor outlineColor = ImColor(0, 0, 0, 255);
 
-            if (按钮.Debug)
+            if (按钮.Debug && t_屏幕坐标.W > 0)
             {
+                // 计算屏幕坐标到准星(屏幕中心)的距离
+                float distToCenter = calculateDistance(PX, PY, r_x, r_y);
+                if (distToCenter < minDistDebug)
+                {
+                    minDistDebug = distToCenter;
+                    closestDebugAddr = 对象地址.敌人地址;
+                    // 根据 Debug 模式选择类名或地址字符串
+                    if (按钮.Debug模式 == 0)
+                        closestClassName = std::string(ClassName);
+                    else if (按钮.Debug模式 == 1)
+                        closestClassName = std::string(计算地址);
+                    else                                            // Debug模式 == 2 → 物资ID
+                        closestClassName = std::to_string(ClassID); // ClassID 是 int 类型
+                }
+
+                // 以下是原有的绘制类名/地址代码，保持不变
+                ImColor outlineColor = ImColor(0, 0, 0, 255);
                 if (按钮.Debug模式 == 0)
                 {
                     auto textSize = ImGui::CalcTextSize(ClassName, 0, 物资字体大小);
                     ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-                    // 绘制描边
                     for (int x = -1; x <= 1; x++)
                     {
                         for (int y = -1; y <= 1; y++)
@@ -2232,14 +1572,12 @@ void 绘制::更新对象数据()
                             }
                         }
                     }
-                    // 绘制中心文字
                     ImGui::GetForegroundDrawList()->AddText(NULL, 30, textPos, ImColor(255, 255, 255, 255), ClassName);
                 }
-                else
+                else if (按钮.Debug模式 == 1)
                 {
                     auto textSize = ImGui::CalcTextSize(计算地址, 0, 物资字体大小);
                     ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-                    // 绘制描边
                     for (int x = -1; x <= 1; x++)
                     {
                         for (int y = -1; y <= 1; y++)
@@ -2250,88 +1588,131 @@ void 绘制::更新对象数据()
                             }
                         }
                     }
-                    // 绘制中心文字
                     ImGui::GetForegroundDrawList()->AddText(NULL, 30, textPos, ImColor(255, 255, 255, 255), 计算地址);
+                }
+                else if (按钮.Debug模式 == 2)
+                {
+                    // ========== 绘制物资ID（新增） ==========
+                    char idStr[32];
+                    snprintf(idStr, sizeof(idStr), "%d", ClassID); // 十进制
+                    // 或者想用十六进制：snprintf(idStr, sizeof(idStr), "0x%X", ClassID);
+
+                    auto textSize = ImGui::CalcTextSize(idStr, 0, 物资字体大小);
+                    ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+                    for (int x = -1; x <= 1; x++)
+                        for (int y = -1; y <= 1; y++)
+                            if (x != 0 || y != 0)
+                                ImGui::GetForegroundDrawList()->AddText(NULL, 30, {textPos.x + x, textPos.y + y}, outlineColor, idStr);
+                    ImGui::GetForegroundDrawList()->AddText(NULL, 30, textPos, ImColor(255, 255, 255, 255), idStr);
                 }
             }
             float Mlline = calculateDistance(PX, PY, t_屏幕坐标.X, t_屏幕坐标.Y);
-            if (按钮.车辆)
+            if (按钮.车辆 && !按钮.漏手模式)
             {
-                long long VehicleData = 读写.getPtr64(对象地址.敌人地址 + VehicleCommon);
-                float 载具血量 = 读写.getFloat(VehicleData + VehicleHP) / 读写.getFloat(VehicleData + VehicleMaxHP) * 100;
-                float 载具油量 = 读写.getFloat(VehicleData + VehicleFuel) / 读写.getFloat(VehicleData + VehicleMaxFuel) * 100;
+                long long VehicleData = 读写.getPtr64(对象地址.敌人地址 + Offsets::Vehicle_CommonData);
+                float 载具血量 = 读写.getFloat(VehicleData + Offsets::Vehicle_CurrentHP) / 读写.getFloat(VehicleData + Offsets::Vehicle_MaxHP) * 100;
+                float 载具油量 = 读写.getFloat(VehicleData + Offsets::Vehicle_CurrentFuel) / 读写.getFloat(VehicleData + Offsets::Vehicle_MaxFuel) * 100;
                 if ((int)载具血量 != 0 && (int)载具油量 != 0 && 载具油量 <= 100 && 载具血量 <= 100 && 载具油量 >= 0 && 载具血量 >= 0)
                 {
                     std::string name = getMaterialName(ClassName);
-                    if (name != "Error" && 读写.getPtr64(地址.自身地址 + 0x1b8) != 对象地址.敌人地址 && 对象信息.敌人信息.距离 > 5)
+                    if (name != "Error" && 读写.getPtr64(地址.自身地址 + Offsets::Actor_Vehicle) != 对象地址.敌人地址 && 对象信息.敌人信息.距离 > 5)
                     {
                         name += std::to_string((int)对象信息.敌人信息.距离) + "米";
-                        auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 20);
-                        ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-                        ImColor color = ImColor(static_cast<int>(车辆颜色[0] * 255 + 0.5), static_cast<int>(车辆颜色[1] * 255 + 0.5), static_cast<int>(车辆颜色[2] * 255 + 0.5), static_cast<int>(车辆颜色[3] * 255 + 0.5));
 
-                        // 绘制描边
+                        // 动态字号：远小近大，最大 20
+                        float baseFontSize = 22.0f; // 最大字号
+                        float minFontSize = 8.0f;   // 最远保留的最小字号
+                        float maxDist = 100.0f;     // 开始缩小的距离
+
+                        float scale = (对象信息.敌人信息.距离 > maxDist) ? (maxDist / 对象信息.敌人信息.距离) : 1.0f;
+                        float fontSize = baseFontSize * scale;
+                        if (fontSize < minFontSize)
+                            fontSize = minFontSize;
+
+                        // 准星对准远处的载具时，恢复最大字号（Mlline 为屏幕中心到载具屏幕坐标的距离）
+                        const float aimThreshold = 80.0f; // 对准阈值，单位像素
+                        if (Mlline < aimThreshold)
+                        {
+                            fontSize = baseFontSize;
+                        }
+
+                        ImColor color = ImColor(
+                            static_cast<int>(车辆颜色[0] * 255 + 0.5),
+                            static_cast<int>(车辆颜色[1] * 255 + 0.5),
+                            static_cast<int>(车辆颜色[2] * 255 + 0.5),
+                            static_cast<int>(车辆颜色[3] * 255 + 0.5));
+
+                        // 计算载具名称大小与位置
+                        auto textSize = ImGui::CalcTextSize(name.c_str(), 0, fontSize);
+                        ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                        // 描边（黑色轮廓）
                         for (int x = -1; x <= 1; x++)
                         {
                             for (int y = -1; y <= 1; y++)
                             {
                                 if (x != 0 || y != 0)
                                 {
-                                    ImGui::GetForegroundDrawList()->AddText(NULL, 20, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                                    ImGui::GetForegroundDrawList()->AddText(
+                                        NULL, fontSize,
+                                        {textPos.x + x, textPos.y + y},
+                                        outlineColor, name.c_str());
                                 }
                             }
                         }
-                        // 绘制中心文字
-                        ImGui::GetForegroundDrawList()->AddText(NULL, 20, textPos, color, name.c_str());
+                        // 主体文字
+                        ImGui::GetForegroundDrawList()->AddText(NULL, fontSize, textPos, color, name.c_str());
 
-                        char healthText[32];
-                        sprintf(healthText, "血量: %.0f", 载具血量);
-                        char fuelText[32];
-                        sprintf(fuelText, "油量: %.0f", 载具油量);
-
-                        // 计算文本位置
-                        ImVec2 healthTextSize = ImGui::CalcTextSize(healthText);
-                        ImVec2 fuelTextSize = ImGui::CalcTextSize(fuelText);
+                        // 血量/油量（仅当 Mlline <= 80 时显示，也使用缩放后的字号）
                         if (Mlline <= 80.0f)
                         {
+                            char healthText[32];
+                            sprintf(healthText, "血量: %.0f", 载具血量);
+                            char fuelText[32];
+                            sprintf(fuelText, "油量: %.0f", 载具油量);
+
+                            // 用动态字号计算尺寸
+                            ImVec2 healthTextSize = ImGui::CalcTextSize(healthText, 0, fontSize);
+                            ImVec2 fuelTextSize = ImGui::CalcTextSize(fuelText, 0, fontSize);
+
                             ImVec2 healthPos = {r_x - (healthTextSize.x + fuelTextSize.x + 10) / 2, r_y + 25};
                             ImVec2 fuelPos = {r_x + (healthTextSize.x + fuelTextSize.x + 10) / 2 - fuelTextSize.x, r_y + 25};
 
-                            // 绘制血量描边
+                            // 血量描边
                             for (int x = -1; x <= 1; x++)
                             {
                                 for (int y = -1; y <= 1; y++)
                                 {
                                     if (x != 0 || y != 0)
                                     {
-                                        ImGui::GetForegroundDrawList()->AddText(NULL, 20, {healthPos.x + x, healthPos.y + y}, outlineColor, healthText);
+                                        ImGui::GetForegroundDrawList()->AddText(NULL, fontSize,
+                                                                                {healthPos.x + x, healthPos.y + y}, outlineColor, healthText);
                                     }
                                 }
                             }
-                            // 绘制血量文字
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 20, healthPos, ImColor(255, 0, 0, 255), healthText);
+                            ImGui::GetForegroundDrawList()->AddText(NULL, fontSize, healthPos, ImColor(255, 0, 0, 255), healthText);
 
-                            // 绘制油量描边
+                            // 油量描边
                             for (int x = -1; x <= 1; x++)
                             {
                                 for (int y = -1; y <= 1; y++)
                                 {
                                     if (x != 0 || y != 0)
                                     {
-                                        ImGui::GetForegroundDrawList()->AddText(NULL, 20, {fuelPos.x + x, fuelPos.y + y}, outlineColor, fuelText);
+                                        ImGui::GetForegroundDrawList()->AddText(NULL, fontSize,
+                                                                                {fuelPos.x + x, fuelPos.y + y}, outlineColor, fuelText);
                                     }
                                 }
                             }
-                            // 绘制油量文字
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 20, fuelPos, ImColor(0, 255, 0, 255), fuelText);
+                            ImGui::GetForegroundDrawList()->AddText(NULL, fontSize, fuelPos, ImColor(0, 255, 0, 255), fuelText);
                         }
                     }
                 }
             }
 
-            if (按钮.物资总开关)
+            if (按钮.物资总开关 && !按钮.漏手模式)
             {
-                int MaterialID = 读写.getDword(对象地址.敌人地址 + 0x6f4);
+                int MaterialID = 读写.getDword(对象地址.敌人地址 + Offsets::Box_Open);
                 std::string name = getBoxName(MaterialID);
                 if (name != "Error")
                 {
@@ -2342,7 +1723,6 @@ void 绘制::更新对象数据()
                     ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
                     ImColor textColor = 绘制::floatArrToImColor(绘制::物资颜色);
 
-                    // 绘制描边
                     for (int x = -1; x <= 1; x++)
                     {
                         for (int y = -1; y <= 1; y++)
@@ -2353,7 +1733,6 @@ void 绘制::更新对象数据()
                             }
                         }
                     }
-                    // 绘制中心文字
                     ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, textColor, name.c_str());
                 }
             }
@@ -2389,65 +1768,75 @@ void 绘制::更新对象数据()
                     textColor,
                     ClassName);
             }
-            if (按钮.超级物资箱 && (strstr(ClassName, "EscapeBox_SpeEffect_C") != 0 or strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Classic_C") != 0 or strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme_C") != 0 or strstr(ClassName, "EscopeBox_SpeEffect_C") != 0))
+            if (按钮.绘制空投)
             {
-                std::string name = "超级物资箱[";
-                name += std::to_string((int)对象信息.敌人信息.距离);
-                name += "米]";
-                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
-                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-
-                // 绘制描边
-                for (int x = -1; x <= 1; x++)
+                if (
+                    strstr(ClassName, "BP_AirDropBox_Helicopter_C") != 0 ||
+                    strstr(ClassName, "BP_CG036_AirDropBox_C") != 0 ||
+                    strstr(ClassName, "BP_CGO36_AirDropBox_C") != 0 ||
+                    strstr(ClassName, "PickUpListWrapperActor") != 0 ||
+                    strstr(ClassName, "PlayerDeadInventoryBox_C") != 0 ||
+                    strstr(ClassName, "AirDropListWrapperActor") != 0 ||
+                    strstr(ClassName, "TreasureBox_Main_C") != 0 ||
+                    strstr(ClassName, "BP_AirDropBox_C") != 0)
                 {
-                    for (int y = -1; y <= 1; y++)
+                    std::string name = "空投[";
+                    name += std::to_string((int)对象信息.敌人信息.距离);
+                    name += "米]";
+                    auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 30);
+                    ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                    ImColor textColor = ImColor(255, 0, 0, 255);
+                    ImColor outlineColor = ImColor(0, 0, 0, 255);
+
+                    for (int x = -1; x <= 1; x++)
                     {
-                        if (x != 0 || y != 0)
+                        for (int y = -1; y <= 1; y++)
                         {
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                            if (x != 0 || y != 0)
+                            {
+                                ImGui::GetForegroundDrawList()->AddText(
+                                    NULL, 30,
+                                    {textPos.x + x, textPos.y + y},
+                                    outlineColor,
+                                    name.c_str());
+                            }
                         }
                     }
+
+                    ImGui::GetForegroundDrawList()->AddText(
+                        NULL, 30, textPos,
+                        textColor,
+                        name.c_str());
                 }
-                // 绘制中心文字
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
-            }
-
-            if (按钮.绘制空投 && (strstr(ClassName, "AirDropBox") != 0))
-            {
-                std::string name = "空投[";
-                name += std::to_string((int)对象信息.敌人信息.距离);
-                name += "米]";
-                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 30);
-                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-
-                // 设置颜色
-                ImColor textColor = ImColor(255, 0, 0, 255);  // 黄色
-                ImColor outlineColor = ImColor(0, 0, 0, 255); // 黑色描边
-
-                // 绘制描边（8方向偏移1像素）
-                for (int x = -1; x <= 1; x++)
+                else if (strstr(ClassName, "BP_AirDropPlane_Helicopter_C") != 0 ||
+                         strstr(ClassName, "BP_AirDropPlane_C") != 0)
                 {
-                    for (int y = -1; y <= 1; y++)
+                    std::string name = "空投飞机来了[";
+                    name += std::to_string((int)对象信息.敌人信息.距离);
+                    name += "米]";
+                    auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 30);
+                    ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                    ImColor textColor = ImColor(255, 255, 0, 255); // 黄色
+                    ImColor outlineColor = ImColor(0, 0, 0, 255);
+
+                    for (int x = -1; x <= 1; x++)
                     {
-                        if (x != 0 || y != 0)
-                        { // 不绘制中心点
-                            ImGui::GetForegroundDrawList()->AddText(
-                                NULL, 30,
-                                {textPos.x + x, textPos.y + y},
-                                outlineColor,
-                                name.c_str());
+                        for (int y = -1; y <= 1; y++)
+                        {
+                            if (x != 0 || y != 0)
+                            {
+                                ImGui::GetForegroundDrawList()->AddText(NULL, 30,
+                                                                        {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                            }
                         }
                     }
+                    ImGui::GetForegroundDrawList()->AddText(NULL, 30, textPos, textColor, name.c_str());
                 }
-
-                // 绘制主文本（居中）
-                ImGui::GetForegroundDrawList()->AddText(
-                    NULL, 30, textPos,
-                    textColor,
-                    name.c_str());
             }
 
-            if (strstr(ClassName, "_revivalAED_Pickup_C") != 0)
+            if (按钮.显示自救器 && strstr(ClassName, "BP_revivalAED_Pickup_C") != 0)
             {
                 std::string name = "自救器[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -2455,7 +1844,6 @@ void 绘制::更新对象数据()
                 auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
                 ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
 
-                // 绘制描边
                 for (int x = -1; x <= 1; x++)
                 {
                     for (int y = -1; y <= 1; y++)
@@ -2466,34 +1854,10 @@ void 绘制::更新对象数据()
                         }
                     }
                 }
-                // 绘制中心文字
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
-            if (strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme") != 0)
-            {
-                std::string name = "黑色物资箱子[";
-                name += std::to_string((int)对象信息.敌人信息.距离);
-                name += "米]";
-                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
-                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-
-                // 绘制描边
-                for (int x = -1; x <= 1; x++)
-                {
-                    for (int y = -1; y <= 1; y++)
-                    {
-                        if (x != 0 || y != 0)
-                        {
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
-                        }
-                    }
-                }
-                // 绘制中心文字
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
-            }
-
-            if (strstr(ClassName, "BP_Pickup_Finger_C") != 0)
+            if (按钮.显示飞索 && strstr(ClassName, "BP_Pickup_Finger_C") != 0)
             {
                 std::string name = "飞索[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -2501,7 +1865,6 @@ void 绘制::更新对象数据()
                 auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
                 ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
 
-                // 绘制描边
                 for (int x = -1; x <= 1; x++)
                 {
                     for (int y = -1; y <= 1; y++)
@@ -2512,19 +1875,17 @@ void 绘制::更新对象数据()
                         }
                     }
                 }
-                // 绘制中心文字
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
-            if (按钮.绘制信号枪 && (strstr(ClassName, "Pistol_Flaregun_") != 0 or strstr(ClassName, "Pistol_RevivalFlaregun_Wrapper") != 0) or strstr(ClassName, "BP_Pistol_RevivalFlaregun_C") != 0)
+            if (按钮.密室钥匙 && strstr(ClassName, "BP_PickupWrapper_Key_C") != 0)
             {
-                std::string name = "信号枪[";
+                std::string name = "密室钥匙[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
                 name += "米]";
                 auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
                 ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
 
-                // 绘制描边
                 for (int x = -1; x <= 1; x++)
                 {
                     for (int y = -1; y <= 1; y++)
@@ -2535,8 +1896,98 @@ void 绘制::更新对象数据()
                         }
                     }
                 }
-                // 绘制中心文字
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 0, 255), name.c_str());
+                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
+            }
+
+            if (按钮.显示密钥)
+            {
+                std::string keyName;
+                ImColor keyColor;
+                ImColor keyOutlineColor = ImColor(0, 0, 0, 255); // 默认描边，可被覆盖
+
+                if (strstr(ClassName, "BP_CommercialWrapper_LV1_C") != 0)
+                {
+                    keyName = "侦察兵密钥";
+                    keyColor = ImColor(208, 138, 71, 255);     // 铜色
+                    keyOutlineColor = ImColor(0, 255, 0, 255); // 绿色描边
+                }
+                else if (strstr(ClassName, "BP_CommercialWrapper_LV2_C") != 0)
+                {
+                    keyName = "突击兵密钥";
+                    keyColor = ImColor(192, 192, 192, 255);      // 银色
+                    keyOutlineColor = ImColor(0, 150, 255, 255); // 蓝色描边
+                }
+                else if (strstr(ClassName, "BP_CommercialWrapper_LV3_C") != 0)
+                {
+                    keyName = "特种兵密钥";
+                    keyColor = ImColor(220, 220, 255, 255);      // 高亮银 + 钻石亮（白偏蓝）
+                    keyOutlineColor = ImColor(255, 215, 0, 255); // 金色描边（突出重要性）
+                }
+                else if (strstr(ClassName, "BP_CommercialWrapper_LV4_C") != 0)
+                {
+                    keyName = "指挥官密钥";
+                    keyColor = ImColor(255, 215, 0, 255);          // 亮金
+                    keyOutlineColor = ImColor(185, 242, 255, 255); // 钻石亮色（蓝白）
+                }
+                if (!keyName.empty())
+                {
+                    std::string name = keyName + "[" + std::to_string((int)对象信息.敌人信息.距离) + "米]";
+                    float fontSize = 25.0f; // 固定字号25
+                    ImVec2 textSize = ImGui::CalcTextSize(name.c_str(), 0, fontSize);
+                    ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                    // 先绘制描边（使用对应描边颜色）
+                    for (int x = -1; x <= 1; x++)
+                        for (int y = -1; y <= 1; y++)
+                            if (x != 0 || y != 0)
+                                ImGui::GetForegroundDrawList()->AddText(NULL, fontSize,
+                                                                        {textPos.x + x, textPos.y + y}, keyOutlineColor, name.c_str());
+
+                    // 绘制主文字
+                    ImGui::GetForegroundDrawList()->AddText(NULL, fontSize, textPos, keyColor, name.c_str());
+                }
+            }
+
+            if (按钮.绘制信号枪 &&
+                (strstr(ClassName, "Pistol_Flaregun_") != 0 ||
+                 strstr(ClassName, "Pistol_RevivalFlaregun_Wrapper") != 0 ||
+                 strstr(ClassName, "BP_Pistol_RevivalFlaregun_Wrappe") != 0 ||
+                 strstr(ClassName, "BP_Pistol_RevivalFlaregun_Wrapper_C") != 0 ||
+                 strstr(ClassName, "BP_Pistol_Flargun_Wrapper_C") != 0 ||
+                 strstr(ClassName, "BP_Pistol_Flaregun_10000_C") != 0 ||
+                 strstr(ClassName, "BP_Pistol_Flaregun_C") != 0 ||
+                 strstr(ClassName, "BP_Pistol_RevivalFlaregun_C") != 0 ||
+                 strstr(ClassName, "BP_Ammo_RevivalFlare_Pickup_C") != 0))
+            {
+                // 判断类型：召回类名包含 "Revival"
+                bool isRevival = (strstr(ClassName, "Revival") != nullptr);
+                // 判断是信号弹（Ammo_）还是信号枪
+                bool isAmmo = (strstr(ClassName, "Ammo_") != nullptr);
+
+                std::string name = isRevival ? "召回信号" : "物资信号";
+                name += isAmmo ? "弹[" : "枪[";
+                name += std::to_string((int)对象信息.敌人信息.距离);
+                name += "米]";
+
+                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
+                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                // 召回绿色，物资红色
+                ImColor textColor = isRevival ? ImColor(0, 255, 0, 255) : ImColor(255, 0, 0, 255);
+
+                // 黑色描边
+                for (int x = -1; x <= 1; x++)
+                {
+                    for (int y = -1; y <= 1; y++)
+                    {
+                        if (x != 0 || y != 0)
+                        {
+                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小,
+                                                                    {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                        }
+                    }
+                }
+                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, textColor, name.c_str());
             }
 
             if (按钮.显示古墓树木 && (strstr(ClassName, "BP_LostTomb_TreeHole_C") != 0))
@@ -2642,34 +2093,7 @@ void 绘制::更新对象数据()
                 对象地址.敌人地址 = 读写.getPtr64(地址.数组地址 + a * 8);
             }
 
-            if (按钮.精英勋章 && (strstr(ClassName, "BP_CommercialWrapper_LV1_C") != 0 ||
-                                  strstr(ClassName, "BP_CommercialWrapper_LV2_C") != 0 ||
-                                  strstr(ClassName, "BP_CommercialWrapper_LV3_C") != 0 ||
-                                  strstr(ClassName, "BP_CommercialWrapper_LV4_C") != 0 ||
-                                  strstr(ClassName, "BP_CommercialWrapper_LV5_C") != 0))
-            {
-                std::string name = "精英勋章[";
-                name += std::to_string((int)对象信息.敌人信息.距离);
-                name += "米]";
-                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
-                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-
-                // 绘制描边
-                for (int x = -1; x <= 1; x++)
-                {
-                    for (int y = -1; y <= 1; y++)
-                    {
-                        if (x != 0 || y != 0)
-                        {
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
-                        }
-                    }
-                }
-                // 绘制中心文字
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(0, 0, 255, 255), name.c_str());
-            }
-
-            if (strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme_C") != 0)
+            if (按钮.显示黑色物资箱 && (strstr(ClassName, "BP_WAlnnerWrapperList_C") != 0))
             {
                 std::string name = "黑色物资箱[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -2677,7 +2101,6 @@ void 绘制::更新对象数据()
                 auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
                 ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
 
-                // 绘制描边
                 for (int x = -1; x <= 1; x++)
                 {
                     for (int y = -1; y <= 1; y++)
@@ -2688,7 +2111,6 @@ void 绘制::更新对象数据()
                         }
                     }
                 }
-                // 绘制中心文字
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
@@ -2700,7 +2122,6 @@ void 绘制::更新对象数据()
                 auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
                 ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
 
-                // 绘制描边
                 for (int x = -1; x <= 1; x++)
                 {
                     for (int y = -1; y <= 1; y++)
@@ -2711,19 +2132,70 @@ void 绘制::更新对象数据()
                         }
                     }
                 }
-                // 绘制中心文字
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
-            if (strstr(ClassName, "BP_WAlnnerWrapperList_C") != 0)
+            // 🔴 第一阶段：先扫描所有对象，标记是否存在已开启的箱子
+            if (按钮.超级物资箱 && strstr(ClassName, "BP_MilitaryInnerWrapperList_C") != 0)
             {
-                std::string name = "黑色物资箱[";
+                // 标记：场景里有已开的箱子
+                存在已开启的超级物资箱 = true;
+            }
+
+            // 🟢 第二阶段：绘制逻辑（严格互斥，只显示一个）
+            if (按钮.超级物资箱)
+            {
+                // ====================== 1. 绘制【已开启】箱子（最高优先级）
+                if (strstr(ClassName, "BP_MilitaryInnerWrapperList_C") != 0)
+                {
+                    std::string name = "超级物资箱[已开]";
+                    auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
+                    ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+                    ImColor textColor = ImColor(128, 128, 128, 255);
+                    ImColor outlineColor = ImColor(0, 0, 0, 255);
+
+                    // 描边
+                    for (int x = -1; x <= 1; x++)
+                        for (int y = -1; y <= 1; y++)
+                            if (x != 0 || y != 0)
+                                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                    // 主文字
+                    ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, textColor, name.c_str());
+                    continue;
+                }
+
+                // ====================== 2. 绘制【未开启】箱子（只有【没有已开箱子】时才显示）
+                if (!存在已开启的超级物资箱 &&
+                    (strstr(ClassName, "EscapeBox_SpeEffect_C") != 0 ||
+                     strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Classic_C") != 0 ||
+                     strstr(ClassName, "MilitarySupplyBoxBase_Baltic_Theme_C") != 0 ||
+                     strstr(ClassName, "EscopeBox_SpeEffect_C") != 0))
+                {
+                    std::string name = "超级物资箱[未开 " + std::to_string((int)对象信息.敌人信息.距离) + "米]";
+                    auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
+                    ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+                    ImColor textColor = ImColor(255, 0, 255, 255);
+                    ImColor outlineColor = ImColor(0, 0, 0, 255);
+
+                    // 描边
+                    for (int x = -1; x <= 1; x++)
+                        for (int y = -1; y <= 1; y++)
+                            if (x != 0 || y != 0)
+                                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                    // 主文字
+                    ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, textColor, name.c_str());
+                    continue;
+                }
+            }
+
+            if (按钮.显示防具 && (strstr(ClassName, "ckUp_BP_Helmet_Lv3_C") != 0 || strstr(ClassName, "PickUp_BP_Helmet_Lv3_C") != 0))
+            {
+                std::string name = "三级头[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
                 name += "米]";
                 auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
                 ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
 
-                // 绘制描边
                 for (int x = -1; x <= 1; x++)
                 {
                     for (int y = -1; y <= 1; y++)
@@ -2734,11 +2206,30 @@ void 绘制::更新对象数据()
                         }
                     }
                 }
-                // 绘制中心文字
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
+                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 128, 0, 255), name.c_str());
+            }
+            if (按钮.显示防具 && (strstr(ClassName, "ckUp_BP_Armor_Lv3_C") != 0 || strstr(ClassName, "PickUp_BP_Armor_Lv3_C") != 0))
+            {
+                std::string name = "三级甲[";
+                name += std::to_string((int)对象信息.敌人信息.距离);
+                name += "米]";
+                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
+                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                for (int x = -1; x <= 1; x++)
+                {
+                    for (int y = -1; y <= 1; y++)
+                    {
+                        if (x != 0 || y != 0)
+                        {
+                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
+                        }
+                    }
+                }
+                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(0, 120, 255, 255), name.c_str());
             }
 
-            if (strstr(ClassName, "ckUp_BP_Bag_Lv3_C") != 0 or strstr(ClassName, "PickUp_BP_Bag_Lv3_B_C") != 0)
+            if (按钮.显示防具 && (strstr(ClassName, "ckUp_BP_Bag_Lv3_C") != 0 || strstr(ClassName, "PickUp_BP_Bag_Lv3_B_C") != 0))
             {
                 std::string name = "三级包[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -2746,7 +2237,6 @@ void 绘制::更新对象数据()
                 auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
                 ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
 
-                // 绘制描边
                 for (int x = -1; x <= 1; x++)
                 {
                     for (int y = -1; y <= 1; y++)
@@ -2757,7 +2247,6 @@ void 绘制::更新对象数据()
                         }
                     }
                 }
-                // 绘制中心文字
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
@@ -2769,7 +2258,6 @@ void 绘制::更新对象数据()
                 auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
                 ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
 
-                // 绘制描边
                 for (int x = -1; x <= 1; x++)
                 {
                     for (int y = -1; y <= 1; y++)
@@ -2780,11 +2268,10 @@ void 绘制::更新对象数据()
                         }
                     }
                 }
-                // 绘制中心文字
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 0, 255), name.c_str());
             }
 
-            if (按钮.绘制金插 && strstr(ClassName, "PeopleSkill") != 0)
+            if (按钮.绘制金插 && strstr(ClassName, "SuperPeopleSkillReplaceActor1_BP_C") != 0)
             {
                 std::string name = "金色插件[";
                 name += std::to_string((int)对象信息.敌人信息.距离);
@@ -2792,7 +2279,6 @@ void 绘制::更新对象数据()
                 auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
                 ImVec2 textPos = {t_屏幕坐标.X - (textSize.x / 2) + 50, t_屏幕坐标.Y};
 
-                // 绘制描边
                 for (int x = -1; x <= 1; x++)
                 {
                     for (int y = -1; y <= 1; y++)
@@ -2803,34 +2289,48 @@ void 绘制::更新对象数据()
                         }
                     }
                 }
-                // 绘制中心文字
                 ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 0, 255, 255), name.c_str());
             }
 
-            if (按钮.盒子 && (strstr(ClassName, "CharacterDeadInventoryBox_C") != 0 or strstr(ClassName, "PickUpListWrapperActor") != 0 or strstr(ClassName, "RollTombBox_") != 0 or strstr(ClassName, "EscapePlayerTombBox") != 0 or strstr(ClassName, "DeadInventoryBox") != 0 or strstr(ClassName, "_TrainingBoxLi") != 0))
+            if (按钮.盒子)
             {
-                std::string name = "盒子[";
-                name += std::to_string((int)对象信息.敌人信息.距离);
-                name += "M]";
-                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 物资字体大小);
-                ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
-
-                // 绘制描边
-                for (int x = -1; x <= 1; x++)
+                std::string classNameStr(ClassName);
+                if (classNameStr.find("CharacterDeadInventoryBox_C") != std::string::npos ||
+                    /*classNameStr.find("PickUpListWrapperActor") != std::string::npos || */
+                    classNameStr.find("RollTombBox_") != std::string::npos ||
+                    classNameStr.find("EscapePlayerTombBox") != std::string::npos ||
+                    classNameStr.find("DeadInventoryBox") != std::string::npos ||
+                    classNameStr.find("_TrainingBoxLi") != std::string::npos)
                 {
-                    for (int y = -1; y <= 1; y++)
-                    {
-                        if (x != 0 || y != 0)
-                        {
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, {textPos.x + x, textPos.y + y}, outlineColor, name.c_str());
-                        }
-                    }
+                    std::string lootText = "盒子[" + std::to_string((int)对象信息.敌人信息.距离) + "米]";
+                    ImVec2 textPos = {r_x, r_y};
+                    const char *text = lootText.c_str();
+                    float fontSize = 15.0f; // 可根据需要调整
+
+                    // 使用字体精确计算文本尺寸（避免默认CalcTextSize包含额外间距）
+                    ImFont *font = ImGui::GetFont();
+                    ImVec2 textSize = font->CalcTextSizeA(fontSize, FLT_MAX, 0.0f, text);
+
+                    // 紧凑内边距：水平2px，垂直1px（或0px）
+                    float paddingX = 2.0f;
+                    float paddingY = 1.0f; // 调小此处可降低矩形高度
+
+                    ImVec2 rectMin = {textPos.x - textSize.x / 2.0f - paddingX, textPos.y - textSize.y / 2.0f - paddingY};
+                    ImVec2 rectMax = {textPos.x + textSize.x / 2.0f + paddingX, textPos.y + textSize.y / 2.0f + paddingY};
+
+                    ImColor yellowColor = ImColor(255, 255, 0, 255);
+                    ImDrawList *draw = ImGui::GetForegroundDrawList();
+
+                    // 绘制边框（圆角值可调，999表示最大圆角即半圆，实际效果接近圆角矩形）
+                    draw->AddRect(rectMin, rectMax, yellowColor, 5.0f, 0, 1.0f); // 圆角半径5px更自然
+
+                    // 绘制文本（居中对齐）
+                    ImVec2 textDrawPos = {rectMin.x + paddingX, rectMin.y + paddingY};
+                    draw->AddText(font, fontSize, textDrawPos, yellowColor, text);
                 }
-                // 绘制中心文字
-                ImGui::GetForegroundDrawList()->AddText(NULL, 物资字体大小, textPos, ImColor(255, 255, 0, 255), name.c_str());
             }
 
-            int 开启状态 = 读写.getDword(对象地址.敌人地址 + 0x270);
+            int 开启状态 = 读写.getDword(对象地址.敌人地址 + Offsets::Box_OpenState);
             if (按钮.绘制宝箱 && (strstr(ClassName, "EscapeBox_SupplyBox_") != 0 or strstr(ClassName, "EscapeBoxHight_SupplyBox_") != 0))
             {
                 if (按钮.隐藏已开启 && 开启状态 == 1)
@@ -2852,7 +2352,6 @@ void 绘制::更新对象数据()
                     auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 25);
                     ImVec2 textPos = {t_屏幕坐标.X - (textSize.x / 2) + 50, t_屏幕坐标.Y};
 
-                    // 绘制描边
                     for (int x = -1; x <= 1; x++)
                     {
                         for (int y = -1; y <= 1; y++)
@@ -2863,7 +2362,6 @@ void 绘制::更新对象数据()
                             }
                         }
                     }
-                    // 绘制中心文字
                     ImGui::GetForegroundDrawList()->AddText(NULL, 25, textPos, ImColor(255, 255, 0, 255), name.c_str());
                 }
             }
@@ -2889,7 +2387,6 @@ void 绘制::更新对象数据()
                     auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 25);
                     ImVec2 textPos = {t_屏幕坐标.X - (textSize.x / 2) + 50, t_屏幕坐标.Y};
 
-                    // 绘制描边
                     for (int x = -1; x <= 1; x++)
                     {
                         for (int y = -1; y <= 1; y++)
@@ -2900,41 +2397,188 @@ void 绘制::更新对象数据()
                             }
                         }
                     }
-                    // 绘制中心文字
                     ImGui::GetForegroundDrawList()->AddText(NULL, 25, textPos, ImColor(255, 255, 0, 255), name.c_str());
                 }
             }
 
-            if (按钮.盒子物资 && (读写.getDword(读写.getPtr64(对象地址.敌人地址 + PickUpDataList)) > 0 && 读写.getDword(读写.getPtr64(对象地址.敌人地址 + PickUpDataList)) < 10))
+            // 先判断是否是盒子类
+            bool isBoxLike = (
+                // 原有盒子
+                strstr(ClassName, "CharacterDeadInventoryBox_C") ||
+                strstr(ClassName, "PickUpListWrapperActor") ||
+                strstr(ClassName, "RollTombBox_") ||
+                strstr(ClassName, "EscapePlayerTombBox") ||
+                strstr(ClassName, "_TrainingBoxLi") ||
+                strstr(ClassName, "BP_PlayerDeadListWrapper_C") ||
+                strstr(ClassName, "DeadInventoryBox") ||
+                // 空投类（包含各种变体）
+                strstr(ClassName, "BP_AirDropBox_Helicopter_C") ||
+                strstr(ClassName, "BP_CG036_AirDropBox_C") ||
+                strstr(ClassName, "BP_CGO36_AirDropBox_C") ||
+                strstr(ClassName, "PickUpListWrapperActor") ||
+                strstr(ClassName, "PlayerDeadInventoryBox_C") ||
+                strstr(ClassName, "AirDropListWrapperActor") ||
+                strstr(ClassName, "TreasureBox_Main_C") ||
+                strstr(ClassName, "BP_AirDropBox_C") ||
+                strstr(ClassName, "TreasureBox_Main_C") || // 金色宝箱
+                // 密室箱子（如果你希望它们也能显示内部物资）
+                strstr(ClassName, "EscapeBox_SupplyBox_") ||
+                strstr(ClassName, "EscapeBoxHight_SupplyBox_") ||
+                strstr(ClassName, "EscapeBox_Weapon_") ||
+                strstr(ClassName, "EscapeBoxHight_Weapon_"));
+
+            // 判断是否为空投类（用于调距）
+            bool isAirDrop = (strstr(ClassName, "BP_AirDropBox_Helicopter_C") ||
+                              strstr(ClassName, "BP_CG036_AirDropBox_C") ||
+                              strstr(ClassName, "BP_CGO36_AirDropBox_C") ||
+                              strstr(ClassName, "PickUpListWrapperActor") ||
+                              strstr(ClassName, "PlayerDeadInventoryBox_C") ||
+                              strstr(ClassName, "AirDropListWrapperActor") ||
+                              strstr(ClassName, "TreasureBox_Main_C") ||
+                              strstr(ClassName, "BP_AirDropBox_C") ||
+                              strstr(ClassName, "TreasureBox_Main_C"));
+
+            // 动态距离限制：空投 600 米，普通盒子 100 米
+            float boxMaxDist = isAirDrop ? 600.0f : 100.0f;
+            float aimThreshold = isAirDrop ? 200.0f : 100.0f; // 准星对准范围也可以适当放宽
+
+            if (按钮.盒子物资 && isBoxLike && 对象信息.敌人信息.距离 <= boxMaxDist)
             {
-                int 盒内物资数量 = 读写.getDword(对象地址.敌人地址 + PickUpDataList + 0x8);
-                long int 物资数组 = 读写.getPtr64(对象地址.敌人地址 + PickUpDataList) + 0x4;
-                float Aimatdistance = sqrt(pow(PX - r_x, 2) + pow(PY - r_y, 2));
-                if (Aimatdistance < 50 && 自瞄.瞄准目标 == -1)
+                float aimDistance = sqrtf(powf(PX - r_x, 2.0f) + powf(PY - r_y, 2.0f));
+                if (aimDistance < aimThreshold && 自瞄.瞄准目标 == -1)
                 {
-                    int 文本高度 = 50;
-                    for (int i = 0; i < 盒内物资数量; i++)
+                    // 读取物资列表（偏移 0xD98）
+                    uintptr_t listBase = 读写.getPtr64(对象地址.敌人地址 + Offsets::BoxPickUpDataList); // 0xD98
+                    int 盒内物资数量 = 0;
+
+                    int countField = 读写.getDword(对象地址.敌人地址 + Offsets::BoxPickUpDataList + 0x8);
+                    if (countField > 0 && countField < 1000)
+                        盒内物资数量 = countField;
+                    else
                     {
-                        int 物资地址ID = 读写.getDword(物资数组 + 0x38 * i);
-                        int 物资地址数量 = 读写.getDword((物资数组 + 0x38 * i) + 0x14);
-                        std::string name = getBoxName1(物资地址ID);
-                        if (name != "NULL")
+                        int countHeader = 读写.getDword(listBase);
+                        if (countHeader > 0 && countHeader < 1000)
+                            盒内物资数量 = countHeader;
+                    }
+
+                    if (listBase != 0 && 盒内物资数量 > 0)
+                    {
+                        uintptr_t 物资数组 = listBase + 0x4;
+                        int 文本高度 = 50;
+                        for (int i = 0; i < 盒内物资数量; i++)
                         {
-                            name += "[" + to_string(物资地址数量) + "]";
-                            auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 30);
-                            文本高度 += 25;
-                            ImVec2 textPos = {r_x - (textSize.x / 2), r_y - 文本高度};
+                            int 物资地址ID = 读写.getDword(物资数组 + 0x38 * i);
+                            int 物资地址数量 = 读写.getDword((物资数组 + 0x38 * i) + 0x14);
+                            std::string name = getBoxName1(物资地址ID);
+                            if (name != "NULL" && name != "Error")
+                            {
+                                name += "[" + std::to_string(物资地址数量) + "]";
 
-                            // 绘制背景描边（已经有的）
-                            ImGui::GetBackgroundDrawList()->AddText(NULL, 30, {(float)(textPos.x - 0.1), (float)(textPos.y - 0.1)}, ImColor(0, 0, 0, 255), name.c_str());
-                            ImGui::GetBackgroundDrawList()->AddText(NULL, 30, {(float)(textPos.x + 0.1), (float)(textPos.y + 0.1)}, ImColor(0, 0, 0, 255), name.c_str());
+                                // ====================== 核心修改：密钥突出显示（复用显示密钥颜色） ======================
+                                ImColor 文字颜色;
+                                ImColor 描边颜色 = ImColor(0, 0, 0, 255); // 默认黑色描边
+                                float 文字字号 = 30.0f;                   // 默认普通物资字号
 
-                            // 绘制前景文字
-                            ImGui::GetForegroundDrawList()->AddText(NULL, 30, textPos, GetRandomColorById(物资地址ID), name.c_str());
+                                // 匹配8个密钥ID，绑定专属颜色+放大字号
+                                switch (物资地址ID)
+                                {
+                                // 侦察兵密钥
+                                case 604171:
+                                case 9826010:
+                                    文字颜色 = ImColor(208, 138, 71, 255); // 铜色
+                                    描边颜色 = ImColor(0, 255, 0, 255);    // 绿色描边
+                                    文字字号 = 42.0f;                      // 密钥放大字号
+                                    break;
+                                // 突击兵密钥
+                                case 604172:
+                                case 9826011:
+                                    文字颜色 = ImColor(192, 192, 192, 255); // 银色
+                                    描边颜色 = ImColor(0, 150, 255, 255);   // 蓝色描边
+                                    文字字号 = 42.0f;
+                                    break;
+                                // 特种兵密钥
+                                case 604173:
+                                case 9826012:
+                                    文字颜色 = ImColor(220, 220, 255, 255); // 高亮银
+                                    描边颜色 = ImColor(255, 215, 0, 255);   // 金色描边
+                                    文字字号 = 42.0f;
+                                    break;
+                                // 指挥官密钥
+                                case 604174:
+                                case 9826013:
+                                    文字颜色 = ImColor(255, 215, 0, 255);   // 亮金色
+                                    描边颜色 = ImColor(185, 242, 255, 255); // 钻石蓝描边
+                                    文字字号 = 42.0f;
+                                    break;
+                                // 普通物资：随机颜色+默认字号
+                                default:
+                                    文字颜色 = GetRandomColorById(物资地址ID);
+                                    文字字号 = 30.0f;
+                                    break;
+                                }
+
+                                // 计算文本尺寸 + 动态行间距（字号大则间距大）
+                                auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 文字字号);
+                                文本高度 += (文字字号 > 30.0f) ? 35 : 25;
+                                ImVec2 textPos = {r_x - (textSize.x / 2), r_y - 文本高度};
+
+                                // 绘制描边（密钥用专属描边，普通物资黑色描边）
+                                ImGui::GetBackgroundDrawList()->AddText(NULL, 文字字号, {textPos.x - 1, textPos.y - 1}, 描边颜色, name.c_str());
+                                ImGui::GetBackgroundDrawList()->AddText(NULL, 文字字号, {textPos.x + 1, textPos.y + 1}, 描边颜色, name.c_str());
+                                // 绘制主体文字
+                                ImGui::GetForegroundDrawList()->AddText(NULL, 文字字号, textPos, 文字颜色, name.c_str());
+                                // ==================================================================================
+                            }
                         }
                     }
                 }
             }
+
+            // if (按钮.盒子物资 && isBoxLike && 对象信息.敌人信息.距离 <= boxMaxDist)
+            // {
+            //     float aimDistance = sqrtf(powf(PX - r_x, 2.0f) + powf(PY - r_y, 2.0f));
+            //     if (aimDistance < aimThreshold && 自瞄.瞄准目标 == -1)
+            //     {
+            //         // 读取物资列表（偏移 0xD98）
+            //         uintptr_t listBase = 读写.getPtr64(对象地址.敌人地址 + Offsets::BoxPickUpDataList); // 0xD98
+            //         int 盒内物资数量 = 0;
+
+            //         int countField = 读写.getDword(对象地址.敌人地址 + Offsets::BoxPickUpDataList + 0x8);
+            //         if (countField > 0 && countField < 1000)
+            //             盒内物资数量 = countField;
+            //         else
+            //         {
+            //             int countHeader = 读写.getDword(listBase);
+            //             if (countHeader > 0 && countHeader < 1000)
+            //                 盒内物资数量 = countHeader;
+            //         }
+
+            //         if (listBase != 0 && 盒内物资数量 > 0)
+            //         {
+            //             uintptr_t 物资数组 = listBase + 0x4;
+            //             int 文本高度 = 50;
+            //             for (int i = 0; i < 盒内物资数量; i++)
+            //             {
+            //                 int 物资地址ID = 读写.getDword(物资数组 + 0x38 * i);
+            //                 int 物资地址数量 = 读写.getDword((物资数组 + 0x38 * i) + 0x14);
+            //                 std::string name = getBoxName1(物资地址ID);
+            //                 if (name != "NULL" && name != "Error")
+            //                 {
+            //                     name += "[" + std::to_string(物资地址数量) + "]";
+            //                     auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 30);
+            //                     文本高度 += 25;
+            //                     ImVec2 textPos = {r_x - (textSize.x / 2), r_y - 文本高度};
+            //                     ImGui::GetBackgroundDrawList()->AddText(NULL, 30,
+            //                                                             {textPos.x - 1, textPos.y - 1}, ImColor(0, 0, 0, 255), name.c_str());
+            //                     ImGui::GetBackgroundDrawList()->AddText(NULL, 30,
+            //                                                             {textPos.x + 1, textPos.y + 1}, ImColor(0, 0, 0, 255), name.c_str());
+            //                     ImGui::GetForegroundDrawList()->AddText(NULL, 30, textPos,
+            //                                                             GetRandomColorById(物资地址ID), name.c_str());
+            //                 }
+            //             }
+            //         }
+            //     }
+            // }
 
             if (按钮.绘制武器箱 && (strstr(ClassName, "EscapeBox_Weapon_") != 0 or strstr(ClassName, "EscapeBoxHight_Weapon_") != 0))
             {
@@ -2957,7 +2601,6 @@ void 绘制::更新对象数据()
                     auto textSize = ImGui::CalcTextSize(name.c_str(), 0, 25);
                     ImVec2 textPos = {t_屏幕坐标.X - (textSize.x / 2) + 50, t_屏幕坐标.Y};
 
-                    // 绘制描边
                     for (int x = -1; x <= 1; x++)
                     {
                         for (int y = -1; y <= 1; y++)
@@ -2968,8 +2611,49 @@ void 绘制::更新对象数据()
                             }
                         }
                     }
-                    // 绘制中心文字
                     ImGui::GetForegroundDrawList()->AddText(NULL, 25, textPos, ImColor(255, 255, 0, 255), name.c_str());
+                }
+            }
+
+            if (按钮.自定义物资开关 && g_CustomReader && g_CustomDataLoaded)
+            {
+                // 确保数据已加载，若未加载则尝试一次
+                if (!g_CustomDataLoaded)
+                {
+                    if (g_CustomReader->loadDataFromFile("/sdcard/AuraKernel/自定义物资.txt"))
+                        g_CustomDataLoaded = true;
+                }
+                if (g_CustomDataLoaded && t_屏幕坐标.W > 0)
+                {
+                    if (对象信息.敌人信息.距离 < 2000.0f)
+                    {
+                        const CustomItemInfo *info = g_CustomReader->getItemInfo(ClassName);
+                        if (info)
+                        {
+                            char buffer[128];
+                            snprintf(buffer, sizeof(buffer), "%s[%d米]", info->displayName.c_str(), (int)对象信息.敌人信息.距离);
+
+                            float fontSize = info->fontSize;
+                            if (fontSize <= 0)
+                                fontSize = 物资字体大小;
+
+                            ImVec2 textSize = ImGui::CalcTextSize(buffer, 0, fontSize);
+                            ImVec2 textPos = {r_x - (textSize.x / 2), r_y};
+
+                            ImColor textColor = info->color;
+                            ImColor outlineColor = ImColor(0, 0, 0, 255);
+
+                            for (int x = -1; x <= 1; x++)
+                            {
+                                for (int y = -1; y <= 1; y++)
+                                {
+                                    if (x != 0 || y != 0)
+                                        ImGui::GetForegroundDrawList()->AddText(NULL, fontSize, {textPos.x + x, textPos.y + y}, outlineColor, buffer);
+                                }
+                            }
+                            ImGui::GetForegroundDrawList()->AddText(NULL, fontSize, textPos, textColor, buffer);
+                        }
+                    }
                 }
             }
         }
@@ -2983,41 +2667,39 @@ void 绘制::更新对象数据()
             continue;
         }
         bool isboss = 骨骼->isBoss(*ClassName);
-        if (读写.getFloat(对象地址.敌人地址 + HighWalkSpeed) == 479.5 || strstr(ClassName, "BPPawn_Escape_") != 0 || isboss)
+        if (读写.getFloat(对象地址.敌人地址 + Offsets::Actor_HighWalkSpeed) == 479.5 || strstr(ClassName, "BPPawn_Escape_") != 0 || isboss)
         {
             D4DVector 屏外预警坐标(r_x, r_y, r_y - r_z, (r_y - r_z) / 2);
-            对象信息.敌人信息.队伍 = 读写.getDword(对象地址.敌人地址 + TeamID);                                       // 敌人队伍编号   队编
-            对象信息.敌人信息.isboot = (对象信息.敌人信息.队伍 == -1) ? 1 : 读写.getDword(对象地址.敌人地址 + bIsAI); // 人机
+            对象信息.敌人信息.队伍 = 读写.getDword(对象地址.敌人地址 + Offsets::Actor_TeamID);
+            对象信息.敌人信息.isboot = (对象信息.敌人信息.队伍 == -1) ? 1 : 读写.getDword(对象地址.敌人地址 + Offsets::Actor_bIsAI);
             对象信息.敌人信息.高级人机 = 读写.getDword(对象地址.敌人地址 + 0xb88);
             if (按钮.忽略人机 && 对象信息.敌人信息.isboot == 1)
             {
                 continue;
             }
-            对象信息.敌人信息.状态 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + PawnStateRepSyncData)); // 敌人状态
+            对象信息.敌人信息.状态 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_PawnState));
             对象信息.敌人信息.雷达 = 计算.rotateCoord(自身数据.准星Y, (自身数据.坐标.X - 对象信息.敌人信息.坐标.X) / 200, (自身数据.坐标.Y - 对象信息.敌人信息.坐标.Y) / 200);
-            读写.readv(对象地址.敌人地址 + VelocitySafety, &对象信息.敌人信息.向量, sizeof(对象信息.敌人信息.向量)); // 敌人向量
-            对象信息.敌人信息.Rotator = 读写.getFloat(对象地址.敌人地址 + 0x198);                                    // 用于被瞄准
-            对象信息.敌人信息.当前血量 = 读写.getFloat(对象地址.敌人地址 + Health);                                  // 血量
-            对象信息.敌人信息.最大血量 = 读写.getFloat(对象地址.敌人地址 + HealthMax);                               // 最大血量
-            对象信息.敌人信息.乘坐载具 = 读写.getDword(对象地址.敌人地址 + 0x1b8) != 0;                              // 车辆向量
-            对象信息.敌人信息.手持 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + CurrentUsingWeaponSafety) + RepWeaponID);
-            对象信息.敌人信息.子弹数量 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + CurrentUsingWeaponSafety) + CurBulletNumInClip);
-            对象信息.敌人信息.子弹最大数量 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + CurrentUsingWeaponSafety) + CurMaxBulletNumInOneClip);
+            读写.readv(对象地址.敌人地址 + Offsets::Actor_Velocity, &对象信息.敌人信息.向量, sizeof(对象信息.敌人信息.向量));
+            对象信息.敌人信息.Rotator = 读写.getFloat(对象地址.敌人地址 + Offsets::Actor_Rotator);
+            对象信息.敌人信息.当前血量 = 读写.getFloat(对象地址.敌人地址 + Offsets::Actor_Health);
+            对象信息.敌人信息.最大血量 = 读写.getFloat(对象地址.敌人地址 + Offsets::Actor_HealthMax);
+            对象信息.敌人信息.乘坐载具 = 读写.getDword(对象地址.敌人地址 + Offsets::Actor_Vehicle) != 0;
+            对象信息.敌人信息.手持 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_CurrentWeapon) + Offsets::Weapon_RepID);
+            对象信息.敌人信息.子弹数量 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_CurrentWeapon) + Offsets::Weapon_ClipAmmo);
+            对象信息.敌人信息.子弹最大数量 = 读写.getDword(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_CurrentWeapon) + Offsets::Weapon_ClipMaxAmmo);
             对象信息.敌人信息.角色实体 = 读写.getPtr64(对象地址.敌人地址 + 0x39b0);
             对象信息.敌人信息.实体列表地址 = 读写.getPtr64(对象信息.敌人信息.角色实体 + 0x818) + 0x8;
             对象信息.敌人信息.实体数量 = 读写.getDword(对象信息.敌人信息.角色实体 + 0x818 + 0x8);
-            long int MeshOffset = 读写.getPtr64(对象地址.敌人地址 + 0x658); // mesh
-            int Bonecount = 读写.getPtr64(MeshOffset + MeshPoint + 8);      // 骨骼节点
+            long int MeshOffset = 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_Mesh);
+            int Bonecount = 读写.getPtr64(MeshOffset + Offsets::Mesh_BoneArray + Offsets::Mesh_BoneCountOffset);
             D3DVector tempBones[17];
-            // 调用时使用临时数组
             骨骼->更新骨骼数据(
-                MeshOffset + 0x1f0,                       // 组件到世界变换
-                读写.getPtr64(MeshOffset + 0x828) + 0x30, // 骨骼数组指针
-                tempBones,                                // 输出数组
-                Bonecount,                                // 骨骼数量
+                MeshOffset + Offsets::Mesh_ComponentToWorld,
+                读写.getPtr64(MeshOffset + Offsets::Mesh_BoneArray) + 0x30,
+                tempBones,
+                Bonecount,
                 对象信息.敌人信息.队伍,
                 ClassName);
-            // 将结果复制回原数组
             for (int i = 0; i < 15; i++)
             {
                 对象信息.敌人信息.骨骼坐标[i].X = tempBones[i].X;
@@ -3026,7 +2708,7 @@ void 绘制::更新对象数据()
             }
 
             char temp[64];
-            读写.getUTF8(temp, 读写.getPtr64(对象地址.敌人地址 + PlayerName)); // 敌人名字
+            读写.getUTF8(temp, 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_PlayerName));
             对象信息.敌人信息.名字 = temp;
             bool 是否掐雷 = false;
             if (按钮.手雷预警)
@@ -3050,7 +2732,7 @@ void 绘制::更新对象数据()
                                 if (Antitankgrenade[计算地址] == 15)
                                 {
                                     计时器.removeTimer(计算地址);
-                                    Antitankgrenade.erase(计算地址); // 没用的东西赶紧滚
+                                    Antitankgrenade.erase(计算地址);
                                 }
                             }
                             else
@@ -3072,7 +2754,7 @@ void 绘制::更新对象数据()
                             if (Antitankgrenade[计算地址] == 15)
                             {
                                 计时器.removeTimer(计算地址);
-                                Antitankgrenade.erase(计算地址); // 没用的东西赶紧滚
+                                Antitankgrenade.erase(计算地址);
                             }
                         }
                         else
@@ -3146,63 +2828,63 @@ void 绘制::更新对象数据()
 
             bool LineOfSightTo1 = false;
             bool LineOfSightToTab[15] = {false, false, false, false, false, false, false, false, false, false, false, false, false, false, false};
+            // if (按钮.物理掩体检测)
+            // {
+            //     // 用 PhysX Pro 的 LinePosition 检测可见性
+            //     D3DVector origin(自身数据.坐标.X, 自身数据.坐标.Y, 自身数据.坐标.Z);
+            //     D3DVector target(对象信息.敌人信息.坐标.X, 对象信息.敌人信息.坐标.Y, 对象信息.敌人信息.坐标.Z);
+            //     LineOfSightToTab[0] = LinePosition(origin, target);
+            //     printf("[调试] LinePosition 返回: %d\n", LineOfSightToTab[0]);
+            // }
+            // else
+            // {
+            //     LineOfSightToTab[0] = true; // 旧逻辑
+            // }
             if (按钮.雷达)
             {
                 if (对象信息.敌人信息.距离 <= 300)
                 {
                     if (对象信息.敌人信息.isboot == 1)
                     {
-                        // 人机点 - 缩小、固定白色、不显示编号
                         ImGui::GetForegroundDrawList()->AddCircleFilled(
                             {按钮.雷达X + 对象信息.敌人信息.雷达.X, 按钮.雷达Y + 对象信息.敌人信息.雷达.Y},
-                            8.0f,                       // 缩小圆点大小
-                            ImColor(255, 255, 255, 200) // 白色，80%不透明度
-                        );
+                            8.0f,
+                            ImColor(255, 255, 255, 200));
                     }
                     else
                     {
-                        // 真人点 - 放大一点，显示队伍编号
                         int team = 对象信息.敌人信息.队伍;
 
-                        // 确保队伍编号在0-49范围内
                         int adjusted_team = team % 50;
                         adjusted_team = adjusted_team < 0 ? adjusted_team + 50 : adjusted_team;
 
-                        // 将队伍编号映射到HSV色相（0.0~1.0范围）
                         float hue = static_cast<float>(adjusted_team) / 50.0f;
 
-                        // 调整饱和度和明度以增加区分度
-                        float saturation = 1.0f;                                             // 饱和度保持最大
-                        float value = 1.0f - (static_cast<float>(adjusted_team % 5) * 0.1f); // 明度分五档变化
+                        float saturation = 1.0f;
+                        float value = 1.0f - (static_cast<float>(adjusted_team % 5) * 0.1f);
 
-                        // 生成颜色（带透明度）
-                        ImColor team_color = ImColor::HSV(hue, saturation, value, 0.8f); // 80% 不透明度
+                        ImColor team_color = ImColor::HSV(hue, saturation, value, 0.8f);
 
-                        // 绘制更大的圆面
                         ImGui::GetForegroundDrawList()->AddCircleFilled(
                             {按钮.雷达X + 对象信息.敌人信息.雷达.X, 按钮.雷达Y + 对象信息.敌人信息.雷达.Y},
-                            15.0f, // 增大圆点半径
+                            15.0f,
                             team_color);
 
-                        // 绘制队伍编号文本（位于圆面中心）
                         ImVec2 text_pos = {
                             按钮.雷达X + 对象信息.敌人信息.雷达.X,
                             按钮.雷达Y + 对象信息.敌人信息.雷达.Y};
 
-                        // 计算文本偏移量（居中显示）
                         ImFont *font = ImGui::GetFont();
                         float customFontSize = 13.0f;
                         ImVec2 text_size = font->CalcTextSizeA(customFontSize, FLT_MAX, 0.0f, std::to_string(team).c_str());
                         text_pos.x -= text_size.x / 2.0f;
                         text_pos.y -= text_size.y / 2.0f;
 
-                        // 绘制文本阴影
                         ImGui::GetForegroundDrawList()->AddText(
                             font, customFontSize, text_pos,
                             ImColor(0, 0, 0, 200),
                             std::to_string(team).c_str());
 
-                        // 绘制文本正文
                         ImGui::GetForegroundDrawList()->AddText(
                             font, customFontSize, text_pos,
                             ImColor(255, 255, 255, 255),
@@ -3232,7 +2914,6 @@ void 绘制::更新对象数据()
                 sprintf(计算地址, "%lx", 对象信息.敌人信息.状态);
                 if (对象信息.敌人信息.状态 == 131104 || 对象信息.敌人信息.状态 == 655360 || 对象信息.敌人信息.状态 == 131105)
                 {
-                    // 如果已存在计时且超过阈值，重置计时
                     auto it = 自救Timers.find(计算地址);
                     if (it != 自救Timers.end())
                     {
@@ -3240,13 +2921,12 @@ void 绘制::更新对象数据()
                                            std::chrono::steady_clock::now() - it->second)
                                            .count();
                         if (elapsed > 6)
-                        { // 可调整的阈值
+                        {
                             自救Timers[计算地址] = std::chrono::steady_clock::now();
                         }
                     }
                     else
                     {
-                        // 不存在则插入新计时
                         自救Timers[计算地址] = std::chrono::steady_clock::now();
                     }
 
@@ -3273,92 +2953,51 @@ void 绘制::更新对象数据()
             骨骼数据 t_骨骼数据 = 计算.计算骨骼(自身数据.相机坐标, 对象信息.敌人信息.骨骼坐标, PX, PY);
             std::vector<D2DVector *> 骨骼二维坐标 = t_骨骼数据.获取所有骨骼指针();
             绘图.初始化坐标(t_屏幕坐标, t_骨骼数据);
-            if (t_屏幕坐标.W >= 0)
+
+            if (按钮.被瞄预警)
             {
-                if (自瞄.倒地不瞄 && 对象信息.敌人信息.当前血量 <= 0)
+                auto aimAngle = 计算.rotateCoord(对象信息.敌人信息.骨骼坐标[1], 自身数据.坐标);
+                auto aimMZ = FRotator(0, 对象信息.敌人信息.Rotator, 0);
+                aimMZ.Clamp();
+                float AimX = abs(aimAngle.X - aimMZ.Yaw);
+
+                if (AimX <= 4)
                 {
-                }
-                else if (自瞄.人机不瞄 && 对象信息.敌人信息.isboot == 1)
-                {
-                }
-                else if (自瞄.扫车不瞄 && 对象信息.敌人信息.状态 == 2097168 || 对象信息.敌人信息.状态 == 4194320)
-                {
-                }
-                else
-                {
-                    自瞄函数[自瞄.瞄准对象数量].距离 = 对象信息.敌人信息.距离;
-                    自瞄函数[自瞄.瞄准对象数量].人物向量 = 对象信息.敌人信息.向量;
-                    自瞄函数[自瞄.瞄准对象数量].血量 = 对象信息.敌人信息.当前血量;
-                    自瞄函数[自瞄.瞄准对象数量].Bone = 读写.getPtr64(MeshOffset + MeshPoint) + 0x30; // 骨骼指针
-                    自瞄函数[自瞄.瞄准对象数量].Human = MeshOffset + 0x1f0;                          // 骨骼human
-                    自瞄函数[自瞄.瞄准对象数量].名字 = 对象信息.敌人信息.名字;
-                    自瞄函数[自瞄.瞄准对象数量].阵营 = 对象信息.敌人信息.队伍;
-                    自瞄函数[自瞄.瞄准对象数量].头 = 对象信息.敌人信息.头;
-                    自瞄函数[自瞄.瞄准对象数量].甲 = 对象信息.敌人信息.甲;
-                    自瞄函数[自瞄.瞄准对象数量].头甲包地址 = 对象信息.敌人信息.头甲包地址;
-                    memcpy(自瞄函数[自瞄.瞄准对象数量].骨骼坐标, 对象信息.敌人信息.骨骼坐标, sizeof(对象信息.敌人信息.骨骼坐标));
-                    //       int BonePointer = ShelterJudgment(LineOfSightToTab);
-                    // 在 更新对象数据 函数中找到调用 ShelterJudgment 的地方
-                    int BonePointer = ShelterJudgment(LineOfSightToTab, 对象信息.敌人信息.状态);
-                    自瞄函数[自瞄.瞄准对象数量].掩体部位 = BonePointer;
-                    if (BonePointer == 999)
-                    {
-                        BonePointer = 自瞄.瞄准部位;
-                    }
-                    自瞄函数[自瞄.瞄准对象数量].瞄准坐标 = 对象信息.敌人信息.骨骼坐标[BonePointer];
-                    自瞄函数[自瞄.瞄准对象数量].准心距离 = sqrt(pow(PX - 骨骼二维坐标[BonePointer]->X, 2) + pow(PY - 骨骼二维坐标[BonePointer]->Y, 2));
-                    自瞄函数[自瞄.瞄准对象数量].对象骨骼 = *骨骼二维坐标[BonePointer];
-                    自瞄.瞄准对象数量++;
+                    被瞄信息[被瞄准对象数量].距离 = 对象信息.敌人信息.距离;
+                    被瞄信息[被瞄准对象数量].名字 = 对象信息.敌人信息.名字;
+                    被瞄信息[被瞄准对象数量].瞄准武器 = GetHolGunItem(对象信息.敌人信息.手持);
+                    被瞄准对象数量++;
                 }
             }
 
-            /*           if (按钮.被瞄预警)
-                       {
-                           auto aimAngle = 计算.rotateCoord(对象信息.敌人信息.骨骼坐标[1], 自身数据.坐标);
-                           auto aimMZ = FRotator(0, 对象信息.敌人信息.Rotator, 0);
-                           aimMZ.Clamp();
-                           float AimX = abs(aimAngle.X - aimMZ.Yaw);
-
-                           if (AimX <= 4)
-                           {
-                               被瞄信息[被瞄准对象数量].距离 = 对象信息.敌人信息.距离;
-                               被瞄信息[被瞄准对象数量].名字 = 对象信息.敌人信息.名字;
-                               被瞄信息[被瞄准对象数量].瞄准武器 = GetHolGunItem(对象信息.敌人信息.手持);
-                               被瞄准对象数量++;
-                           }
-                       }
-           */
             if (按钮.背敌预警)
             {
 
                 float distance = 对象信息.敌人信息.距离;
                 int team = 对象信息.敌人信息.队伍;
 
-                // HSV转RGB函数
                 auto GetTeamColor = [](int team_id) -> ImColor
                 {
-                    team_id = team_id % 50;                 // 确保队伍编号在0-49范围内
-                    float hue = (team_id * 360.0f) / 50.0f; // 色相均匀分布
-                    float sat = 0.8f, val = 0.9f;           // 适当降低饱和度和亮度提升辨识度
+                    team_id = team_id % 50;
+                    float hue = (team_id * 360.0f) / 50.0f;
+                    float sat = 0.8f, val = 0.9f;
 
                     float r, g, b;
                     ImGui::ColorConvertHSVtoRGB(hue / 360.0f, sat, val, r, g, b);
-                    return ImColor(r, g, b, 1.0f); // 返回不透明的基础颜色
+                    return ImColor(r, g, b, 1.0f);
                 };
 
-                // 计算透明度
                 int alpha = 255;
                 if (distance > 200.0f)
                 {
-                    alpha = 200; // 200米外半透明
+                    alpha = 200;
                 }
                 else if (distance >= 100.0f)
                 {
                     float ratio = (distance - 100.0f) / 100.0f;
-                    alpha = 255 - static_cast<int>(ratio * 55); // 线性过渡透明度
+                    alpha = 255 - static_cast<int>(ratio * 55);
                 }
 
-                // 组合最终颜色
                 ImColor base_color = GetTeamColor(team);
                 ImColor alert_color = ImColor(
                     static_cast<int>(base_color.Value.x * 255 + 0.5f),
@@ -3366,7 +3005,6 @@ void 绘制::更新对象数据()
                     static_cast<int>(base_color.Value.z * 255 + 0.5f),
                     alpha);
 
-                // 调用绘制函数
                 OffScreen(
                     ImGui::GetForegroundDrawList(),
                     屏外预警坐标,
@@ -3385,162 +3023,93 @@ void 绘制::更新对象数据()
     printf("\n")
 #endif
 
-            // 在不想吃鸡的函数中
-            if (按钮.不想吃鸡)
-            {
-                if (自身数据.真人数量 <= 5 && 自身数据.真人数量 >= 0)
-                {
-                    LOGI("真人数量:%d，自动结束游戏", 自身数据.真人数量);
-
-                    // 尝试使用完整路径
-                    int result = system("/system/bin/am force-stop com.tencent.tmgp.pubgmhd");
-
-                    // 备用方案
-                    if (result != 0)
-                    {
-                        result = system("am force-stop com.tencent.tmgp.pubgmhd");
-                    }
-
-                    if (result != 0)
-                    {
-                        LOGI("结束游戏失败，错误码: %d", result);
-                    }
-                }
-            }
-
-            /*
-            if (按钮.显示对局信息)
-            {
-                // 创建格式化字符串缓冲区
-                static char buffer[3][64];
-
-                // 设置颜色
-                ImColor textColor = ImColor(255, 255, 255, 255);  // 白色文字
-                ImColor outlineColor = ImColor(0, 0, 0, 255);    // 黑色描边
-
-                // 真人数量
-                snprintf(buffer[0], sizeof(buffer[0]), "剩余真人数量:%d", 自身数据.真人数量);
-                ImVec2 textPos0 = ImVec2(PX / 10, 450);
-                // 绘制描边（8方向偏移1像素）
-                for (int x = -1; x <= 1; x++) {
-                    for (int y = -1; y <= 1; y++) {
-                        if (x != 0 || y != 0) {  // 不绘制中心点
-                            ImGui::GetForegroundDrawList()->AddText(
-                                ImVec2(textPos0.x + x, textPos0.y + y),
-                                outlineColor,
-                                buffer[0]
-                            );
-                        }
-                    }
-                }
-                // 绘制中心文字
-                ImGui::GetForegroundDrawList()->AddText(textPos0, textColor, buffer[0]);
-
-                // 人机数量
-                snprintf(buffer[1], sizeof(buffer[1]), "剩余队伍数量:%d", 自身数据.人机数量);
-                ImVec2 textPos1 = ImVec2(PX / 10, 490);
-                // 绘制描边（8方向偏移1像素）
-                for (int x = -1; x <= 1; x++) {
-                    for (int y = -1; y <= 1; y++) {
-                        if (x != 0 || y != 0) {  // 不绘制中心点
-                            ImGui::GetForegroundDrawList()->AddText(
-                                ImVec2(textPos1.x + x, textPos1.y + y),
-                                outlineColor,
-                                buffer[1]
-                            );
-                        }
-                    }
-                }
-                // 绘制中心文字
-                ImGui::GetForegroundDrawList()->AddText(textPos1, textColor, buffer[1]);
-
-                // 队伍数量
-                snprintf(buffer[2], sizeof(buffer[2]), "剩余人数数量:%d", 自身数据.队伍数量);
-                ImVec2 textPos2 = ImVec2(PX / 10, 530);
-                // 绘制描边（8方向偏移1像素）
-                for (int x = -1; x <= 1; x++) {
-                    for (int y = -1; y <= 1; y++) {
-                        if (x != 0 || y != 0) {  // 不绘制中心点
-                            ImGui::GetForegroundDrawList()->AddText(
-                                ImVec2(textPos2.x + x, textPos2.y + y),
-                                outlineColor,
-                                buffer[2]
-                            );
-                        }
-                    }
-                }
-                // 绘制中心文字
-                ImGui::GetForegroundDrawList()->AddText(textPos2, textColor, buffer[2]);
-            }*/
-
             if (t_屏幕坐标.W >= 0)
             {
-                /*    多余        if (按钮.头甲包显示 && 对象信息.敌人信息.实体列表地址 && 对象信息.敌人信息.实体数量 > 0 && 对象信息.敌人信息.实体数量 <= 10)
-                            {
-                                头甲包文本高度 = 0;
-                                for (int j = 0; j < 对象信息.敌人信息.实体数量; ++j)
-                                {
-                                    uint64_t 实体地址 = 读写.getPtr64(对象信息.敌人信息.实体列表地址 + j * 0x18);
-                                    int 头甲包id = 读写.getDword(实体地址 + 0x58 + 0x88 + 0x4);
-                                    绘图.绘制头甲包(头甲包id);
-                                }
-                            }
-                            if (按钮.超体职业 && 对象信息.敌人信息.实体列表地址 && 对象信息.敌人信息.实体数量 > 0 && 对象信息.敌人信息.实体数量 <= 50)
-                            {
-                                for (int j = 0; j < 对象信息.敌人信息.实体数量; ++j)
-                                {
-                                    uint64_t 实体地址 = 读写.getPtr64(对象信息.敌人信息.实体列表地址 + j * 0x18);
-                                    int 头甲包id = 读写.getDword(实体地址 + 0x58 + 0x88 + 0x4);
-                                    string a = 超体职业(头甲包id);
-                                    if (a != "NULL")
-                                        对象信息.敌人信息.名字 += '[' + a + ']';
-                                }
-                            }
-            */
-                if (按钮.方框)
-                    绘图.绘制方框(LineOfSightToTab[0], 对象信息.敌人信息.isboot);
-
-                if (按钮.射线)
-                    绘图.绘制射线(LineOfSightToTab[0], t_骨骼数据);
+                if (按钮.头甲包显示 && 对象信息.敌人信息.实体列表地址 && 对象信息.敌人信息.实体数量 > 0 && 对象信息.敌人信息.实体数量 <= 10)
+                {
+                    头甲包文本高度 = 0;
+                    for (int j = 0; j < 对象信息.敌人信息.实体数量; ++j)
+                    {
+                        uint64_t 实体地址 = 读写.getPtr64(对象信息.敌人信息.实体列表地址 + j * 0x18);
+                        int 头甲包id = 读写.getDword(实体地址 + 0x58 + 0x88 + 0x4);
+                        绘图.绘制头甲包(头甲包id);
+                    }
+                }
+                if (按钮.超体职业 && 对象信息.敌人信息.实体列表地址 && 对象信息.敌人信息.实体数量 > 0 && 对象信息.敌人信息.实体数量 <= 50)
+                {
+                    for (int j = 0; j < 对象信息.敌人信息.实体数量; ++j)
+                    {
+                        uint64_t 实体地址 = 读写.getPtr64(对象信息.敌人信息.实体列表地址 + j * 0x18);
+                        int 头甲包id = 读写.getDword(实体地址 + 0x58 + 0x88 + 0x4);
+                        string a = 超体职业(头甲包id);
+                        if (a != "NULL")
+                            对象信息.敌人信息.名字 += '[' + a + ']';
+                    }
+                }
+                // ========== 漏手模式判断：开启时隐藏所有其他绘制 ==========
                 if (按钮.漏手模式)
                 {
+                    // 漏手模式开启时，只画小圆点，跳过其他所有绘制
                     绘图.漏手模式();
                 }
-                if (按钮.距离)
-                    绘图.绘制距离(对象信息.敌人信息.距离, 对象信息.敌人信息.队伍);
-                if (按钮.血量)
-                    绘图.绘制血量(对象信息.敌人信息.最大血量, 对象信息.敌人信息.当前血量, 对象信息.敌人信息.isboot);
-                if (按钮.名字)
+                else
                 {
-                    float 计时_eroc = 7 - (计时器.getTimerSeconds(计算地址) / 7 * (60 / ImGui::GetIO().Framerate * 0.115));
-                    绘图.绘制名字(对象信息.敌人信息.名字, 对象信息.敌人信息.isboot, 计时_eroc, 是否掐雷, ClassName, 对象信息.敌人信息.队伍, Bonecount, false, 对象信息.敌人信息.高级人机);
+                    // 正常绘制模式：按原有开关绘制所有内容
+                    if (按钮.方框)
+                        绘图.绘制方框(LineOfSightToTab[0], 对象信息.敌人信息.isboot);
+
+                    if (按钮.射线)
+                        绘图.绘制射线(LineOfSightToTab[0], t_骨骼数据);
+
+                    if (按钮.距离)
+                        绘图.绘制距离(对象信息.敌人信息.距离, 对象信息.敌人信息.队伍);
+
+                    if (按钮.血量)
+                        绘图.绘制血量(对象信息.敌人信息.最大血量, 对象信息.敌人信息.当前血量, 对象信息.敌人信息.isboot);
+
+                    if (按钮.名字)
+                    {
+                        float 计时_eroc = 7 - (计时器.getTimerSeconds(计算地址) / 7 * (60 / ImGui::GetIO().Framerate * 0.115));
+                        绘图.绘制名字(对象信息.敌人信息.名字, 对象信息.敌人信息.isboot, 计时_eroc, 是否掐雷, ClassName, 对象信息.敌人信息.队伍, Bonecount, false, 对象信息.敌人信息.高级人机);
+                    }
+
+                    if (按钮.瞬爆雷预测)
+                    {
+                        float 计时_eroc = 7 - (计时器.getTimerSeconds("self") / 7 * (60 / ImGui::GetIO().Framerate * 0.115));
+                        绘图.瞬爆雷预测(对象信息.敌人信息.距离, 计时_eroc, 自身是否掐雷);
+                    }
+
+                    if (按钮.骨骼)
+                        绘图.绘制骨骼(t_骨骼数据, t_屏幕坐标, LineOfSightToTab, 对象信息.敌人信息.距离, Bonecount);
+
+                    if (按钮.动作 && !是否掐雷)
+                        绘图.绘制动作(对象信息.敌人信息.状态);
+
+                    if ((按钮.手持 || 按钮.手持2) && !是否掐雷)
+                        绘图.绘制手持(对象信息.敌人信息.手持, 对象信息.敌人信息.状态, 对象信息.敌人信息.子弹数量, 对象信息.敌人信息.子弹最大数量);
                 }
-                if (按钮.瞬爆雷预测)
-                {
-                    float 计时_eroc = 7 - (计时器.getTimerSeconds("self") / 7 * (60 / ImGui::GetIO().Framerate * 0.115));
-                    绘图.瞬爆雷预测(对象信息.敌人信息.距离, 计时_eroc, 自身是否掐雷);
-                }
-                if (按钮.骨骼)
-                {
-                    绘图.绘制骨骼(t_骨骼数据, t_屏幕坐标, LineOfSightToTab, 对象信息.敌人信息.距离, Bonecount);
-                }
-                if (按钮.动作 && !是否掐雷)
-                {
-                    绘图.绘制动作(对象信息.敌人信息.状态);
-                }
-                if (按钮.手持 && !是否掐雷)
-                    绘图.绘制手持(对象信息.敌人信息.手持, 对象信息.敌人信息.状态, 对象信息.敌人信息.子弹数量, 对象信息.敌人信息.子弹最大数量);
             }
         }
+    }
+    // 阈值：屏幕距离小于 50 像素认为准星对准
+    if (minDistDebug < 50.0f && 按钮.Debug)
+    {
+        DebugAimedClassName = closestClassName;
+        bDebugAimedValid = true;
+    }
+    else
+    {
+        DebugAimedClassName.clear();
+        bDebugAimedValid = false;
     }
     if (自瞄.初始化 && 自瞄.准星射线 && 自瞄.瞄准目标 != -1 && 自瞄函数[自瞄.瞄准目标].准心距离 <= 自瞄.自瞄范围)
     {
         ImGui::GetForegroundDrawList()->AddLine(ImVec2(PX, PY), ImVec2(自瞄函数[自瞄.瞄准目标].对象骨骼.X, 自瞄函数[自瞄.瞄准目标].对象骨骼.Y), ImColor(255, 255, 255, 255), 2.1);
     }
-    if (按钮.被瞄预警)
+    if (按钮.被瞄预警 && !按钮.漏手模式)
         绘图.绘制瞄准信息();
-    if (按钮.人数)
-        绘图.绘制人数(绘制人机, 绘制真人, 地址.自身地址);
+    if (按钮.人数 && !按钮.漏手模式)
+        绘图.绘制人数(绘制人机, 绘制真人);
     自瞄.瞄准总数量 = 自瞄.瞄准对象数量;
 }
 
@@ -3548,11 +3117,70 @@ void 绘制::运行绘制()
 {
     更新地址数据();
     更新对象数据();
+    if (按钮.全图人数)
+    {
+        ImGui::SetNextWindowPos(ImVec2(400, 100), ImGuiCond_Always);
+
+        // 推送透明背景样式
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // 背景透明
+        ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));   // 边框透明
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 1.0f, 1.0f));     // 粉色文本 (RGBA: 1,0,1,1)
+
+        ImGui::Begin("游戏信息", NULL, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration);
+
+        // 显示存活真实玩家数量
+        ImGui::Text("剩余真人: %d", 自身数据.真人数量);
+
+        // 显示人机数量
+        ImGui::Text("剩余人机: %d", 自身数据.人机数量);
+
+        // 显示存活队伍数
+        ImGui::Text("剩余队伍: %d", 自身数据.队伍数量);
+
+        // 显示全图人数（人机 + 真人）
+        ImGui::Text("全图剩余人数: %d", 自身数据.全图数量);
+
+        // 结束窗口
+        ImGui::End();
+
+        // 弹出之前推送的样式（注意弹出的顺序要与推送的顺序相反）
+        ImGui::PopStyleColor(3); // 弹出3次（文本颜色、边框颜色、背景颜色）
+    }
     if (按钮.手雷预警 || 按钮.瞬爆雷预测 || 按钮.自救倒计时)
     {
         计时器.updateTimers();
         计时器.checkAndRemoveTimers();
     }
+    // ===== PhysX Pro 模型绘制 =====
+    // if (按钮.模型绘制 && 地址.libue4 != 0)
+    // {
+    //     // 构造相机参数（需要从自身数据获取）
+    //     Vec3 camPos(自身数据.坐标.X, 自身数据.坐标.Y, 自身数据.坐标.Z);
+    //     Rotator camRot{自身数据.视角.X, 自身数据.视角.Y, 0.0f};
+    //     float fov = 自身数据.Fov > 0 ? 自身数据.Fov : 90.0f;
+
+    //     auto triangles = PhysXMesh(camPos, camRot, fov,
+    //                                displayInfo.width, displayInfo.height);
+
+    //     for (const auto &tri : triangles)
+    //     {
+    //         float x0 = tri[0].x, y0 = tri[0].y;
+    //         float x1 = tri[1].x, y1 = tri[1].y;
+    //         float x2 = tri[2].x, y2 = tri[2].y;
+
+    //         // 只绘制在屏幕内的三角形
+    //         if ((x0 > 0 && x0 < displayInfo.width && y0 > 0 && y0 < displayInfo.height) ||
+    //             (x1 > 0 && x1 < displayInfo.width && y1 > 0 && y1 < displayInfo.height) ||
+    //             (x2 > 0 && x2 < displayInfo.width && y2 > 0 && y2 < displayInfo.height))
+    //         {
+    //             ImDrawList *draw = ImGui::GetForegroundDrawList();
+    //             draw->AddTriangleFilled(ImVec2(x0, y0), ImVec2(x1, y1), ImVec2(x2, y2),
+    //                                     IM_COL32(100, 150, 255, 60));
+    //             draw->AddTriangle(ImVec2(x0, y0), ImVec2(x1, y1), ImVec2(x2, y2),
+    //                               IM_COL32(255, 50, 50, 255), 2.0f);
+    //         }
+    //     }
+    // }
 }
 
 const char *绘制::Level(char *name)
@@ -3612,6 +3240,11 @@ const char *绘制::getMaterialName(char *name)
         {"VH_Blanc_C", {"白色SUV", 0}},
         {"VH_Excavator_C", {"挖掘机", 0}},
         {"VH_DumpTruck_C", {"渣土车", 0}},
+        {"BP_VH_EV3F4_C", {"履带车", 0}},
+        {"VH_SeaPlane_C", {"四人滑向机", 0}},
+        {"VH_ATV3_C", {"沙滩车", 0}},
+        {"VH_ATV2_C", {"沙滩车", 0}},
+        {"VH_ATV1_C", {"沙滩车", 0}},
         {"VH_Picobus_C", {"电动小巴", 0}}};
 
     for (const auto &载具 : 载具列表)
@@ -3635,7 +3268,7 @@ string 绘制::getBoxName(int id)
         {601006, "医疗箱"}, {601005, "急救包"}, {601004, "绷带"}, {601001, "可乐"}, {601002, "肾上腺素"}, {601003, "止痛药"}};
 
     static const std::unordered_map<int, const char *> 防具 = {
-        {503003, "三级防弹衣"}, {502003, "三级头盔"}, {501003, "三级包"}};
+        {503003, "三级防弹衣"}, {522629, "二级包"}, {502003, "三级头盔"}, {501003, "三级包"}};
 
     static const std::unordered_map<int, const char *> 子弹 = {
         {302001, "7.62MM"}, {303001, "5.56MM"}, {301001, "9MM"}, {304001, "12口径"}, {305001, "45口径"}, {308001, "信号弹"}, {307001, "箭矢"}};
@@ -3757,12 +3390,9 @@ string 绘制::getBoxName(int id)
 
 string 绘制::getBoxName1(int id)
 {
-    static const std::unordered_map<int, const char *> 物品列表 = {
-        {106094, "召回信号枪"}, {106120, "召回信号枪"}, {308005, "召回信号弹"}, {601006, "医疗箱"}, {601005, "急救包"}, {601004, "绷带"}, {601001, "可乐"}, {601002, "肾上腺素"}, {601003, "止痛药"}, {503003, "三级防弹衣"}, {502003, "三级头盔"}, {501003, "三级包"}, {302001, "7.62MM"}, {303001, "5.56MM"}, {301001, "9MM"}, {304001, "12口径"}, {305001, "45口径"}, {308001, "信号弹"}, {307001, "箭矢"}, {203001, "红点"}, {203014, "3倍镜"}, {203015, "6倍镜"}, {203005, "8倍镜"}, {204014, "子弹袋"}, {204010, "子弹袋"}, {205004, "箭袋"}, {202007, "激光瞄准器"}, {202004, "轻型握把"}, {202005, "半截握把"}, {205001, "UZI枪托"}, {205003, "狙击枪托"}, {205002, "步枪枪托"}, {201003, "狙击枪补偿器"}, {201005, "狙击枪消焰器"}, {201007, "狙击枪消音器"}, {201011, "步枪消音器"}, {201009, "步枪补偿器"}, {201010, "步枪消焰器"}, {201006, "冲锋枪消音器"}, {201004, "冲锋枪消焰器"}, {201002, "冲锋枪消焰器"}, {202006, "拇指握把"}, {202002, "垂直握把"}, {202001, "直角握把"}, {205011, "撞火枪托"}, {204017, "霰弹快速"}, {201012, "鸭嘴枪口"}, {201001, "霰弹收束"}, {204009, "狙击枪快扩"}, {204007, "狙击枪扩容"}, {204013, "步枪快扩"}, {204011, "步枪扩容"}, {204006, "冲锋枪快扩"}, {204004, "冲锋枪扩容"}, {602003, "燃烧瓶"}, {602002, "烟雾弹"}, {602001, "震爆弹"}, {602004, "手榴弹"}, {107001, "十字弩"}, {103003, "AWM"}, {103001, "Kar98K"}, {103002, "M24"}, {103006, "Mini14"}, {103008, "Win94"}, {103009, "SLR"}, {103012, "AMR狙击枪"}, {103013, "M417"}, {103014, "MK20-H"}, {103100, "MK12"}, {103010, "QBU"}, {103004, "SKS"}, {103007, "MK14"}, {103015, "M200"}, {103011, "莫辛狙击枪"}, {101012, "蜜獾"}, {101008, "M762"}, {101011, "VC-VAL突击步枪"}, {101010, "G36C步枪"}, {101013, "Famas突击步枪"}, {105002, "DP28"}, {101005, "狗砸"}, {101001, "AKM"}, {101007, "QBZ"}, {101009, "MK47"}, {101006, "AUG"}, {101002, "M16A4"}, {101003, "SCAR"}, {101014, "ACE-32"}, {101004, "M416"}, {105001, "M249"}, {105012, "PKM"}, {105010, "MG3"}, {102001, "UZI"}, {102004, "汤姆逊冲锋枪"}, {102003, "维克托"}, {102002, "UMP9"}, {102008, "AKS-74U"}, {102009, "JS9冲锋枪"}, {102005, "野牛冲锋枪"}, {102007, "MP5K"}, {102105, "P90冲锋枪"}, {106003, "R1895"}, {106006, "短管散弹枪"}, {104003, "S12K"}, {104002, "S1897"}, {104001, "双管猎枪"}, {104004, "DBS"}, {104100, "SPAS-12"}, {104005, "AA12-G"}, {9801001, "卧底证"}, {9801002, "能源电池"}, {9801003, "加密房间房卡"}, {9801004, "勘察情报"}, {9802001, "金库密码卡-白"}, {9802002, "金库密码卡-黄"}, {9802003, "金库密码卡-红"}, {9802004, "金库密码卡-绿"}, {9802005, "金库密码卡-黑"}, {9802006, "功勋奖章（铜）"}, {9802007, "功勋奖章（银）"}, {9802008, "功勋奖章（金）"}, {9802009, "撤离信号电话机"}, {9803001, "1级变卖物测试"}, {9803002, "2级变卖物测试"}, {9803003, "3级变卖物测试"}, {9803004, "4级变卖物测试"}, {9803005, "5级变卖物测试"}, {9803006, "6级变卖物测试"}, {9803007, "7级变卖物测试"}, {9803031, "信号发生器"}, {9803032, "净水器"}, {9803033, "CPU处理器"}, {9803034, "探测器"}, {9803035, "平板电脑"}, {9803036, "军用电池"}, {9803037, "军用电路板"}, {9803038, "精密仪器蓝图"}, {9803039, "绝密情报"}, {9803040, "设计图纸"}, {9803041, "显卡"}, {9803042, "镜头"}, {9803043, "珍稀古钱币"}, {9803044, "一根金条"}, {9803045, "光子鸡奖杯"}, {9803050, "装甲能源部件"}, {9803051, "装甲爆发部件"}, {9803052, "紫矿碎片"}, {9803053, "紫矿晶块"}, {9803054, "稀有宝石"}, {9803055, "黄金烤鸡"}, {9803056, "收发信器"}, {9803057, "钛合金"}, {9803058, "制动引擎"}, {9803059, "胶卷"}, {9803060, "拉刀"}, {9803061, "打火机"}, {9803062, "黑胶唱片"}, {9803063, "窃听装置"}, {9803064, "摄像头"}, {9803065, "雷管"}, {9803066, "黑鹰勋章"}, {9803067, "金狼雕像"}, {9803068, "密信"}, {9803069, "紫色试管药剂"}, {9803087, "附加奖励金龙"}, {9804007, "5级头盔"}, {9804008, "5级头盔(铁爪)"}, {9804009, "5级头盔(黑鹰)"}, {9804010, "6级头盔"}, {9804011, "6级头盔(铁爪)"}, {9804012, "6级头盔(黑鹰)"}, {9804013, "7级头盔"}, {9804014, "7级头盔(铁爪)"}, {9804015, "7级头盔(黑鹰)"}, {9804016, "头戴夜视仪"}, {9804017, "7级头盔"}, {9804018, "7级头盔(铁爪)"}, {9804019, "7级头盔(黑鹰)"}, {9804021, "4级头盔(轩辕)"}, {9804022, "5级头盔(轩辕)"}, {9804023, "6级头盔(轩辕)"}, {9804024, "7级头盔(轩辕)"}, {9804025, "7级头盔(轩辕)"}, {9804026, "7级头盔·墨守"}, {9805010, "6级防弹衣"}, {9805011, "6级防弹衣(铁爪)"}, {9805012, "6级防弹衣(黑鹰)"}, {9805013, "7级防弹衣"}, {9805014, "7级防弹衣(铁爪)"}, {9805015, "7级防弹衣(黑鹰)"}, {9805016, "7级防弹衣"}, {9805017, "7级防弹衣(铁爪)"}, {9805018, "7级防弹衣(黑鹰)"}, {9805020, "机甲防具"}, {9805039, "7级防弹衣(轩辕)"}, {9805040, "7级防弹衣(轩辕)"}, {9805094, "7级防弹衣·特劳斯(强化)"}, {9805096, "7级防弹衣·特劳斯"}, {9805099, "7级防弹衣·特劳斯"}, {9806010, "6级背包"}, {9806011, "6级背包(铁爪)"}, {9806012, "6级背包(黑鹰)"}, {9806013, "7级背包"}, {9806014, "7级背包(铁爪)"}, {9806015, "7级背包(黑鹰)"}, {9806016, "7级背包"}, {9806017, "7级背包(铁爪)"}, {9806018, "7级背包(黑鹰)"}, {9806021, "6级背包(轩辕)"}, {9806022, "7级背包(轩辕)"}, {9806023, "7级背包(轩辕)"}, {9803070, "数据芯片"}};
-
-    if (auto it = 物品列表.find(id); it != 物品列表.end())
-    {
+    const auto &map = GetBox1NameMap();
+    auto it = map.find(id);
+    if (it != map.end())
         return it->second;
-    }
     return "NULL";
 }
