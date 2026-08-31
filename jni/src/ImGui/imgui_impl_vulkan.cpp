@@ -1332,8 +1332,23 @@ void ImGui_ImplVulkanH_CreateWindowSwapChain(VkPhysicalDevice physical_device, V
     VkResult err;
     VkSwapchainKHR old_swapchain = wd->Swapchain;
     wd->Swapchain = VK_NULL_HANDLE;
+
+    // ★★ 修复息屏崩溃：device 为 NULL 时任何 Vulkan 调用都不可靠，
+    //   直接返回（上层会走 g_Device 判空 → _exit(42) 重启），绝不继续。
+    if (device == VK_NULL_HANDLE)
+        return;
+
     err = vkDeviceWaitIdle(device);
     check_vk_result(err);
+
+    // ★ 先销毁旧 swapchain 再新建：Adreno 上旧 swapchain 仍占用窗口 BufferQueue 时，
+    //   直接创建新 swapchain 会返回 VK_ERROR_NATIVE_WINDOW_IN_USE_KHR (-1000000001)，
+    //   导致首次重建必失败一次、靠重试才成功。vkDeviceWaitIdle 之后销毁旧句柄是安全的。
+    if (old_swapchain)
+    {
+        vkDestroySwapchainKHR(device, old_swapchain, allocator);
+        old_swapchain = VK_NULL_HANDLE;
+    }
 
     // We don't use ImGui_ImplVulkanH_DestroyWindow() because we want to preserve the old swapchain to create the new one.
     // Destroy old Framebuffer
@@ -1348,9 +1363,15 @@ void ImGui_ImplVulkanH_CreateWindowSwapChain(VkPhysicalDevice physical_device, V
     wd->FrameSemaphores = nullptr;
     wd->ImageCount = 0;
     if (wd->RenderPass)
+    {
         vkDestroyRenderPass(device, wd->RenderPass, allocator);
+        wd->RenderPass = VK_NULL_HANDLE; // 防重复重建时二次销毁同句柄
+    }
     if (wd->Pipeline)
+    {
         vkDestroyPipeline(device, wd->Pipeline, allocator);
+        wd->Pipeline = VK_NULL_HANDLE; // 防重复重建时二次销毁同句柄
+    }
 
     // If min image count was not specified, request different count of images dependent on selected present mode
     if (min_image_count == 0)
@@ -1392,8 +1413,28 @@ void ImGui_ImplVulkanH_CreateWindowSwapChain(VkPhysicalDevice physical_device, V
         }
         err = vkCreateSwapchainKHR(device, &info, allocator, &wd->Swapchain);
         check_vk_result(err);
+        // ★★ 修复息屏崩溃（SIGSEGV @ GetSwapchainImagesKHR）：
+        //   息屏后 surface/window 失效时 vkCreateSwapchainKHR 会失败，wd->Swapchain 保持 NULL。
+        //   此时绝不能继续调 vkGetSwapchainImagesKHR(device, NULL, ...)——libvulkan 装载器
+        //   会对空 swapchain 句柄解引用直接 SIGSEGV（tombstone 已证实）。
+        //   这里统一拦截，清干净状态后返回，让上层走"重试/重启"逻辑。
+        if (wd->Swapchain == VK_NULL_HANDLE)
+        {
+            fprintf(stderr, "[vulkan] vkCreateSwapchainKHR failed (err=%d), abort swapchain rebuild\n", (int)err);
+            fprintf(stderr, "[vulkan]   cap.currentExtent=%ux%u minImg=%u maxImg=%u transform=0x%x\n",
+                    (unsigned)cap.currentExtent.width, (unsigned)cap.currentExtent.height,
+                    cap.minImageCount, cap.maxImageCount, (unsigned)cap.currentTransform);
+            fprintf(stderr, "[vulkan]   reqExtent=%ux%u presentMode=%d minImageCount=%u surface=%p\n",
+                    (unsigned)info.imageExtent.width, (unsigned)info.imageExtent.height,
+                    (int)info.presentMode, info.minImageCount, (void*)wd->Surface);
+            if (old_swapchain)
+                vkDestroySwapchainKHR(device, old_swapchain, allocator); // 避免旧句柄泄漏
+            return; // ImageCount=0 / Frames=NULL，CreateWindowCommandBuffers 循环自动跳过，安全
+        }
         err = vkGetSwapchainImagesKHR(device, wd->Swapchain, &wd->ImageCount, nullptr);
         check_vk_result(err);
+        fprintf(stderr, "[vulkan] swapchain created: %ux%u presentMode=%d imgCount=%u\n",
+                (unsigned)wd->Width, (unsigned)wd->Height, (int)info.presentMode, wd->ImageCount);
         VkImage backbuffers[16] = {};
         IM_ASSERT(wd->ImageCount >= min_image_count);
         IM_ASSERT(wd->ImageCount < IM_ARRAYSIZE(backbuffers));

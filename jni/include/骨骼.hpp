@@ -1,5 +1,4 @@
 #include "辅助类.h"
-#include "辅助类.h"
 #include "map"
 
 class 骨骼
@@ -12,11 +11,28 @@ public:
   骨骼(Kernel *读写) : 读写(读写)
   {
     BossName = {
+        {"FemaleGeneral", "女将军"},
+        {"Rage", "雷斯"},
+        {"Bernard", "伯纳德"},
+        {"Jason", "杰森"},
+        {"Vulcan", "狂火·维列"},
+        {"Tlaus", "特劳斯"},
+        {"Freezing", "Freezing"},
+        {"ShotgunmanBoss", "红发奎尔"},
+        {"Shield", "哈顿"},
+        {"SnowRanger", "雪原巡猎者"},
+        {"Mecha", "Mecha"},
+        {"Vladi", "弗拉迪"},
+        {"Spencer", "斯宾塞"},
+        {"Louis", "路易斯"},
+        {"MachinegunmanBoss", "MachinegunmanBoss"},
         {"Pawn_Escape_RD_Grenade_C", "巡卫长·玄铁"},
         {"Pawn_Escape_RD_RoyalGuards_C", "影卫·银星"},
         {"Pawn_Escape_Boss_Robocop_C", "V-34机械警"},
         {"Pawn_Escape_BOSS_Claws_C", "钢爪·安德烈"},
         {"Pawn_Escape_RD_SupplyBoss_C", "辎重使·墨守"},
+        {"GT_FakeAICharacter_C", "特训岛·人机"},
+        {"BPPawn_Escape_ShootingRange_Human_C", "地铁训练场靶子"},
     };
   }
 
@@ -190,10 +206,10 @@ public:
   D2DVector getPointingAngle(long int SelfAddress, float object_x, float object_y, float object_z, float Self_x, float Self_y, float Self_z, D3DVector Movement, float distance, float 预判力度)
   {
     D2DVector PointingAngle;
-    float bulletVelocity = 读写->getFloat(读写->getPtr64(读写->getPtr64(SelfAddress + 0x10c8) + 0xb60) + 0x158c); // 子弹速度
+    float bulletVelocity = 读写->getFloat(读写->getPtr64(读写->getPtr64(SelfAddress + 0xf18) + 0x9b8) + 0x1334); // 子弹速度
     float FlyTime = distance / (bulletVelocity * 0.01f) * 预判力度;
 
-    // float FlyTime = (distance >= 60) ? (distance / (bulletVelocity * 0.01f) * 预判力度) : (distance / (bulletVelocity * 0.0055f) * 预判力度);  
+    // float FlyTime = (distance >= 60) ? (distance / (bulletVelocity * 0.01f) * 预判力度) : (distance / (bulletVelocity * 0.0055f) * 预判力度);
 
     float DropM = 500.0f * FlyTime * FlyTime;
     float zbcx = object_x + (Movement.X * FlyTime) - Self_x;
@@ -205,9 +221,19 @@ public:
     return PointingAngle;
   }
 
-  void 更新骨骼数据(uintptr_t MeshAddress, uintptr_t Bone, D3DVector (&骨骼坐标)[17], int Bonecount, int Team, char *类名)
+  // ★★★★★ 修改点：增加了 闪框解密 和 修正坐标 参数 ★★★★★
+  void 更新骨骼数据(uintptr_t MeshAddress, uintptr_t Bone, D3DVector (&骨骼坐标)[17], int Bonecount, int Team, char *类名, bool 闪框解密, const D3DVector& 修正坐标)
   {
     FTransform meshtrans = getBone(MeshAddress);
+
+    // ★★★★★ 闪框解密：覆盖 Mesh Transform 的 Translation ★★★★★
+    if (闪框解密)
+    {
+        meshtrans.Translation.X = 修正坐标.X;
+        meshtrans.Translation.Y = 修正坐标.Y;
+        meshtrans.Translation.Z = 修正坐标.Z;
+    }
+
     FMatrix c2wMatrix = TransformToMatrix(meshtrans);
     // std::vector<int> boneIndices = {5, 4, 1, 11, (Bonecount == 68) ? 33 : 32, 12, (Bonecount == 68) ? 34 : 33, (Bonecount == 68) ? 13 : 63, (Bonecount == 68) ? 35 : 62, (Bonecount == 68) ? 55 : 53, (Bonecount == 68) ? 59 : 56, (Bonecount == 68) ? 56 : 53, (Bonecount == 68) ? 60 : 57, (Bonecount == 68) ? 57 : 54, (Bonecount == 68) ? 61 : 58};
 
@@ -216,22 +242,22 @@ public:
     if (!isboss)
     {
 
-      if (Bonecount == 69)
+      if (Bonecount == 68)
       {
         boneIndices = {5, 4, 1, 11, 33, 12, 34, 13, 35, 55, 59, 56, 60, 57, 61};
         // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
-      else if (Bonecount == 71)
+      else if (Bonecount == 70)
       {
         boneIndices = {5, 4, 1, 6, 34, 7, 35, 8, 36, 55, 59, 56, 60, 57, 61};
         // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
-      else if (Bonecount == 73)
+      else if (Bonecount == 72)
       {
         boneIndices = {5, 4, 1, 12, 34, 13, 35, 14, 36, 57, 61, 58, 62, 59, 63};
         // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
-      else if (strstr(类名, "BPPawn_Escape_BOSS_Claws") != 0 && Bonecount == 66)
+      else if (strstr(类名, "BPPawn_Escape_BOSS_Claws") != 0 && Bonecount == 65)
       {
         boneIndices = {5, 4, 0, 6, 27, 7, 28, 8, 29, 50, 57, 51, 58, 52, 59};
         // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
@@ -286,6 +312,23 @@ public:
         boneIndices = {5, 4, 0, 6, 27, 7, 28, 8, 29, 48, 52, 49, 53, 50, 54};
         // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
+      else if (Bonecount == 73)
+     {
+    boneIndices = {5, 4, 1, 12, 34, 13, 35, 14, 36, 57, 61, 58, 62, 59, 63};
+    // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
+     }
+
+     else if (Bonecount == 71)
+     {
+    boneIndices = {5, 4, 1, 6, 34, 7, 35, 8, 36, 55, 59, 56, 60, 57, 61};
+    // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
+     }
+      else if (Bonecount == 69)
+     {
+    boneIndices = {5, 4, 1, 11, 33, 12, 34, 13, 35, 55, 59, 56, 60, 57, 61};
+    // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
+     }
+      
       else
       {
         boneIndices = {5, 4, 1, 11, 32, 12, 33, 63, 62, 53, 56, 53, 57, 54, 58};
@@ -299,12 +342,29 @@ public:
       {
         boneIndices = {5, 4, 1, 28, 7, 29, 8, 30, 9, 57, 50, 58, 51, 59, 52};
         // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
-      }
-      else if (name == "巡卫长·玄铁" || name == "V-34机械警" || name == "辎重使·墨守" || name == "影卫·银星")
-      {
+      } else if (name == "巡卫长·玄铁" || name == "V-34机械警" || name == "辎重使·墨守" || name == "影卫·银星" || name == "女将军" || name == "雷斯" || name == "伯纳德" || 
+                 name == "杰森" || name == "狂火·维列" || name == "特劳斯" ||
+                 name == "Freezing" || name == "红发奎尔" || name == "哈顿" ||
+                 name == "雪原巡猎者" || name == "Mecha" || name == "弗拉迪" ||
+                 name == "斯宾塞" || name == "路易斯" || name == "MachinegunmanBoss")
+      {//懒得全部找骨骼索引了
         boneIndices = {5, 4, 1, 28, 7, 29, 8, 30, 9, 52, 48, 53, 49, 54, 50};
         // 头,胸,盆骨,左肩膀,右肩膀,左手肘,右手肘,左手腕,右手腕,左大腿,右大腿,左膝盖,右膝盖,左脚腕,右脚腕
       }
+      else if (name == "特训岛·人机") {
+            if (Bonecount == 70) {
+                boneIndices = {28, 4, 1, 6, 34, 7, 35, 8, 36, 55, 59, 56, 60, 57, 61};
+            } else {
+                boneIndices = {5, 4, 1, 11, 33, 12, 34, 13, 35, 55, 59, 56, 60, 57, 61};
+            }
+        }
+        else if (name == "地铁训练场靶子") {
+            if (Bonecount == 70) {
+                boneIndices = {28, 4, 1, 6, 34, 7, 35, 8, 36, 55, 59, 56, 60, 57, 61};
+            } else {
+                boneIndices = {5, 4, 1, 11, 33, 12, 34, 13, 35, 55, 59, 56, 60, 57, 61};
+            }
+        }
     }
 
     for (size_t i = 0; i < boneIndices.size(); i++)

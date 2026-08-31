@@ -40,7 +40,7 @@ HookRW::ReadMode HookRW::readMode = HookRW::ReadMode::No_cache;
         fd = socket(AF_INET, SOCK_DGRAM, 0);
         if (fd == -1) {
             perror("[-] 打开失败");
-            exit(EXIT_FAILURE);
+            _exit(EXIT_FAILURE);
         }
     }
     
