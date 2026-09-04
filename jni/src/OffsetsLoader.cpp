@@ -101,6 +101,35 @@ namespace Offsets
 
     float HumanHeight;
     float MaxDrawDistance;
+    uintptr_t SelfChain_Hop1;
+    uintptr_t SelfChain_Hop2;
+    uintptr_t SelfChain_Hop3;
+    uintptr_t SelfChain_Hop4;
+    uintptr_t Matrix_Offset1;
+    uintptr_t Actor_CoordChain2;
+    uintptr_t Actor_Height;
+    uintptr_t Actor_AdvancedBot;
+    uintptr_t Actor_GrenadeID;
+    uintptr_t Enemy_EquipEntity;
+    uintptr_t Enemy_EquipTable;
+    uintptr_t Mesh_BoneCount;
+    uintptr_t Mesh_BoneStart;
+    uintptr_t FName_Chunk;
+    uintptr_t FName_NameOff;
+    uintptr_t DecryptArray_Base;
+    uintptr_t DecryptArray_Hop1;
+    uintptr_t DecryptArray_Hop2;
+    uintptr_t DecryptArray_ArrayOff;
+    uintptr_t DecryptArray_CountOff;
+    uintptr_t Feature_Base;
+    uintptr_t Feature_Hop1;
+    uintptr_t Feature_Hop2;
+    uintptr_t Feature_Hop3;
+    uintptr_t Flash_CoordBase;
+    uintptr_t Flash_CoordOff;
+    uintptr_t Flash_ItemWrapper;
+    uintptr_t Flash_BoxComp;
+    uintptr_t Flash_ListOff;
 }
 
 // ---------- HTTPS GET (使用 OpenSSL) ----------
@@ -419,6 +448,35 @@ bool Offsets::LoadFromJson(const std::string &jsonStr)
     SET_UINT("Decrypt_Step3_Offset2", Decrypt_Step3_Offset2);
     SET_FLOAT("HumanHeight", HumanHeight);
     SET_FLOAT("MaxDrawDistance", MaxDrawDistance);
+    SET_UINT("SelfChain_Hop1", SelfChain_Hop1);
+    SET_UINT("SelfChain_Hop2", SelfChain_Hop2);
+    SET_UINT("SelfChain_Hop3", SelfChain_Hop3);
+    SET_UINT("SelfChain_Hop4", SelfChain_Hop4);
+    SET_UINT("Matrix_Offset1", Matrix_Offset1);
+    SET_UINT("Actor_CoordChain2", Actor_CoordChain2);
+    SET_UINT("Actor_Height", Actor_Height);
+    SET_UINT("Actor_AdvancedBot", Actor_AdvancedBot);
+    SET_UINT("Actor_GrenadeID", Actor_GrenadeID);
+    SET_UINT("Enemy_EquipEntity", Enemy_EquipEntity);
+    SET_UINT("Enemy_EquipTable", Enemy_EquipTable);
+    SET_UINT("Mesh_BoneCount", Mesh_BoneCount);
+    SET_UINT("Mesh_BoneStart", Mesh_BoneStart);
+    SET_UINT("FName_Chunk", FName_Chunk);
+    SET_UINT("FName_NameOff", FName_NameOff);
+    SET_UINT("DecryptArray_Base", DecryptArray_Base);
+    SET_UINT("DecryptArray_Hop1", DecryptArray_Hop1);
+    SET_UINT("DecryptArray_Hop2", DecryptArray_Hop2);
+    SET_UINT("DecryptArray_ArrayOff", DecryptArray_ArrayOff);
+    SET_UINT("DecryptArray_CountOff", DecryptArray_CountOff);
+    SET_UINT("Feature_Base", Feature_Base);
+    SET_UINT("Feature_Hop1", Feature_Hop1);
+    SET_UINT("Feature_Hop2", Feature_Hop2);
+    SET_UINT("Feature_Hop3", Feature_Hop3);
+    SET_UINT("Flash_CoordBase", Flash_CoordBase);
+    SET_UINT("Flash_CoordOff", Flash_CoordOff);
+    SET_UINT("Flash_ItemWrapper", Flash_ItemWrapper);
+    SET_UINT("Flash_BoxComp", Flash_BoxComp);
+    SET_UINT("Flash_ListOff", Flash_ListOff);
 
 #undef SET_UINT
 #undef SET_FLOAT

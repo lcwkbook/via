@@ -92,6 +92,41 @@ namespace Offsets
     extern float HumanHeight;
     extern float MaxDrawDistance;
 
+    // ==================== 新增：服务器全量管理字段（1.38 起，更新只改 JSON） ====================
+    // ---- 自身地址链 / 矩阵 / 坐标 ----
+    extern uintptr_t SelfChain_Hop1;
+    extern uintptr_t SelfChain_Hop2;
+    extern uintptr_t SelfChain_Hop3;
+    extern uintptr_t SelfChain_Hop4;
+    extern uintptr_t Matrix_Offset1;
+    extern uintptr_t Actor_CoordChain2;
+    extern uintptr_t Actor_Height;
+    extern uintptr_t Actor_AdvancedBot;
+    extern uintptr_t Actor_GrenadeID;
+    extern uintptr_t Enemy_EquipEntity;
+    extern uintptr_t Enemy_EquipTable;
+    extern uintptr_t Mesh_BoneCount;
+    extern uintptr_t Mesh_BoneStart;
+    extern uintptr_t FName_Chunk;
+    extern uintptr_t FName_NameOff;
+    // ---- 解密数组链（按钮.解密）----
+    extern uintptr_t DecryptArray_Base;
+    extern uintptr_t DecryptArray_Hop1;
+    extern uintptr_t DecryptArray_Hop2;
+    extern uintptr_t DecryptArray_ArrayOff;
+    extern uintptr_t DecryptArray_CountOff;
+    // ---- 特征扫描链（查找解密地址）----
+    extern uintptr_t Feature_Base;
+    extern uintptr_t Feature_Hop1;
+    extern uintptr_t Feature_Hop2;
+    extern uintptr_t Feature_Hop3;
+    // ---- 闪框解密模式专用链 ----
+    extern uintptr_t Flash_CoordBase;
+    extern uintptr_t Flash_CoordOff;
+    extern uintptr_t Flash_ItemWrapper;
+    extern uintptr_t Flash_BoxComp;
+    extern uintptr_t Flash_ListOff;
+
     // ==================== 加载函数 ====================
     bool LoadFromRemote(const std::string &url);
     bool LoadFromJson(const std::string &jsonStr);

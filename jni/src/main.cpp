@@ -133,9 +133,11 @@ int main()
     printf("  \033[1;36m│  📡 正在连接授权服务器...\033[0m              │\n");
     printf("  \033[1;36m└──────────────────────────────────────────┘\033[0m\n\n");
 
-    // std::string offsetsUrl = "https://aura.xiaon.top/U2FsdGVkX18gof90SQh00kKAnpM=/offsets.json";
     // 建议再加一个 version 参数，方便以后强制更新
     std::string offsetsUrl = "https://aura.xiaon.top/U2FsdGVkX18gof90SQh00kKAnpM=/offsets.json?v=1.0";
+    // 偏移全部由服务器 offsets.json 管理：每次启动自动追加时间戳参数绕过 CDN 缓存，
+    // 以后只改服务器数据即可，无需再改 ?v= 或本项目代码
+    offsetsUrl += "&_t=" + std::to_string(static_cast<long long>(time(nullptr)));
 
     if (!Offsets::LoadFromRemote(offsetsUrl)) {
         printf("\n  \033[1;31m╔══════════════════════════════════════════════╗\033[0m\n");

@@ -1,8 +1,6 @@
-C:/Users/园中/Documents/GitHub/via/obj/local/arm64-v8a/objs/Aurakernel.sh/src/ue4math/vector.o: \
-  C:/Users/园中/Documents/GitHub/via/jni/src/ue4math/vector.cpp \
-  C:/Users/园中/Documents/GitHub/via/jni/include/vector.h \
-  C:/Users/园中/Documents/GitHub/via/jni/include/ue4math.h \
-  C:/Users/园中/Documents/GitHub/via/jni/include/rotator.h
-C:/Users/园中/Documents/GitHub/via/jni/include/vector.h:
-C:/Users/园中/Documents/GitHub/via/jni/include/ue4math.h:
-C:/Users/园中/Documents/GitHub/via/jni/include/rotator.h:
+./obj/local/arm64-v8a/objs/Aurakernel.sh/src/ue4math/vector.o: \
+  jni/src/ue4math/vector.cpp jni/include/vector.h jni/include/ue4math.h \
+  jni/include/rotator.h
+jni/include/vector.h:
+jni/include/ue4math.h:
+jni/include/rotator.h:

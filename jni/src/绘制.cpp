@@ -191,27 +191,27 @@ void 绘制::查找解密地址()
 
         // 步骤3: 计算目标特征地址
         // 使用链式读取
-        uintptr_t 临时地址1 = 读写.getPtr64(地址.libue4 + 0x14EC2468);
+        uintptr_t 临时地址1 = 读写.getPtr64(地址.libue4 + Offsets::Feature_Base);
         if (临时地址1 == 0)
         {
             printf("错误: 第一步读取失败\n");
             return;
         }
 
-        uintptr_t 临时地址2 = 读写.getPtr64(临时地址1 + 0xF8);
+        uintptr_t 临时地址2 = 读写.getPtr64(临时地址1 + Offsets::Feature_Hop1);
         if (临时地址2 == 0)
         {
             printf("错误: 第二步读取失败\n");
             return;
         }
-        uintptr_t 临时地址3 = 读写.getPtr64(临时地址2 + 0x340);
+        uintptr_t 临时地址3 = 读写.getPtr64(临时地址2 + Offsets::Feature_Hop2);
         if (临时地址3 == 0)
         {
             printf("错误: 第三步读取失败\n");
             return;
         }
 
-        this->特征地址 = 读写.getPtr64(临时地址3 + 0xF0);
+        this->特征地址 = 读写.getPtr64(临时地址3 + Offsets::Feature_Hop3);
         if (this->特征地址 == 0)
         {
             printf("错误: 无法计算特征地址\n");
@@ -254,7 +254,7 @@ void 绘制::查找解密地址()
             // 使用第一个找到的解密地址
             this->解密数组 = this->解密地址列表[0];
             地址.数组地址 = this->解密数组;
-            世界数量 = 读写.getDword(地址.世界地址 + 0xB8);
+            世界数量 = 读写.getDword(地址.世界地址 + Offsets::GWorld_ActorsCountDec);
             printf("成功启用解密，使用地址: 0x%lX\n", this->解密数组);
         }
         else
@@ -435,7 +435,7 @@ void 绘制::选择解密数组(uintptr_t 数组地址)
     if (地址.数组地址 != 0)
     {
         地址.数组地址 = this->解密数组;
-        世界数量 = 读写.getDword(地址.世界地址 + 0xB8);
+        世界数量 = 读写.getDword(地址.世界地址 + Offsets::GWorld_ActorsCountDec);
         printf("已选择解密地址: 0x%lX\n", this->解密数组);
     }
 }
@@ -1095,10 +1095,10 @@ void 绘制::更新地址数据()
 {
     // ========== 基础地址 (使用新偏移) ==========
     地址.世界地址 = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::GWorld_PersistentLevel);
-    地址.自身地址 = 读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + 0xC0) + 0x88) + 0x30) + 0x34A0);
+    地址.自身地址 = 读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::GWorld) + Offsets::SelfChain_Hop1) + Offsets::SelfChain_Hop2) + Offsets::SelfChain_Hop3) + Offsets::SelfChain_Hop4);
 
     // 静态视图矩阵链（不依赖玩家 Actor，死亡后依然有效）
-    地址.矩阵地址 = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::MatrixChain1) + 0x20) + Offsets::Matrix_ViewMatrix;
+    地址.矩阵地址 = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::MatrixChain1) + Offsets::Matrix_Offset1) + Offsets::Matrix_ViewMatrix;
     地址.矩阵地址_Tol = 读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::MatrixChain2) + Offsets::Matrix_Tol_Offset1) + Offsets::Matrix_Tol_Offset2;
 
     // 数组地址与数量（未解密时）
@@ -1108,8 +1108,8 @@ void 绘制::更新地址数据()
     // 解密数组优先（如果已启用）
     if (按钮.解密)
     {
-        地址.数组地址 = 读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x141BF3F8) + 0xf8) + 0x138) + 0xf0);
-        世界数量 = 读写.getDword(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + 0x141BF3F8) + 0xf8) + 0x138) + 0xf8);
+        地址.数组地址 = 读写.getPtr64(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::DecryptArray_Base) + Offsets::DecryptArray_Hop1) + Offsets::DecryptArray_Hop2) + Offsets::DecryptArray_ArrayOff);
+        世界数量 = 读写.getDword(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::DecryptArray_Base) + Offsets::DecryptArray_Hop1) + Offsets::DecryptArray_Hop2) + Offsets::DecryptArray_CountOff);
     }
 
     地址.类地址 = 读写.getPtr64(地址.libue4 + Offsets::ClassBase);
@@ -1117,20 +1117,20 @@ void 绘制::更新地址数据()
     // ========== 自身坐标 (闪框/普通双模式) ==========
     if (按钮.闪框解密)
     {
-        // 闪框模式：RootComp = Actor + 0x5640，坐标 = RootComp + 0x1B0
-        uintptr_t selfRootComp = 读写.getPtr64(地址.自身地址 + 0x5640);
+        // 闪框模式：RootComp = Actor + Flash_CoordBase，坐标 = RootComp + Flash_CoordOff
+        uintptr_t selfRootComp = 读写.getPtr64(地址.自身地址 + Offsets::Flash_CoordBase);
         if (selfRootComp != 0)
         {
-            读写.readv(selfRootComp + 0x1B0, &自身数据.坐标, sizeof(自身数据.坐标));
+            读写.readv(selfRootComp + Offsets::Flash_CoordOff, &自身数据.坐标, sizeof(自身数据.坐标));
         }
     }
     else
     {
         // 普通模式：RootComp = Actor + 0x260，坐标 = RootComp + 0x200
-        uintptr_t selfRootComp = 读写.getPtr64(地址.自身地址 + 0x260);
+        uintptr_t selfRootComp = 读写.getPtr64(地址.自身地址 + Offsets::Actor_RootComponent);
         if (selfRootComp != 0)
         {
-            读写.readv(selfRootComp + 0x200, &自身数据.坐标, sizeof(自身数据.坐标));
+            读写.readv(selfRootComp + Offsets::Actor_CoordChain2, &自身数据.坐标, sizeof(自身数据.坐标));
         }
     }
 
@@ -1141,19 +1141,19 @@ void 绘制::更新地址数据()
     自身数据.开火 = 读写.getDword(地址.自身地址 + Offsets::Actor_bIsWeaponFiring);
 
     // ========== 手持武器信息 ==========
-    uintptr_t weaponEntity = 读写.getPtr64(地址.自身地址 + 0x1158); // Actor_WeaponEntity
+    uintptr_t weaponEntity = 读写.getPtr64(地址.自身地址 + Offsets::Actor_WeaponEntity); // Actor_WeaponEntity
     if (weaponEntity != 0)
     {
         // 手持ID (新数据用 getPtr64 不是 getDword!)
-        自身数据.手持id = 读写.getPtr64(weaponEntity + 0xDB8); // Weapon_RepID
+        自身数据.手持id = 读写.getPtr64(weaponEntity + Offsets::Weapon_RepID); // Weapon_RepID
         自身数据.手持 = heldconversion(自身数据.手持id);
 
         // 武器组件 → 子弹速度 + 后坐力
-        uintptr_t weaponComp = 读写.getPtr64(weaponEntity + 0xC78); // Weapon_EntityComp
+        uintptr_t weaponComp = 读写.getPtr64(weaponEntity + Offsets::Weapon_EntityComp); // Weapon_EntityComp
         if (weaponComp != 0)
         {
-            自身数据.子弹速度 = 读写.getFloat(weaponComp + 0x15D4);   // Weapon_BulletSpeed
-            自身数据.后坐力数据 = 读写.getFloat(weaponComp + 0x1EC8); // Weapon_RecoilFactor
+            自身数据.子弹速度 = 读写.getFloat(weaponComp + Offsets::Weapon_BulletSpeed);   // Weapon_BulletSpeed
+            自身数据.后坐力数据 = 读写.getFloat(weaponComp + Offsets::Weapon_RecoilFactor); // Weapon_RecoilFactor
         }
     }
 
@@ -1183,7 +1183,7 @@ void 绘制::更新地址数据()
     }
 
     // ========== 人物高度 ==========
-    自身数据.人物高度 = 读写.getFloat(地址.自身地址 + 0xFF8);
+    自身数据.人物高度 = 读写.getFloat(地址.自身地址 + Offsets::Actor_Height);
 
     // ========== 全图人数统计 ==========
     自身数据.全图数量 = 读写.getDword(
@@ -1344,7 +1344,7 @@ void 绘制::更新对象数据()
 
         // ─── 闪框解密模式切换 ───
         // ─── 读取坐标（统一用普通模式，闪框解密在敌人识别后单独处理）───
-        读写.readv(读写.getPtr64(对象地址.敌人地址 + 0x260) + 0x200,
+        读写.readv(读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_RootComponent) + Offsets::Actor_CoordChain2,
                    &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
 
         FVector_class &坐标 = 对象信息.敌人信息.坐标;
@@ -1493,7 +1493,7 @@ void 绘制::更新对象数据()
         sprintf(自救计算地址, "%lx", 对象地址.敌人地址);
         if (按钮.手雷预警)
         {
-            int 手雷ID = 读写.getDword(对象地址.敌人地址 + 0x794);
+            int 手雷ID = 读写.getDword(对象地址.敌人地址 + Offsets::Actor_GrenadeID);
             const char *投掷物信息 = Getagrenade(手雷ID);
             if (手雷ID == 602004 or 手雷ID == 9825004)
             {
@@ -1571,8 +1571,8 @@ void 绘制::更新对象数据()
         long int FNameEntry;
         if (t_屏幕坐标.W > 0)
         {
-            FNameEntry = 读写.getPtr64(读写.getPtr64(地址.类地址 + (ClassID / 0x4000) * 0x8) + (ClassID % 0x4000) * 0x8);
-            读写.readv(FNameEntry + 0xC, ClassName, 64);
+            FNameEntry = 读写.getPtr64(读写.getPtr64(地址.类地址 + (ClassID / Offsets::FName_Chunk) * 0x8) + (ClassID % Offsets::FName_Chunk) * 0x8);
+            读写.readv(FNameEntry + Offsets::FName_NameOff, ClassName, 64);
 
             ImColor outlineColor = ImColor(0, 0, 0, 255);
 
@@ -2499,11 +2499,11 @@ void 绘制::更新对象数据()
                     {
                         if (按钮.闪框解密)
                         {
-                            // ─── 闪框模式物资：0x4A78 → +0x460 → +0xA0 ───
-                            uintptr_t itemWrapper = 读写.getPtr64(对象地址.敌人地址 + 0x4A78);
+                            // ─── 闪框模式物资：Flash_ItemWrapper → Flash_BoxComp → Flash_ListOff ───
+                            uintptr_t itemWrapper = 读写.getPtr64(对象地址.敌人地址 + Offsets::Flash_ItemWrapper);
                             if (itemWrapper != 0)
                             {
-                                boxComp = 读写.getPtr64(itemWrapper + 0x460);
+                                boxComp = 读写.getPtr64(itemWrapper + Offsets::Flash_BoxComp);
                             }
                             else
                             {
@@ -2526,8 +2526,8 @@ void 绘制::更新对象数据()
                         if (按钮.闪框解密)
                         {
                             // 闪框模式：物资列表在 boxComp + 0xA0
-                            listBase = 读写.getPtr64(boxComp + 0xA0);
-                            countField = 读写.getDword(boxComp + 0xA0 + 0x8);
+                            listBase = 读写.getPtr64(boxComp + Offsets::Flash_ListOff);
+                            countField = 读写.getDword(boxComp + Offsets::Flash_ListOff + 0x8);
                         }
                         else
                         {
@@ -2742,15 +2742,15 @@ void 绘制::更新对象数据()
             D4DVector 屏外预警坐标(r_x, r_y, r_y - r_z, (r_y - r_z) / 2);
             if (按钮.闪框解密)
             {
-                uintptr_t flashRootComp = 读写.getPtr64(对象地址.敌人地址 + 0x5640);
+                uintptr_t flashRootComp = 读写.getPtr64(对象地址.敌人地址 + Offsets::Flash_CoordBase);
                 if (flashRootComp != 0)
                 {
-                    读写.readv(flashRootComp + 0x1B0, &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
+                    读写.readv(flashRootComp + Offsets::Flash_CoordOff, &对象信息.敌人信息.坐标, sizeof(对象信息.敌人信息.坐标));
                 }
             }
             对象信息.敌人信息.队伍 = 读写.getDword(对象地址.敌人地址 + Offsets::Actor_TeamID);
             对象信息.敌人信息.isboot = (对象信息.敌人信息.队伍 == -1) ? 1 : 读写.getDword(对象地址.敌人地址 + Offsets::Actor_bIsAI);
-            对象信息.敌人信息.高级人机 = 读写.getDword(对象地址.敌人地址 + 0xb88);
+            对象信息.敌人信息.高级人机 = 读写.getDword(对象地址.敌人地址 + Offsets::Actor_AdvancedBot);
             if (按钮.忽略人机 && 对象信息.敌人信息.isboot == 1)
             {
                 continue;
@@ -2763,20 +2763,20 @@ void 绘制::更新对象数据()
             对象信息.敌人信息.最大血量 = 读写.getFloat(对象地址.敌人地址 + Offsets::Actor_HealthMax);
             对象信息.敌人信息.乘坐载具 = 读写.getDword(对象地址.敌人地址 + Offsets::Actor_Vehicle) != 0;
             {
-                uintptr_t enemyWeaponEntity = 读写.getPtr64(对象地址.敌人地址 + 0x1158); // Actor_CurrentWeapon/WeaponEntity
+                uintptr_t enemyWeaponEntity = 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_WeaponEntity); // Actor_CurrentWeapon/WeaponEntity
                 if (enemyWeaponEntity != 0)
                 {
-                    对象信息.敌人信息.手持 = 读写.getDword(enemyWeaponEntity + 0xDB8);          // Weapon_RepID
-                    对象信息.敌人信息.子弹数量 = 读写.getDword(enemyWeaponEntity + 0x2010);     // Weapon_ClipAmmo
-                    对象信息.敌人信息.子弹最大数量 = 读写.getDword(enemyWeaponEntity + 0x2014); // Weapon_ClipMaxAmmo
+                    对象信息.敌人信息.手持 = 读写.getDword(enemyWeaponEntity + Offsets::Weapon_RepID);          // Weapon_RepID
+                    对象信息.敌人信息.子弹数量 = 读写.getDword(enemyWeaponEntity + Offsets::Weapon_ClipAmmo);     // Weapon_ClipAmmo
+                    对象信息.敌人信息.子弹最大数量 = 读写.getDword(enemyWeaponEntity + Offsets::Weapon_ClipMaxAmmo); // Weapon_ClipMaxAmmo
                 }
             }
 
-            对象信息.敌人信息.角色实体 = 读写.getPtr64(对象地址.敌人地址 + 0x39b0);
-            对象信息.敌人信息.实体列表地址 = 读写.getPtr64(对象信息.敌人信息.角色实体 + 0x818) + 0x8;
-            对象信息.敌人信息.实体数量 = 读写.getDword(对象信息.敌人信息.角色实体 + 0x818 + 0x8);
+            对象信息.敌人信息.角色实体 = 读写.getPtr64(对象地址.敌人地址 + Offsets::Enemy_EquipEntity);
+            对象信息.敌人信息.实体列表地址 = 读写.getPtr64(对象信息.敌人信息.角色实体 + Offsets::Enemy_EquipTable) + 0x8;
+            对象信息.敌人信息.实体数量 = 读写.getDword(对象信息.敌人信息.角色实体 + Offsets::Enemy_EquipTable + 0x8);
             long int MeshOffset = 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_Mesh);
-            int Bonecount = 读写.getDword(MeshOffset + Offsets::Mesh_BoneArray + 8);
+            int Bonecount = 读写.getDword(MeshOffset + Offsets::Mesh_BoneCount);
             D3DVector tempBones[17];
             // 构造 D3DVector 修正坐标
             D3DVector 修正坐标;
@@ -2786,7 +2786,7 @@ void 绘制::更新对象数据()
 
             骨骼->更新骨骼数据(
                 MeshOffset + Offsets::Mesh_ComponentToWorld,
-                读写.getPtr64(MeshOffset + Offsets::Mesh_BoneArray) + 0x30,
+                读写.getPtr64(MeshOffset + Offsets::Mesh_BoneArray) + Offsets::Mesh_BoneStart,
                 tempBones,
                 Bonecount,
                 对象信息.敌人信息.队伍,
