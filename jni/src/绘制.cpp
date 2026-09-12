@@ -47,6 +47,10 @@ int decrypt_zero_y()
 }
 
 extern 绘制 绘制;
+
+// ★ 性能优化：Actor 指针数组整帧一次性批量读取的缓存（省掉每个目标一次 ioctl）
+static uintptr_t g_ActorBuf[2048];
+static int g_ActorBufCount = 0;
 std::map<std::string, std::chrono::steady_clock::time_point> 自救Timers;
 bool 线程开启状态 = false;
 extern bool showTopStatusBar;
@@ -1114,6 +1118,29 @@ void 绘制::更新地址数据()
         世界数量 = 读写.getDword(读写.getPtr64(读写.getPtr64(读写.getPtr64(地址.libue4 + Offsets::DecryptArray_Base) + Offsets::DecryptArray_Hop1) + Offsets::DecryptArray_Hop2) + Offsets::DecryptArray_CountOff);
     }
 
+    // ★ 性能优化：整帧一次性批量读取 Actor 指针数组（原来每个目标都要一次 ioctl）
+    g_ActorBufCount = 0;
+    if (!按钮.解密 && 地址.数组地址 != 0 && 世界数量 > 0)
+    {
+        const int 容量 = (int)(sizeof(g_ActorBuf) / sizeof(g_ActorBuf[0]));
+        const int 批量数 = 世界数量 < 容量 ? 世界数量 : 容量;
+        int 有效数 = 0;
+        const int 块 = 64; // 每次 512 字节，稳妥
+        for (int 起点 = 0; 起点 < 批量数; 起点 += 块)
+        {
+            const int 本块 = (批量数 - 起点) < 块 ? (批量数 - 起点) : 块;
+            if (!读写.readv(地址.数组地址 + (uintptr_t)起点 * 8, &g_ActorBuf[起点], (size_t)本块 * 8))
+                continue;
+            for (int i = 起点; i < 起点 + 本块; i++)
+            {
+                const uintptr_t v = g_ActorBuf[i];
+                if (v > 0x10000000 && v < 0xFFFFFFFFFF) 有效数++;
+            }
+        }
+        // 超过一半有效才认可批量结果，否则整帧退回逐条读取（兜底，保证和原来一致）
+        if (有效数 * 2 >= 批量数) g_ActorBufCount = 批量数;
+    }
+
     地址.类地址 = 读写.getPtr64(地址.libue4 + Offsets::ClassBase);
 
     // ========== 自身坐标 (闪框/普通双模式) ==========
@@ -1342,7 +1369,8 @@ void 绘制::更新对象数据()
     for (int a = 0; a < 世界数量; a++)
     {
         // 主循环
-        对象地址.敌人地址 = 读写.getPtr64(地址.数组地址 + a * 8);
+        对象地址.敌人地址 = (a < g_ActorBufCount) ? g_ActorBuf[a] : 读写.getPtr64(地址.数组地址 + a * 8);
+        if (对象地址.敌人地址 == 0) continue; // ★ 跳过空槽位，省掉后面一连串无效读取
 
         // ─── 闪框解密模式切换 ───
         // ─── 读取坐标（统一用普通模式，闪框解密在敌人识别后单独处理）───
@@ -1491,8 +1519,6 @@ void 绘制::更新对象数据()
         // 正常绘制方框...
         char 计算地址[256] = "我是帅哥";
         sprintf(计算地址, "%lx", 对象地址.敌人地址);
-        char 自救计算地址[256] = "我是篮子";
-        sprintf(自救计算地址, "%lx", 对象地址.敌人地址);
         if (按钮.手雷预警)
         {
             int 手雷ID = 读写.getDword(对象地址.敌人地址 + Offsets::Actor_GrenadeID);
@@ -2764,6 +2790,7 @@ void 绘制::更新对象数据()
             对象信息.敌人信息.当前血量 = 读写.getFloat(对象地址.敌人地址 + Offsets::Actor_Health);
             对象信息.敌人信息.最大血量 = 读写.getFloat(对象地址.敌人地址 + Offsets::Actor_HealthMax);
             对象信息.敌人信息.乘坐载具 = 读写.getDword(对象地址.敌人地址 + Offsets::Actor_Vehicle) != 0;
+            if (按钮.手持 || 按钮.手持2 || 按钮.手雷预警 || 按钮.被瞄预警) // ★ 只在这些功能开启时才读武器/子弹
             {
                 uintptr_t enemyWeaponEntity = 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_WeaponEntity); // Actor_CurrentWeapon/WeaponEntity
                 if (enemyWeaponEntity != 0)
@@ -2774,9 +2801,12 @@ void 绘制::更新对象数据()
                 }
             }
 
+            if (按钮.头甲包显示 || 按钮.头甲包显示2 || 按钮.超体职业) // ★ 只在头甲包/超体职业开启时才读实体列表
+            {
             对象信息.敌人信息.角色实体 = 读写.getPtr64(对象地址.敌人地址 + Offsets::Enemy_EquipEntity);
             对象信息.敌人信息.实体列表地址 = 读写.getPtr64(对象信息.敌人信息.角色实体 + Offsets::Enemy_EquipTable) + 0x8;
             对象信息.敌人信息.实体数量 = 读写.getDword(对象信息.敌人信息.角色实体 + Offsets::Enemy_EquipTable + 0x8);
+            }
             long int MeshOffset = 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_Mesh);
             int Bonecount = 读写.getDword(MeshOffset + Offsets::Mesh_BoneArray + Offsets::Mesh_BoneCountOffset); // 修正：0x850 = Mesh_BoneArray(0x848) + Mesh_BoneCountOffset(0x8)，与参考实现 *(MeshOffset+0x848+8) 一致
             D3DVector tempBones[17];
@@ -3037,7 +3067,6 @@ void 绘制::更新对象数据()
             }
             更新自救倒计时();
             骨骼数据 t_骨骼数据 = 计算.计算骨骼(自身数据.相机坐标, 对象信息.敌人信息.骨骼坐标, PX, PY);
-            std::vector<D2DVector *> 骨骼二维坐标 = t_骨骼数据.获取所有骨骼指针();
             绘图.初始化坐标(t_屏幕坐标, t_骨骼数据);
 
             if (按钮.物理掩体检测)
@@ -3257,6 +3286,7 @@ void 绘制::运行绘制()
     // ===== 掩体渲染模型（币子开源实现移植）=====
     if (按钮.模型绘制 && 地址.libue4 != 0)
     {
+        掩体模型::设置启用(按钮.模型绘制 || 按钮.物理掩体检测); // ★ 两个功能都没开时暂停地图网格扫描，省 CPU
         掩体模型::设置屏幕(displayInfo.width, displayInfo.height);
         掩体模型::绘制();
     }

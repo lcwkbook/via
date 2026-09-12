@@ -1429,6 +1429,9 @@ private:
 };
 
 Throttler::Throttler() {}
+// 扫描开关（由 掩体模型::设置启用 控制）：模型绘制/物理掩体检测都没开时为 false，
+// 三个扫描线程就只空转不动地图网格，避免一直跑全场景遍历占 CPU。
+extern std::atomic<bool> g_掩体扫描开关;
 void Throttler::executeTaskWithSleep(const std::string& taskName, std::chrono::duration<double> interval, const std::function<void()>& task) {
     using Clock = std::chrono::steady_clock;
     auto now = Clock::now();
@@ -1441,6 +1444,10 @@ void Throttler::executeTaskWithSleep(const std::string& taskName, std::chrono::d
             }
         }
         lastExecuted_[taskName] = Clock::now();
+    }
+    if (!g_掩体扫描开关.load(std::memory_order_relaxed)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(400)); // 未启用时进一步降频
+        return;
     }
     task();
 }

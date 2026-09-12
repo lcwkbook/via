@@ -9,6 +9,10 @@
 #include "ReadGame.h"
 #include <cstdint>
 #include <cstdio>
+#include <atomic>
+
+// 地图网格扫描开关（PhysX.h 里的 Throttler 会用）
+std::atomic<bool> g_掩体扫描开关{false};
 
 // 下面两个全局定义在 model/PhysX.h 里（该头只在 ReadGame.cpp 中包含一次）
 extern bool (*g_掩体读内存)(uint64_t, void *, size_t);
@@ -47,6 +51,11 @@ namespace 掩体模型 {
     void 设置屏幕(int 宽, int 高) {
         掩体配置::屏幕宽 = 宽 > 0 ? 宽 : 掩体配置::屏幕宽;
         掩体配置::屏幕高 = 高 > 0 ? 高 : 掩体配置::屏幕高;
+    }
+
+    // ---- 扫描开关：两个功能都没开时让 3 个扫描线程空转，省 CPU ----
+    void 设置启用(bool 启用) {
+        g_掩体扫描开关.store(启用, std::memory_order_relaxed);
     }
 
     bool 初始化(uintptr_t libUE4) {
