@@ -28,7 +28,7 @@
 #define VEC3_DEFINED
 #define ROTATOR_DEFINED
 #define D3DVECTOR_DEFINED
-#include "TomieModel.h"
+#include "掩体模型.h"
 
 // ========== 自定义物资全局变量 ==========
 DataReader *g_CustomReader = nullptr;
@@ -996,7 +996,9 @@ void 绘制::初始化绘制(string 包名, int 真实X, int 真实Y)
     if (!physxInited && 地址.libue4 != 0)
     {
         printf("[调试] 即将调用 InitPhysX, libUE4=0x%lX\n", 地址.libue4);
-        InitPhysX("公益模型库582082238", 地址.libue4, MyPhysXReadv, 0);
+        掩体模型::设置读取函数(MyPhysXReadv);
+        掩体模型::设置屏幕(displayInfo.width, displayInfo.height);
+        掩体模型::初始化(地址.libue4);
         physxInited = true;
         printf("[+] PhysX Pro 初始化成功\n");
     }
@@ -2776,7 +2778,7 @@ void 绘制::更新对象数据()
             对象信息.敌人信息.实体列表地址 = 读写.getPtr64(对象信息.敌人信息.角色实体 + Offsets::Enemy_EquipTable) + 0x8;
             对象信息.敌人信息.实体数量 = 读写.getDword(对象信息.敌人信息.角色实体 + Offsets::Enemy_EquipTable + 0x8);
             long int MeshOffset = 读写.getPtr64(对象地址.敌人地址 + Offsets::Actor_Mesh);
-            int Bonecount = 读写.getDword(MeshOffset + Offsets::Mesh_BoneCount);
+            int Bonecount = 读写.getDword(MeshOffset + Offsets::Mesh_BoneArray + Offsets::Mesh_BoneCountOffset); // 修正：0x850 = Mesh_BoneArray(0x848) + Mesh_BoneCountOffset(0x8)，与参考实现 *(MeshOffset+0x848+8) 一致
             D3DVector tempBones[17];
             // 构造 D3DVector 修正坐标
             D3DVector 修正坐标;
@@ -3051,7 +3053,7 @@ void 绘制::更新对象数据()
                     }
 
                     D3DVector target(bone.X, bone.Y, bone.Z);
-                    LineOfSightToTab[i] = LinePosition(origin, target);
+                    LineOfSightToTab[i] = 掩体模型::射线遮挡(origin.X, origin.Y, origin.Z, target.X, target.Y, target.Z);
                 }
             }
 
@@ -3252,36 +3254,11 @@ void 绘制::运行绘制()
         计时器.updateTimers();
         计时器.checkAndRemoveTimers();
     }
-    // ===== PhysX Pro 模型绘制 =====
+    // ===== 掩体渲染模型（币子开源实现移植）=====
     if (按钮.模型绘制 && 地址.libue4 != 0)
     {
-        // 构造相机参数
-        Vec3 camPos(自身数据.相机坐标.X, 自身数据.相机坐标.Y, 自身数据.相机坐标.Z);
-        Rotator camRot{自身数据.视角.X, 自身数据.视角.Y, 0.0f};
-        float fov = 自身数据.Fov > 0 ? 自身数据.Fov : 90.0f;
-        auto triangles = PhysXMesh(camPos, camRot, fov,
-                                   displayInfo.width, displayInfo.height);
-        for (const auto &tri : triangles)
-        {
-            // ★ 用你自己的 WorldToScreen 做投影（剔除相机背后的点）
-            FVector2D p0 = 绘制::WorldToScreen({tri[0].x, tri[0].y, tri[0].z});
-            FVector2D p1 = 绘制::WorldToScreen({tri[1].x, tri[1].y, tri[1].z});
-            FVector2D p2 = 绘制::WorldToScreen({tri[2].x, tri[2].y, tri[2].z});
-
-            // 剔除相机背后的点（INFINITY 检查）
-            if (isinf(p0.X) || isinf(p1.X) || isinf(p2.X))
-                continue;
-
-            // 只绘制至少有一个顶点在屏幕内的三角形
-            if ((p0.X >= 0 || p1.X >= 0 || p2.X >= 0))
-            {
-                ImDrawList *draw = ImGui::GetForegroundDrawList();
-                draw->AddTriangleFilled(ImVec2(p0.X, p0.Y), ImVec2(p1.X, p1.Y), ImVec2(p2.X, p2.Y),
-                                        IM_COL32(100, 150, 255, 60));
-                draw->AddTriangle(ImVec2(p0.X, p0.Y), ImVec2(p1.X, p1.Y), ImVec2(p2.X, p2.Y),
-                                  IM_COL32(255, 50, 50, 255), 2.0f);
-            }
-        }
+        掩体模型::设置屏幕(displayInfo.width, displayInfo.height);
+        掩体模型::绘制();
     }
 }
 

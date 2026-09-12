@@ -86,7 +86,7 @@
   jni/include/ImGui/imgui_impl_android.h \
   jni/include/Touch/TouchHelperA.h jni/include/vulkan/VulkanUtils.h \
   jni/include/骨骼.hpp jni/include/DataReader.h jni/src/ItemNameMap.h \
-  jni/src/HookRW.h jni/src/Offsets.h jni/include/TomieModel.h \
+  jni/src/HookRW.h jni/src/Offsets.h jni/include/model/掩体模型.h \
   jni/src/Event.h jni/include/Gryo/Gryo.h jni/include/Gryo/../SysRead.h \
   jni/include/Gryo/Gryo_Module.h \
   jni/include/Gryo/../Ptrace/PtraceUtils.h \
@@ -241,7 +241,7 @@ jni/include/DataReader.h:
 jni/src/ItemNameMap.h:
 jni/src/HookRW.h:
 jni/src/Offsets.h:
-jni/include/TomieModel.h:
+jni/include/model/掩体模型.h:
 jni/src/Event.h:
 jni/include/Gryo/Gryo.h:
 jni/include/Gryo/../SysRead.h:

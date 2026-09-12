@@ -231,7 +231,7 @@ public:
     {
         meshtrans.Translation.X = 修正坐标.X;
         meshtrans.Translation.Y = 修正坐标.Y;
-        meshtrans.Translation.Z = 修正坐标.Z;
+        meshtrans.Translation.Z = 修正坐标.Z - 90.0f; // 闪框解密读到的是胶囊体中心，骨骼网格原点在脚底（差 CapsuleHalfHeight≈90）
     }
 
     FMatrix c2wMatrix = TransformToMatrix(meshtrans);
