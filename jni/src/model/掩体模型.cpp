@@ -69,12 +69,14 @@ namespace 掩体模型 {
         return true;
     }
 
-    void 绘制() {
+    // 刷新 PhysX 实例指针 + 相机 POV（模型绘制 / 掩体变色 都需要）
+    void 刷新数据() {
         if (!g_已初始化) return;
 
-        // PhysX 实例指针会随地图/对局变化，低频刷新一次，扫描线程会自动跟着换场景
+        // PhysX 实例指针会随地图/对局变化：还没拿到时每帧重试，拿到后每 120 帧刷一次
         static int 计数 = 0;
-        if (掩体配置::物理引擎指针 == 0 && 掩体配置::读内存 && 掩体配置::libUE4 != 0 && (计数++ % 120) == 0) {
+        if (掩体配置::物理引擎指针 == 0 && 掩体配置::读内存 && 掩体配置::libUE4 != 0 &&
+            (PhysxInstancePtr == 0 || (计数++ % 120) == 0)) {
             uint64_t v = 0;
             if (掩体配置::读内存(掩体配置::libUE4 + 掩体配置::PhysX实例偏移, &v, sizeof(v)) && v != 0) {
                 PhysxInstancePtr = v;
@@ -82,6 +84,11 @@ namespace 掩体模型 {
         }
 
         ReadGame::ReadGameData();     // 更新相机 POV
+    }
+
+    void 绘制() {
+        if (!g_已初始化) return;
+        刷新数据();                    // 更新 PhysX 实例指针 + 相机 POV
         ReadGame::Raycast();          // 准星射线 + 画三角形
     }
 

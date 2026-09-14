@@ -98,6 +98,11 @@ static bool Touch_initialized = false;
 
 static bool Touch_readOnly = false;
 
+// ★ 触摸原始状态（给悬浮窗的“触摸滑动”用，见 include/Touch/TouchHelperA.h）
+std::atomic<bool>  g_触摸屏按下{false};
+std::atomic<float> g_触摸屏X{0.0f};
+std::atomic<float> g_触摸屏Y{0.0f};
+
 static std::vector<Device> devices;
 
 static bool checkDeviceIsTouch(int fd);
@@ -315,16 +320,17 @@ static void* TypeA(void* arg) {
                     }
                 }
                 if (ie.code == SYN_REPORT) {
-                    if (ImGui::GetCurrentContext() != nullptr) {
-                        ImGuiIO& io = ImGui::GetIO();
-                        if (device.Finger[latest].isDown) {
-                            auto pos = Touch2Screen(device.Finger[latest].x, device.Finger[latest].y);
-                            io.MousePos = ImVec2(pos.X, pos.Y);
-                            io.MouseDown[0] = true;
-                        }
-                        else {
-                            io.MouseDown[0] = false;
-                        }
+                    // ★ 只记录原始触摸状态，不再直接写 ImGui 的 io：
+                    //   交给渲染线程的“触摸滑动”统一决定是滑动滚动还是点按控件。
+                    //   （原来是直接 io.MousePos / io.MouseDown[0]，手指一碰就按下，没法区分滑动）
+                    if (device.Finger[latest].isDown) {
+                        auto pos = Touch2Screen(device.Finger[latest].x, device.Finger[latest].y);
+                        g_触摸屏X.store(pos.X, std::memory_order_relaxed);
+                        g_触摸屏Y.store(pos.Y, std::memory_order_relaxed);
+                        g_触摸屏按下.store(true, std::memory_order_relaxed);
+                    }
+                    else {
+                        g_触摸屏按下.store(false, std::memory_order_relaxed);
                     }
 
                     if (!Touch_readOnly) {

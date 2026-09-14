@@ -33,6 +33,7 @@
 #include <poll.h> // poll 结构体
 #include <atomic> // std::atomic
 #include <sys/utsname.h>
+#include <dirent.h> // 后台游戏进程监控（/proc 扫描）
 
 static std::atomic<bool> g_volumeKeyPressed(false);
 static std::thread g_volumeThread;
@@ -2384,6 +2385,19 @@ void DrawVisualPage()
     ImGui::SameLine();
     ImGui::TextColored(ImVec4(0.3f, 1.0f, 0.3f, 1.0f), "LinePosition射线检测");
 
+    ItemSpacing();
+
+    // ★ 自动连接：后台检测到游戏包名就自动初始化绘制
+    ImGui::Text("自动连接");
+    ImGui::SameLine(150);
+    if (ImGui::Checkbox("##自动连接", &绘制.按钮.自动连接))
+    {
+        绘制.保存配置();
+        AddNotification("自动连接", 绘制.按钮.自动连接);
+    }
+    ImGui::SameLine();
+    ImGui::TextColored(ImVec4(1.0f, 0.82f, 0.3f, 1.0f), "后台检测到游戏自动初始化绘制");
+
     ImGui::PopStyleVar(); // 恢复滚动条大小
     ImGui::EndChild();
 }
@@ -2659,6 +2673,315 @@ void DrawSettingsPage()
     ImGui::EndChild();
 }
 
+// ============================================================================
+//  ★ 悬浮窗触摸滑动（内容超出高度的容器，用手指直接滑，不用去拖滚动条）
+//    判定规则：
+//      · 竖向滑动 ≥ 滑动阈值            → 滑动：只滚“手指下面那个能滚的容器”，
+//        手指下面的开关/按钮/滑条不会被误触
+//      · 手指在控件上：横向拖动，或按住 ≥ 控件确认时间 → 把手指交给控件（滑条能拖、开关能点）
+//      · 手指在空白处：绝不下发“按下”     → 永远不会拖动窗口（悬浮窗本身也已 NoMove + 固定居中）
+//      · 点一下就松手（没滑动）          → 给控件补一次点击（空白处点了没有任何反应）
+// ============================================================================
+namespace 触摸滑动
+{
+    enum 手势状态
+    {
+        状态_空闲,
+        状态_待判定,   // 手指刚落下：先不给 ImGui 按下，等判定是滑动还是操作控件
+        状态_滑动,     // 正在滚内容
+        状态_控件,     // 已经把手指交给按钮/开关/滑条
+        状态_补发点击, // 点按结束，补一次 ImGui 点击事件
+    };
+
+    constexpr float 滑动阈值     = 12.0f;  // 竖向滑多少像素算“滑动”（手感不对就调这个）
+    constexpr float 控件确认时间 = 0.12f;  // 落在控件上按住不动多久算“在操作控件”（秒）
+    constexpr float 转滑动阈值   = 24.0f;  // 已交给控件后，再竖滑这么多就改判成滑动（防误触）
+
+    static 手势状态 g_状态 = 状态_空闲;
+    static ImVec2   g_起点;
+    static ImVec2   g_上次位置;
+    static ImVec2   g_点击位置;
+    static float    g_按住时长 = 0.0f;
+    static ImGuiWindow *g_滚动窗口 = nullptr;
+    static bool     g_起点是标题栏 = false;
+    static int      g_补发剩余 = 0;
+    static bool     g_已给出按下 = false; // 这次手势里有没有真的给 ImGui 按下过
+
+    // 该点最上层的窗口（和 ImGui 自己的命中测试同一套顺序：g.Windows 末尾在最前面）
+    // ★ 必须用 WasActive：ImGui 在 NewFrame() 里已经把这一帧所有窗口的 Active 置成 false 了
+    //   （旧值拷进 WasActive），而本函数是在 NewFrame 之后调用的，用 Active 会一个都匹配不到。
+    static ImGuiWindow *顶层窗口(const ImVec2 &pos)
+    {
+        ImGuiContext &g = *ImGui::GetCurrentContext();
+        for (int i = g.Windows.Size - 1; i >= 0; i--)
+        {
+            ImGuiWindow *win = g.Windows[i];
+            if (!win->WasActive || win->Hidden || (win->Flags & ImGuiWindowFlags_NoMouseInputs))
+                continue;
+            if (win->OuterRectClipped.Contains(pos))
+                return win;
+        }
+        return nullptr;
+    }
+
+    // 手指下面最内层那个“内容超出、能滚动”的窗口；没有就返回 nullptr
+    static ImGuiWindow *找滚动窗口(const ImVec2 &pos)
+    {
+        ImGuiWindow *起点 = 顶层窗口(pos);
+        if (起点 == nullptr)
+            起点 = ImGui::GetCurrentContext()->HoveredWindow; // 兜底：用 ImGui 自己的悬停结果
+        for (ImGuiWindow *c = 起点; c != nullptr; c = c->ParentWindow)
+        {
+            if (c->ScrollMax.y > 0.5f)
+                return c;
+            if (c->ParentWindow == c)
+                break;
+        }
+        return nullptr;
+    }
+
+    // 手指是不是落在标题栏（标题栏保留点击：关闭按钮、双击折叠）
+    static bool 点在标题栏(const ImVec2 &pos)
+    {
+        ImGuiWindow *win = 顶层窗口(pos);
+        if (win == nullptr || (win->Flags & ImGuiWindowFlags_NoTitleBar) != 0)
+            return false;
+        return win->TitleBarRect().Contains(pos);
+    }
+
+    // 手指下面有没有真正的 ImGui 控件（看上一帧的悬停 ID；本项目控件都走 ButtonBehavior/InvisibleButton，会设置它）
+    static bool 手指下有控件()
+    {
+        return ImGui::GetCurrentContext()->HoveredIdPreviousFrame != 0 || g_起点是标题栏;
+    }
+
+    static void 开始手势(const ImVec2 &位置)
+    {
+        g_起点 = g_上次位置 = 位置;
+        g_按住时长 = 0.0f;
+        g_已给出按下 = false;
+        g_滚动窗口 = 找滚动窗口(位置);
+        g_起点是标题栏 = 点在标题栏(位置);
+        g_状态 = 状态_待判定;
+        printf("[触摸滑动] 按下: 可滚动容器=%s (可滚 %.0f px), 落在控件上=%d\n",
+               g_滚动窗口 ? g_滚动窗口->Name : "无",
+               g_滚动窗口 ? g_滚动窗口->ScrollMax.y : 0.0f,
+               手指下有控件() ? 1 : 0);
+        if (g_滚动窗口 == nullptr)
+            printf("[触摸滑动] ↑ 这个位置没有可滚动容器，滑动不会有反应\n");
+    }
+
+    // 内容跟着手指走
+    static void 滚动内容(const ImVec2 &位置)
+    {
+        if (g_滚动窗口 != nullptr)
+        {
+            const float dy = 位置.y - g_上次位置.y;
+            if (dy != 0.0f)
+            {
+                float 目标 = g_滚动窗口->Scroll.y - dy;
+                if (目标 < 0.0f)
+                    目标 = 0.0f;
+                if (目标 > g_滚动窗口->ScrollMax.y)
+                    目标 = g_滚动窗口->ScrollMax.y;
+                ImGui::SetScrollY(g_滚动窗口, 目标);
+            }
+        }
+        g_上次位置 = 位置;
+    }
+
+    // 每帧调用一次：必须在 ImGui::NewFrame() 之后、绘制 UI 之前
+    static void 刷新()
+    {
+        ImGuiIO &io = ImGui::GetIO();
+        const bool   按下 = g_触摸屏按下.load(std::memory_order_relaxed);
+        const ImVec2 位置(g_触摸屏X.load(std::memory_order_relaxed),
+                          g_触摸屏Y.load(std::memory_order_relaxed));
+
+        // 手指抬起且还没判定 → 给控件补一次点击
+        if (!按下 && g_状态 == 状态_待判定)
+        {
+            if (手指下有控件())
+            {
+                g_状态 = 状态_补发点击;
+                g_点击位置 = 位置;
+                g_补发剩余 = 2; // 保持“按下”两帧再释放，ImGui 才能收到一次完整点击
+            }
+            else
+            {
+                g_状态 = 状态_空闲;
+                io.MouseDown[0] = false;
+            }
+        }
+
+        switch (g_状态)
+        {
+        case 状态_空闲:
+            io.MouseDown[0] = false;
+            if (按下)
+                开始手势(位置);
+            break;
+
+        case 状态_待判定:
+        {
+            g_按住时长 += io.DeltaTime;
+            io.MousePos = 位置;
+            io.MouseDown[0] = false; // 先不下发“按下”：滑动不会误触，也不会拖动窗口
+
+            const float dx = 位置.x - g_起点.x;
+            const float dy = 位置.y - g_起点.y;
+            if (fabsf(dy) >= 滑动阈值 && fabsf(dy) > fabsf(dx))
+            {
+                g_状态 = 状态_滑动;
+                g_上次位置 = 位置; // 从判定点开始跟手
+                printf("[触摸滑动] 开始滑动: %s\n",
+                       g_滚动窗口 ? g_滚动窗口->Name : "无可滚动容器");
+            }
+            else if ((fabsf(dx) >= 滑动阈值 || g_按住时长 >= 控件确认时间) && 手指下有控件())
+            {
+                g_状态 = 状态_控件; // 交给控件：滑条可拖、开关可长按
+                g_已给出按下 = true;
+                io.MouseDown[0] = true;
+            }
+            break;
+        }
+
+        case 状态_滑动:
+            if (!按下)
+            {
+                g_状态 = 状态_空闲;
+                io.MouseDown[0] = false;
+                break;
+            }
+            io.MousePos = 位置;
+            io.MouseDown[0] = false; // 滑动期间不下发按下，所以不会误触控件
+            滚动内容(位置);
+            break;
+
+        case 状态_控件:
+            if (!按下)
+            {
+                g_状态 = 状态_空闲;
+                io.MouseDown[0] = false;
+                break;
+            }
+            io.MousePos = 位置;
+            io.MouseDown[0] = true;
+            {
+                // 按在控件上却明显竖滑 → 改判成滑动（ClearActiveID 让按钮/开关不会误触）
+                const float dx = 位置.x - g_起点.x;
+                const float dy = 位置.y - g_起点.y;
+                if (g_滚动窗口 != nullptr && fabsf(dy) >= 转滑动阈值 && fabsf(dy) > fabsf(dx) * 1.5f)
+                {
+                    ImGui::ClearActiveID();
+                    g_状态 = 状态_滑动;
+                    g_上次位置 = 位置;
+                }
+            }
+            break;
+
+        case 状态_补发点击:
+            if (g_补发剩余 > 0)
+            {
+                io.MousePos = g_点击位置;
+                io.MouseDown[0] = true;
+                g_补发剩余--;
+                if (按下) // 又按下来了：这次点击先收尾，下一帧重新开始手势
+                    g_补发剩余 = 0;
+            }
+            else
+            {
+                io.MouseDown[0] = false;
+                g_状态 = 状态_空闲;
+            }
+            break;
+        }
+    }
+}
+
+// ============================================================================
+//  ★ 后台游戏进程监控：检测到 com.tencent.tmgp.pubgmhd 就自动初始化绘制
+//     （等价于界面上的“链接游戏”按钮，不用再手动点）
+// ============================================================================
+static const char *游戏进程包名 = "com.tencent.tmgp.pubgmhd";
+static std::atomic<int> g_检测到的游戏PID{0}; // 监控线程写 / 渲染线程读；<=0 表示没检测到
+static std::atomic<bool> g_进程监控运行{true};
+static std::thread g_进程监控线程;
+
+// 扫描 /proc 查找游戏进程：cmdline 为主，comm 兜底（部分机型 cmdline 会被清空/改写）
+static int 查找游戏进程PID(const char *包名)
+{
+    DIR *dir = opendir("/proc");
+    if (dir == nullptr)
+        return -1;
+
+    int found = -1;
+    struct dirent *entry;
+    char path[64];
+    char buf[128];
+
+    while ((entry = readdir(dir)) != nullptr)
+    {
+        const int id = atoi(entry->d_name);
+        if (id <= 0)
+            continue;
+
+        bool hit = false;
+
+        snprintf(path, sizeof(path), "/proc/%d/cmdline", id);
+        FILE *fp = fopen(path, "r");
+        if (fp != nullptr)
+        {
+            memset(buf, 0, sizeof(buf));
+            if (fread(buf, 1, sizeof(buf) - 1, fp) > 0 && strstr(buf, 包名) != nullptr)
+                hit = true;
+            fclose(fp);
+        }
+
+        if (!hit)
+        {
+            snprintf(path, sizeof(path), "/proc/%d/comm", id);
+            fp = fopen(path, "r");
+            if (fp != nullptr)
+            {
+                memset(buf, 0, sizeof(buf));
+                if (fgets(buf, sizeof(buf), fp) != nullptr && strstr(buf, 包名) != nullptr)
+                    hit = true;
+                fclose(fp);
+            }
+        }
+
+        if (hit)
+        {
+            found = id;
+            break;
+        }
+    }
+
+    closedir(dir);
+    return found;
+}
+
+static void 游戏进程监控线程()
+{
+    bool 上次在线 = false;
+    while (g_进程监控运行.load(std::memory_order_relaxed))
+    {
+        const int pid = 查找游戏进程PID(游戏进程包名);
+        g_检测到的游戏PID.store(pid, std::memory_order_relaxed);
+
+        if (pid > 0 && !上次在线)
+            printf("[自动连接] 检测到游戏进程 %s (pid=%d)\n", 游戏进程包名, pid);
+        else if (pid <= 0 && 上次在线)
+            printf("[自动连接] 游戏进程已退出，继续等待...\n");
+        上次在线 = (pid > 0);
+
+        // 每 100ms 检查一次退出标志，合计 1 秒扫一次 /proc
+        for (int i = 0; i < 10 && g_进程监控运行.load(std::memory_order_relaxed); i++)
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+}
+
 // ---------- 主绘制函数 ----------
 void 布局::绘制悬浮窗()
 {
@@ -2687,6 +3010,9 @@ void 布局::绘制悬浮窗()
     }
 
     drawBegin();
+
+    // ★ 触摸滑动/点按仲裁：必须在画 UI 之前把这一帧的鼠标状态定下来
+    触摸滑动::刷新();
 
     // ★ 修复息屏崩溃：drawBegin 内 swapchain 重建失败/息屏时会提前 return，
     //   ImGui::NewFrame() 未执行，此时 CurrentWindow 为 NULL，
@@ -2748,6 +3074,51 @@ void 布局::绘制悬浮窗()
             _exit(0);
     }
 
+    // ★ 自动连接：监控线程检测到游戏进程后，在本帧（渲染线程）完成初始化，
+    //   和手动点“链接游戏”按钮走的是同一条路径，避免多线程同时操作驱动。
+    if (绘制.按钮.自动连接 && abs_ScreenX > 0 && abs_ScreenY > 0)
+    {
+        static int 上次检测PID = -1;
+        static int 失败次数 = 0;
+        static bool 已就绪 = false;
+
+        const int 检测PID = g_检测到的游戏PID.load(std::memory_order_relaxed);
+
+        if (检测PID <= 0)
+        {
+            // 游戏不在后台：复位，等它下次出现再自动连接
+            已就绪 = false;
+            上次检测PID = -1;
+            失败次数 = 0;
+        }
+        else if (!已就绪 || 绘制.pid != 检测PID)
+        {
+            if (检测PID != 上次检测PID)
+            {
+                上次检测PID = 检测PID;
+                失败次数 = 0;
+            }
+            if (失败次数 < 3)
+            {
+                printf("[自动连接] 开始初始化绘制 (pid=%d)...\n", 检测PID);
+                绘制.初始化绘制(游戏进程包名, abs_ScreenX, abs_ScreenY);
+                if (绘制.pid == 检测PID)
+                {
+                    已就绪 = true;
+                    绘制.按钮.绘制 = true;
+                    绘制.按钮.人数 = true;
+                    AddNotification("自动连接游戏", true);
+                    printf("[自动连接] 初始化完成，绘制已自动开启\n");
+                }
+                else
+                {
+                    失败次数++;
+                    printf("[自动连接] 初始化失败(%d/3)，稍后重试\n", 失败次数);
+                }
+            }
+        }
+    }
+
     if (绘制.按钮.绘制)
         绘制.运行绘制();
     DrawThreeColorBalls();
@@ -2762,17 +3133,49 @@ void 布局::绘制悬浮窗()
     }
     if (悬浮窗)
     {
-        ImGui::SetNextWindowPos(ImVec2(绘制.按钮.悬浮窗X, 绘制.按钮.悬浮窗Y), ImGuiCond_FirstUseEver);
+        // 首次运行时先用配置里记的窗口大小（下面居中块首帧还会按屏幕校正一次）
         ImGui::SetNextWindowSize(ImVec2(绘制.按钮.悬浮窗W, 绘制.按钮.悬浮窗H), ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSizeConstraints(ImVec2(1100, 700), ImVec2(FLT_MAX, FLT_MAX));
-        ImGui::Begin("@Auranh666", &悬浮窗, ImGuiWindowFlags_NoCollapse);
-        // ★ 修复：SetWindowPos/GetWindowPos 必须放在 Begin 之后，
-        //   Begin 前 CurrentWindow 可能为 NULL，GetWindowPos 会空指针崩溃
-        if (窗口状态)
+
+        // ★ 悬浮窗固定居中、不可移动
+        //   ⚠ io.DisplaySize 不是真实屏幕！draw.cpp 里 native_window_screen_x/y 都被赋成了
+        //     max(width,height)，所以 DisplaySize 是个 max×max 的正方形（1080x2400 手机上是 2400x2400）。
+        //     拿它居中就会：横屏 → 水平对、垂直沉到屏幕底部；竖屏 → 垂直对、水平跑到右边。
+        //   真正“能看到”的屏幕范围 = displayInfo.width × displayInfo.height
+        //     （触摸坐标 Touch2Screen 也是映射到这个坐标系，所以窗口位置必须用这个算）。
+        //   每帧重算 → 转屏自动重新居中。
         {
-            ImGui::SetWindowPos(绘制.悬浮窗标题, 绘制.Pos, ImGuiCond_Always);
-            窗口状态 = false;
+            const float 屏宽 = (displayInfo.width > 0) ? (float)displayInfo.width : ImGui::GetIO().DisplaySize.x;
+            const float 屏高 = (displayInfo.height > 0) ? (float)displayInfo.height : ImGui::GetIO().DisplaySize.y;
+
+            float 窗宽 = (绘制.winWidth > 0.0f) ? 绘制.winWidth : 绘制.按钮.悬浮窗W;
+            float 窗高 = (绘制.winHeith > 0.0f) ? 绘制.winHeith : 绘制.按钮.悬浮窗H;
+
+            // 首次运行 / 转屏（屏幕尺寸变了）时按屏幕重新校正一次窗口大小：
+            //   用配置里记的大小，但绝不超过屏幕（竖屏也能完整显示，不会被切掉一半）。
+            //   平时不干预尺寸，手动拖大小照旧。
+            static float 上次屏宽 = -1.0f, 上次屏高 = -1.0f;
+            if (displayInfo.width > 0 && displayInfo.height > 0 && (屏宽 != 上次屏宽 || 屏高 != 上次屏高))
+            {
+                const float 想宽 = (绘制.按钮.悬浮窗W > 0.0f) ? 绘制.按钮.悬浮窗W : 屏宽;
+                const float 想高 = (绘制.按钮.悬浮窗H > 0.0f) ? 绘制.按钮.悬浮窗H : 屏高;
+                窗宽 = (想宽 > 屏宽) ? 屏宽 : 想宽;
+                窗高 = (想高 > 屏高) ? 屏高 : 想高;
+                ImGui::SetNextWindowSize(ImVec2(窗宽, 窗高), ImGuiCond_Always);
+                printf("[居中] 屏幕 %.0f x %.0f, 窗口 %.0f x %.0f, 位置 (%.0f, %.0f)\n",
+                       屏宽, 屏高, 窗宽, 窗高, (屏宽 - 窗宽) * 0.5f, (屏高 - 窗高) * 0.5f);
+            }
+            上次屏宽 = 屏宽;
+            上次屏高 = 屏高;
+
+            // 最小尺寸也跟着屏幕走，否则竖屏（宽度 < 1100）会被最小尺寸约束顶出屏幕
+            ImGui::SetNextWindowSizeConstraints(
+                ImVec2(1100.0f < 屏宽 ? 1100.0f : 屏宽, 700.0f < 屏高 ? 700.0f : 屏高),
+                ImVec2(FLT_MAX, FLT_MAX));
+
+            ImGui::SetNextWindowPos(ImVec2((屏宽 - 窗宽) * 0.5f, (屏高 - 窗高) * 0.5f), ImGuiCond_Always);
         }
+        // NoMove：彻底禁止拖动悬浮窗
+        ImGui::Begin("@Auranh666", &悬浮窗, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove);
         绘制.Pos = ImGui::GetWindowPos();
         static int selectedMenu = 0;
         DrawLeftNavigation(selectedMenu);
@@ -2820,6 +3223,10 @@ void 布局::绘制悬浮窗()
 
 void 布局::开启悬浮窗()
 {
+    // ★ 悬浮窗不可移动：只允许从标题栏拖动（配合窗口的 NoMove 标志），
+    //   这样手指在面板里滑动只会滚内容，永远挪不动窗口
+    ImGui::GetIO().ConfigWindowsMoveFromTitleBarOnly = true;
+
     // ========== ★ 息屏保活：降低 oom_score_adj，防止被系统/后台清理杀掉 ==========
     int oom = open("/proc/self/oom_score_adj", O_WRONLY);
     if (oom >= 0)
@@ -3145,6 +3552,14 @@ void 布局::开启悬浮窗()
     // ★ 5. 启动音量键监听（原有）
     // ================================================================
     g_volumeThread = std::thread(VolumeKeyListener);
+
+    // ================================================================
+    // ★ 6. 启动后台游戏进程监控（检测到游戏就自动初始化绘制）
+    // ================================================================
+    g_进程监控运行 = true;
+    g_进程监控线程 = std::thread(游戏进程监控线程);
+    g_进程监控线程.detach();
+    LOGI("游戏进程监控已启动，等待 %s ...", 游戏进程包名);
 
     timer WindowDrawing;
     WindowDrawing.SetFps(120);

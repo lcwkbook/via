@@ -280,6 +280,7 @@ struct 开关
     float 测试数值 = 0.0f;
     bool 模型绘制 = false;     // 三角形网格渲染开关
     bool 物理掩体检测 = false; // 用LinePosition替换原来的掩体检测
+    bool 自动连接 = true;      // 后台检测到游戏包名就自动初始化绘制
 };
 
 struct 地址
