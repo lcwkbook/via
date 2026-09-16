@@ -2599,7 +2599,11 @@ void DrawColorPage()
             ImGui::PushID(i);
             ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 100.0f);
             ImGui::PushItemWidth(18);
-            if (ImGui::ColorEdit3(("##c" + std::to_string(i)).c_str(), col,
+            // ★ 调色盘标题：显示正在调哪个组件的自定义颜色（## 之后才是 ID，不影响控件身份）
+            std::string 调色盘标题 = std::string(colorLabels[i]) +
+                                     (ColorSettings == 0 ? "（真人）" : "（人机）") +
+                                     "##c" + std::to_string(i);
+            if (ImGui::ColorEdit3(调色盘标题.c_str(), col,
                                   ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_NoInputs))
             {
                 绘制.保存配置();
@@ -2660,7 +2664,7 @@ void DrawSettingsPage()
     float fullW = ImGui::GetContentRegionAvail().x - 40;
     ImGui::Text("帧率限制");
     ImGui::SetNextItemWidth(fullW);
-    ImGui::SliderInt("##fps", &绘制.按钮.当前帧率, 0, 144);
+    ImGui::SliderInt("##fps", &绘制.按钮.当前帧率, 0, 165);
     ImGui::Spacing();
     ImGui::Text("UI圆角");
     ImGui::SetNextItemWidth(fullW);
@@ -2691,6 +2695,7 @@ namespace 触摸滑动
         状态_滑动,     // 正在滚内容
         状态_控件,     // 已经把手指交给按钮/开关/滑条
         状态_补发点击, // 点按结束，补一次 ImGui 点击事件
+        状态_吞掉本次, // 弹窗刚关：这一下触摸已经交给 ImGui 了，只等松手，不补点击、不滑动
     };
 
     constexpr float 滑动阈值     = 12.0f;  // 竖向滑多少像素算“滑动”（手感不对就调这个）
@@ -2706,6 +2711,7 @@ namespace 触摸滑动
     static bool     g_起点是标题栏 = false;
     static int      g_补发剩余 = 0;
     static bool     g_已给出按下 = false; // 这次手势里有没有真的给 ImGui 按下过
+    static bool     g_弹窗透传 = false;   // 有弹窗（颜色盘等）打开时：完全按老逻辑透传
 
     // 该点最上层的窗口（和 ImGui 自己的命中测试同一套顺序：g.Windows 末尾在最前面）
     // ★ 必须用 WasActive：ImGui 在 NewFrame() 里已经把这一帧所有窗口的 Active 置成 false 了
@@ -2798,6 +2804,32 @@ namespace 触摸滑动
         const ImVec2 位置(g_触摸屏X.load(std::memory_order_relaxed),
                           g_触摸屏Y.load(std::memory_order_relaxed));
 
+        // ★ 有弹窗打开（颜色盘、右键菜单等）→ 什么都不仲裁，原样把手指交给 ImGui。
+        //   颜色盘里要能拖动选色、点弹窗外面要能把它关掉，这两件事都不能被滑动手势吞掉。
+        if (ImGui::GetCurrentContext()->OpenPopupStack.Size > 0)
+        {
+            g_弹窗透传 = true;
+            if (!按下)
+                g_状态 = 状态_空闲;
+            io.MousePos = 位置;
+            io.MouseDown[0] = 按下;
+            return;
+        }
+        if (g_弹窗透传)
+        {
+            // 刚退出透传（弹窗关掉了）。如果手指还按着，说明“关闭弹窗”那一下就是这次触摸，
+            // 这次触摸已经交给 ImGui 处理过了，不能再补点击给下面的控件，也不要滚动。
+            g_弹窗透传 = false;
+            g_补发剩余 = 0;
+            if (按下)
+            {
+                g_状态 = 状态_吞掉本次;
+                io.MousePos = 位置;
+                io.MouseDown[0] = false;
+                return;
+            }
+        }
+
         // 手指抬起且还没判定 → 给控件补一次点击
         if (!按下 && g_状态 == 状态_待判定)
         {
@@ -2830,16 +2862,21 @@ namespace 触摸滑动
 
             const float dx = 位置.x - g_起点.x;
             const float dy = 位置.y - g_起点.y;
-            if (fabsf(dy) >= 滑动阈值 && fabsf(dy) > fabsf(dx))
+            const bool  竖滑 = (fabsf(dy) >= 滑动阈值 && fabsf(dy) > fabsf(dx));
+            const bool  下面有控件 = 手指下有控件();
+
+            if (竖滑 && g_滚动窗口 != nullptr)
             {
+                // 有东西可滚 → 竖滑就是滚动（不会误触下面的开关/按钮）
                 g_状态 = 状态_滑动;
                 g_上次位置 = 位置; // 从判定点开始跟手
-                printf("[触摸滑动] 开始滑动: %s\n",
-                       g_滚动窗口 ? g_滚动窗口->Name : "无可滚动容器");
+                printf("[触摸滑动] 开始滑动: %s\n", g_滚动窗口->Name);
             }
-            else if ((fabsf(dx) >= 滑动阈值 || g_按住时长 >= 控件确认时间) && 手指下有控件())
+            else if ((竖滑 || fabsf(dx) >= 滑动阈值 || g_按住时长 >= 控件确认时间) && 下面有控件)
             {
-                g_状态 = 状态_控件; // 交给控件：滑条可拖、开关可长按
+                // 没得滚 / 横向拖 / 按住不动，且手指下面确实是控件 → 交给控件
+                // （滑条能拖、开关能点、窗口边缘的缩放把手也是控件，不会被竖滑规则吞掉）
+                g_状态 = 状态_控件;
                 g_已给出按下 = true;
                 io.MouseDown[0] = true;
             }
@@ -2880,6 +2917,13 @@ namespace 触摸滑动
             }
             break;
 
+        case 状态_吞掉本次:
+            io.MousePos = 位置;
+            io.MouseDown[0] = false;
+            if (!按下)
+                g_状态 = 状态_空闲;
+            break;
+
         case 状态_补发点击:
             if (g_补发剩余 > 0)
             {
@@ -2896,6 +2940,86 @@ namespace 触摸滑动
             }
             break;
         }
+    }
+}
+
+// ============================================================================
+//  ★ 修正 ImGui 认识的“可见屏幕范围”，并把弹窗（颜色盘等）摆到屏幕正中间
+//    io.DisplaySize 是 draw.cpp 里 max(w,h)×max(w,h) 的假正方形（surface 就是这么建的），
+//    ImGui 的弹窗自动避让 / 夹取 / 窗口最大尺寸全按它算 —— 所以颜色盘在靠屏幕底部的位置
+//    会被算到屏幕外面去（只显示一半）。
+//    这里把主视口统一改成真实屏幕范围（displayInfo），再把当前打开的弹窗居中。
+// ============================================================================
+static void 修正屏幕范围()
+{
+    if (displayInfo.width <= 0 || displayInfo.height <= 0)
+        return;
+    ImGuiViewportP *主视口 = (ImGuiViewportP *)ImGui::GetMainViewport();
+    主视口->Pos = ImVec2(0.0f, 0.0f);
+    主视口->Size = ImVec2((float)displayInfo.width, (float)displayInfo.height);
+    主视口->WorkOffsetMin = ImVec2(0.0f, 0.0f);
+    主视口->WorkOffsetMax = ImVec2(0.0f, 0.0f);
+    主视口->UpdateWorkRect();
+}
+
+// 把打开着的弹窗（颜色盘等）摆到悬浮窗“旁边”，不挡住面板：
+//   横屏 → 面板右侧、垂直居中；竖屏 → 面板下方、水平居中；两边都放不下 → 屏幕居中。
+static void 弹窗贴边()
+{
+    if (displayInfo.width <= 0 || displayInfo.height <= 0)
+        return;
+
+    const float 屏宽 = (float)displayInfo.width;
+    const float 屏高 = (float)displayInfo.height;
+    const float 面板X = 绘制.Pos.x;
+    const float 面板Y = 绘制.Pos.y;
+    const float 面板宽 = (绘制.winWidth > 0.0f) ? 绘制.winWidth : 绘制.按钮.悬浮窗W;
+    const float 面板高 = (绘制.winHeith > 0.0f) ? 绘制.winHeith : 绘制.按钮.悬浮窗H;
+    const float 间距 = 12.0f;
+
+    ImGuiContext &g = *ImGui::GetCurrentContext();
+    for (int i = 0; i < g.Windows.Size; i++)
+    {
+        ImGuiWindow *win = g.Windows[i];
+        if (!win->WasActive || (win->Flags & ImGuiWindowFlags_Popup) == 0)
+            continue;
+        const float 弹窗宽 = win->Size.x;
+        const float 弹窗高 = win->Size.y;
+        if (弹窗宽 < 4.0f || 弹窗高 < 4.0f)
+            continue; // 尺寸还没算出来，下一帧再摆
+
+        const float 右侧剩余 = 屏宽 - (面板X + 面板宽);
+        const float 下方剩余 = 屏高 - (面板Y + 面板高);
+        float 目标X, 目标Y;
+
+        if (右侧剩余 >= 弹窗宽 + 间距)
+        {
+            // 横屏：悬浮窗右边，垂直居中
+            目标X = 面板X + 面板宽 + 间距;
+            目标Y = 面板Y + (面板高 - 弹窗高) * 0.5f;
+        }
+        else if (下方剩余 >= 弹窗高 + 间距)
+        {
+            // 竖屏：悬浮窗下面，水平居中
+            目标X = 面板X + (面板宽 - 弹窗宽) * 0.5f;
+            目标Y = 面板Y + 面板高 + 间距;
+        }
+        else
+        {
+            // 旁边都放不下：退回屏幕居中
+            目标X = (屏宽 - 弹窗宽) * 0.5f;
+            目标Y = (屏高 - 弹窗高) * 0.5f;
+        }
+
+        // 兜底夹一次：保证整个弹窗都在屏幕里
+        const float 最大X = (屏宽 - 弹窗宽 > 0.0f) ? (屏宽 - 弹窗宽) : 0.0f;
+        const float 最大Y = (屏高 - 弹窗高 > 0.0f) ? (屏高 - 弹窗高) : 0.0f;
+        if (目标X < 0.0f) 目标X = 0.0f;
+        if (目标Y < 0.0f) 目标Y = 0.0f;
+        if (目标X > 最大X) 目标X = 最大X;
+        if (目标Y > 最大Y) 目标Y = 最大Y;
+
+        ImGui::SetWindowPos(win, ImVec2(目标X, 目标Y), ImGuiCond_Always);
     }
 }
 
@@ -3011,7 +3135,9 @@ void 布局::绘制悬浮窗()
 
     drawBegin();
 
-    // ★ 触摸滑动/点按仲裁：必须在画 UI 之前把这一帧的鼠标状态定下来
+    // ★ 先告诉 ImGui 真正能看到的屏幕范围（弹窗避让/夹取都靠它），再每帧把触摸状态定下来
+    修正屏幕范围();
+    弹窗贴边();
     触摸滑动::刷新();
 
     // ★ 修复息屏崩溃：drawBegin 内 swapchain 重建失败/息屏时会提前 return，
